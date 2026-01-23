@@ -1,0 +1,71 @@
+/* Timestamp Display Styles */
+
+.message-timestamp {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.message-timestamp.today {
+  color: #007bff;
+}
+
+.message-timestamp.yesterday {
+  color: #6c757d;
+}
+
+.message-timestamp.older {
+  color: #adb5bd;
+}
+
+/* Responsive timestamp display */
+@media (max-width: 768px) {
+  .message-timestamp {
+    font-size: 0.75rem;
+  }
+  
+  .message-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+}
+
+/* Timestamp hover effect */
+.message-timestamp:hover {
+  color: #333;
+  cursor: default;
+}
+
+/* Tooltip for full timestamp */
+.message-timestamp[title] {
+  border-bottom: 1px dotted #999;
+  cursor: help;
+}
+
+/* Animation for new messages */
+.message.new .message-timestamp {
+  animation: timestampFadeIn 0.5s ease-in;
+}
+
+@keyframes timestampFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Error state for invalid timestamps */
+.message-timestamp.error {
+  color: #dc3545;
+  font-style: italic;
+}
+
+.message-timestamp.error::before {
+  content: "⚠ ";
+}
