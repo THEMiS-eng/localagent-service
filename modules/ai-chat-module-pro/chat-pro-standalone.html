@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Chat Module Pro</title>
+<style>
+:root{--bg:#0a0a0b;--surface:#18181b;--surface2:#1f1f23;--border:#27272a;--text:#fafafa;--text2:#a1a1aa;--muted:#71717a;--accent:#6366f1;--success:#22c55e;--error:#ef4444;--error-bg:rgba(239,68,68,.15);--user-bg:#1e1b4b;--think-bg:#1a1a2e;--code-bg:#0d0d0f;--voice:#ef4444;--warning:#f59e0b;--linter-good:#166534;--linter-warn:#854d0e;--linter-bad:#991b1b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;font-size:14px}
+.chat{display:flex;flex-direction:column;height:100%;max-width:850px;margin:0 auto}
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--surface);border-bottom:1px solid var(--border)}
+.header-title{font-weight:600}
+.header-badge{font-size:10px;padding:3px 8px;background:var(--muted);color:#fff;border-radius:10px;font-weight:500}
+.header-badge.ready{background:var(--success)}
+.header-badge.loading{background:var(--warning)}
+.header-badge.recording{background:var(--voice)}
+.header-badge.processing{background:var(--accent)}
+.messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:18px}
+.messages::-webkit-scrollbar{width:6px}.messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);text-align:center;gap:10px}
+.empty h2{color:var(--text);font-size:16px}
+.msg{display:flex;flex-direction:column;gap:8px;max-width:82%;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.msg.user{align-self:flex-end}.msg.assistant{align-self:flex-start}
+.bubble{padding:12px 16px;border-radius:12px;line-height:1.55}
+.msg.user .bubble{background:var(--user-bg);border:1px solid #312e81;border-bottom-right-radius:4px}
+.msg.assistant .bubble{background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:4px}
+.content{white-space:pre-wrap;word-break:break-word}
+.cursor{display:inline-block;width:2px;height:1em;background:var(--accent);margin-left:2px;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+code{background:var(--code-bg);padding:2px 5px;border-radius:4px;font-size:13px;font-family:'SF Mono',Consolas,monospace}
+.code-block{margin:10px 0;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.code-block header{display:flex;justify-content:space-between;padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}
+.code-block pre{padding:12px;margin:0;font-size:12px;overflow-x:auto;font-family:'SF Mono',Consolas,monospace;line-height:1.5}
+.code-block button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px}
+
+.steps-container{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.steps-header{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;font-size:13px;color:var(--text2)}
+.steps-header:hover{background:var(--surface2)}
+.steps-header svg{transition:transform .2s}
+.steps-header.open svg{transform:rotate(90deg)}
+.steps-header .count{color:var(--muted);font-size:12px}
+.steps-body{display:none;border-top:1px solid var(--border)}
+.steps-body.open{display:block}
+.step{border-bottom:1px solid var(--border)}
+.step:last-child{border-bottom:none}
+.step-header{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;font-size:13px}
+.step-header:hover{background:var(--surface2)}
+.step-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center}
+.step-icon.running{color:var(--accent)}
+.step-icon.success{color:var(--success)}
+.step-icon.error{color:var(--error)}
+.step-title{flex:1;font-weight:500}
+.step-time{font-size:11px;color:var(--muted);font-family:'SF Mono',monospace}
+.step-content{display:none;padding:0 14px 12px 44px}
+.step-content.open{display:block}
+.step-cmd{background:var(--bg);border-radius:6px;padding:10px 12px;font-family:'SF Mono',monospace;font-size:12px;color:var(--text2)}
+.step-error{background:var(--error-bg);border:1px solid var(--error);border-radius:6px;padding:10px 12px;margin-top:8px}
+.step-error-title{font-weight:600;color:var(--error);margin-bottom:6px;font-size:12px}
+.step-error pre{font-family:'SF Mono',monospace;font-size:11px;color:#fca5a5;white-space:pre-wrap;margin:0}
+
+.meta{font-size:11px;color:var(--muted);margin-top:8px}
+.files{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.file{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px}
+.file-icon{color:var(--accent)}
+.file-name{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-size{color:var(--muted);font-size:10px}
+.file-remove{background:none;border:none;color:var(--muted);cursor:pointer;padding:2px;display:flex}
+.file-remove:hover{color:var(--error)}
+
+.input-area{padding:14px 20px;background:#111;border-top:1px solid var(--border)}
+.input-files{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+
+/* ============================================================
+   PROMPT LINTER BAR - Real-time analysis
+   ============================================================ */
+.linter-bar{
+    display:none;
+    padding:10px 14px;
+    margin-bottom:12px;
+    border-radius:10px;
+    align-items:center;
+    gap:12px;
+    font-size:12px;
+    background:var(--surface);
+    border:1px solid var(--border);
+}
+.linter-bar.visible{display:flex}
+.linter-bar.good{background:rgba(22,101,52,0.15);border-color:var(--success)}
+.linter-bar.warn{background:rgba(133,77,14,0.15);border-color:var(--warning)}
+.linter-bar.bad{background:var(--error-bg);border-color:var(--error)}
+
+.linter-score{
+    font-weight:700;
+    padding:4px 10px;
+    border-radius:8px;
+    font-size:13px;
+    min-width:55px;
+    text-align:center;
+}
+.linter-bar.good .linter-score{background:var(--success);color:#fff}
+.linter-bar.warn .linter-score{background:var(--warning);color:#000}
+.linter-bar.bad .linter-score{background:var(--error);color:#fff}
+
+.linter-meta{
+    display:flex;
+    gap:10px;
+    color:var(--text2);
+    font-size:11px;
+    flex-shrink:0;
+}
+.linter-meta span{
+    display:flex;
+    align-items:center;
+    gap:3px;
+    padding:3px 8px;
+    background:rgba(255,255,255,0.05);
+    border-radius:6px;
+}
+
+.linter-issues{
+    display:flex;
+    gap:6px;
+    flex:1;
+    overflow-x:auto;
+    padding:2px 0;
+}
+.linter-issue{
+    padding:4px 8px;
+    border-radius:6px;
+    font-size:11px;
+    white-space:nowrap;
+    font-weight:500;
+}
+.linter-issue.high{background:rgba(239,68,68,0.2);color:#fca5a5}
+.linter-issue.medium{background:rgba(245,158,11,0.2);color:#fcd34d}
+.linter-issue.low{background:rgba(34,197,94,0.2);color:#86efac}
+
+.linter-fix-btn{
+    padding:6px 12px;
+    background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    font-weight:500;
+    cursor:pointer;
+    font-size:11px;
+    transition:all .15s;
+    white-space:nowrap;
+}
+.linter-fix-btn:hover{
+    transform:translateY(-1px);
+    box-shadow:0 4px 12px rgba(99,102,241,0.4);
+}
+
+.input-row{display:flex;gap:10px}
+.input-box{flex:1;display:flex;align-items:flex-end;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 12px}
+.input-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.attach-btn,.voice-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:6px;display:flex;transition:all .15s}
+.attach-btn:hover{color:var(--accent);background:rgba(99,102,241,.1)}
+.voice-btn:hover{color:var(--voice);background:rgba(239,68,68,.1)}
+.voice-btn.loading{color:var(--warning)}
+.voice-btn.ready{color:var(--success)}
+.voice-btn.recording{color:#fff;background:var(--voice);animation:voicePulse 1.5s ease-in-out infinite}
+.voice-btn.processing{color:var(--accent)}
+@keyframes voicePulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 8px rgba(239,68,68,0)}}
+textarea{flex:1;background:none;border:none;color:var(--text);font:inherit;font-size:14px;resize:none;outline:none;min-height:24px;max-height:200px;line-height:1.5}
+textarea::placeholder{color:var(--muted)}
+.send-btn{width:42px;height:42px;background:var(--accent);border:none;border-radius:10px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.send-btn:hover{background:#818cf8}
+.send-btn.stop{background:var(--error)}
+
+.voice-status{display:none;align-items:center;gap:10px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;font-size:13px}
+.voice-status.active{display:flex}
+.voice-status.recording{border-color:var(--voice);background:rgba(239,68,68,.08)}
+.voice-status.processing{border-color:var(--accent);background:rgba(99,102,241,.08)}
+.voice-status.loading{border-color:var(--warning);background:rgba(245,158,11,.08)}
+.voice-status .status-icon{display:flex}
+.voice-status .status-text{flex:1}
+.voice-status .status-detail{font-size:11px;color:var(--muted);margin-top:2px}
+.voice-status .stop-btn{background:var(--voice);border:none;color:#fff;cursor:pointer;font-size:12px;padding:8px 16px;border-radius:6px;font-weight:500}
+.voice-status .stop-btn:hover{background:#dc2626}
+.voice-status .cancel-btn{background:none;border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:11px;padding:6px 12px;border-radius:6px}
+.voice-status .cancel-btn:hover{border-color:var(--error);color:var(--error)}
+
+.waveform{display:flex;align-items:center;gap:2px;height:24px;padding:0 8px}
+.waveform-bar{width:3px;background:var(--voice);border-radius:2px;transition:height 0.05s}
+
+.progress{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin-top:6px}
+.progress-bar{height:100%;background:var(--accent);transition:width .3s}
+
+.drop-zone{position:fixed;inset:0;background:rgba(99,102,241,.08);border:3px dashed var(--accent);display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--accent);font-size:16px;font-weight:500;z-index:100}
+.drop-zone.active{display:flex}
+.scroll-btn{position:fixed;bottom:90px;right:20px;width:36px;height:36px;background:var(--surface);border:1px solid var(--border);border-radius:50%;display:none;align-items:center;justify-content:center;color:var(--text);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.scroll-btn.visible{display:flex}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .8s linear infinite}
+</style>
+</head>
+<body>
+<div class="chat">
+<div class="header">
+<span class="header-title">AI Chat</span>
+<span class="header-badge" id="badge">VOICE OFF</span>
+</div>
+<div class="messages" id="msgs">
+<div class="empty">
+<h2>Start a conversation</h2>
+<p>🎤 Click mic to enable local Whisper voice<br>Click again to start/stop recording</p>
+</div>
+</div>
+<button class="scroll-btn" id="scrollBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg></button>
+<div class="input-area">
+<div class="voice-status" id="voiceStatus">
+<span class="status-icon" id="statusIcon"></span>
+<div style="flex:1">
+<div class="status-text" id="statusText">Loading...</div>
+<div class="status-detail" id="statusDetail"></div>
+<div class="progress" id="progressContainer" style="display:none"><div class="progress-bar" id="progressBar"></div></div>
+</div>
+<div class="waveform" id="waveform" style="display:none"></div>
+<button class="stop-btn" id="stopBtn" style="display:none">Stop & Transcribe</button>
+<button class="cancel-btn" id="cancelBtn">Cancel</button>
+</div>
+
+<!-- PROMPT LINTER BAR -->
+<div class="linter-bar" id="linterBar">
+    <div class="linter-score" id="linterScore">100</div>
+    <div class="linter-meta">
+        <span id="linterLang">🌍 EN</span>
+        <span id="linterTask">🎯 unknown</span>
+        <span id="linterTokens">📊 ~0</span>
+        <span id="linterCost">💰 $0.000</span>
+    </div>
+    <div class="linter-issues" id="linterIssues"></div>
+    <button class="linter-fix-btn" id="linterFixBtn" style="display:none" onclick="applyFix()">✨ Auto-fix</button>
+</div>
+
+<div class="input-files" id="inputFiles"></div>
+<div class="input-row">
+<div class="input-box">
+<button class="attach-btn" id="attachBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg></button>
+<textarea id="input" placeholder="Message..." rows="1"></textarea>
+<button class="voice-btn" id="voiceBtn" title="Click to toggle voice"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+</div>
+<button class="send-btn" id="send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+</div>
+</div>
+</div>
+<input type="file" id="fileInput" multiple hidden>
+<div class="drop-zone" id="dropZone"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>Drop files here</div>
+
+<script type="module">
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const delay = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const time = () => new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+const formatSize = b => {
+  if(!b) return '0 B';
+  const k=1024, s=['B','KB','MB'];
+  const i = Math.floor(Math.log(b)/Math.log(k));
+  return (b/Math.pow(k,i)).toFixed(1)+' '+s[i];
+};
+
+const icons = {
+  chevron:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>',
+  running:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>',
+  success:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>',
+  error:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>',
+  mic:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>',
+  file:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>'
+};
+
+// ===== STATE =====
+let generating = false;
+let files = [];
+let transcriber = null;
+let modelLoaded = false;
+let micPermissionGranted = false;
+let isRecording = false;
+let animationId = null;
+let currentStream = null;
+let audioWorklet = null;
+let recordedSamples = [];
+
+// ===== PROMPT LINTER ENGINE =====
+const LINT_CONFIG = {
+  // Language detection patterns
+  FR_PATTERNS: [
+    /\b(créer|crée|génère|modifier|ajouter|supprimer|écris|faire|mettre)\b/i,
+    /\b(avec|pour|dans|sur|une?|les?|des?|mon|ma|mes|ce|cette|fichier|page|jeu)\b/i,
+  ],
+  EN_PATTERNS: [
+    /\b(create|generate|write|modify|add|delete|build|make|fix)\b/i,
+    /\b(with|for|the|a|an|my|file|page|game|component|function)\b/i,
+  ],
+  // Task type patterns
+  TASK_PATTERNS: {
+    create: { en: /\b(create|generate|write|build|make|new)\b/i, fr: /\b(créer|crée|génère|écris|construire|faire)\b/i },
+    modify: { en: /\b(modify|change|update|edit|fix|improve|refactor)\b/i, fr: /\b(modifier|changer|éditer|corriger|améliorer)\b/i },
+    explain: { en: /\b(explain|describe|what is|how does|tell me)\b/i, fr: /\b(explique|expliquer|décris|c'est quoi|comment)\b/i },
+    analyze: { en: /\b(analyze|review|check|audit|evaluate)\b/i, fr: /\b(analyser|vérifier|évaluer|examiner)\b/i },
+    fix: { en: /\b(fix|debug|solve|resolve|repair)\b/i, fr: /\b(corriger|réparer|résoudre|debugger)\b/i }
+  },
+  // Lint rules
+  RULES: {
+    negation: {
+      patterns: [/\b(don't|do not|never|avoid|shouldn't|can't|won't)\b/i, /\b(ne pas|n'utilise pas|jamais|évite|sans)\b/i],
+      severity: 'high',
+      message: 'Negation (ignored by LLMs)',
+      fix: 'Reframe positively'
+    },
+    conflict: {
+      patterns: [/\b(short|brief)\b.*\b(detailed|comprehensive|thorough)\b/i, /\b(simple)\b.*\b(complex|advanced)\b/i],
+      severity: 'high',
+      message: 'Conflicting instructions',
+      fix: 'Choose one direction'
+    },
+    ambiguous: {
+      patterns: [/\b(some|a few|several|various|many)\b/i, /\b(quelques|plusieurs|certains|beaucoup)\b/i],
+      severity: 'medium',
+      message: 'Ambiguous quantity',
+      fix: 'Specify exact number'
+    },
+    vague: {
+      patterns: [/\b(this|that|it|the thing|stuff)\b(?!\s+\w+\s+(is|was|will))/i, /\b(ça|ceci|cela|le truc|ce machin)\b/i],
+      severity: 'low',
+      message: 'Vague reference',
+      fix: 'Name explicitly'
+    },
+    implicit: {
+      patterns: [/\b(like before|as usual|you know|the same|as always)\b/i, /\b(comme avant|comme d'habitude|tu sais|pareil)\b/i],
+      severity: 'medium',
+      message: 'Implicit assumption',
+      fix: 'Define context'
+    },
+    missing_format: {
+      patterns: [/^(?!.*\b(html|json|python|react|file|markdown|csv|xml)\b).{20,}(create|generate|write|make|créer|génère)/i],
+      severity: 'low',
+      message: 'No output format',
+      fix: 'Specify format'
+    },
+    too_complex: {
+      patterns: [/\band\s+then\b/i, /\bfirst\b.*\bthen\b.*\bfinally\b/i, /\balso\b.*\balso\b/i, /\b(et puis|ensuite|après|finalement)\b.*\b(et puis|ensuite|après)\b/i],
+      severity: 'high',
+      message: 'Multiple steps',
+      fix: 'Split into separate requests'
+    }
+  }
+};
+
+function detectLanguage(text) {
+  const frScore = LINT_CONFIG.FR_PATTERNS.reduce((acc, p) => acc + (p.test(text) ? 1 : 0), 0);
+  const enScore = LINT_CONFIG.EN_PATTERNS.reduce((acc, p) => acc + (p.test(text) ? 1 : 0), 0);
+  return frScore > enScore ? 'fr' : 'en';
+}
+
+function inferTaskType(text, lang) {
+  for (const [type, patterns] of Object.entries(LINT_CONFIG.TASK_PATTERNS)) {
+    const pattern = patterns[lang] || patterns.en;
+    if (pattern.test(text)) return type;
+  }
+  return 'unknown';
+}
+
+function estimateTokens(text) {
+  const inputTokens = Math.ceil(text.length / 4);
+  const outputMultiplier = text.match(/\b(create|generate|write|build|créer|génère)\b/i) ? 4 : 2;
+  const outputTokens = inputTokens * outputMultiplier;
+  const cost = (inputTokens / 1000 * 0.003) + (outputTokens / 1000 * 0.015);
+  return { input: inputTokens, output: outputTokens, cost: cost.toFixed(4) };
+}
+
+function lintPrompt(text) {
+  const lang = detectLanguage(text);
+  const taskType = inferTaskType(text, lang);
+  const tokens = estimateTokens(text);
+  const issues = [];
+  
+  for (const [name, rule] of Object.entries(LINT_CONFIG.RULES)) {
+    for (const pattern of rule.patterns) {
+      if (pattern.test(text)) {
+        issues.push({
+          type: name,
+          severity: rule.severity,
+          message: rule.message,
+          fix: rule.fix
+        });
+        break;
+      }
+    }
+  }
+  
+  // Calculate score
+  const severityWeights = { high: 20, medium: 10, low: 5 };
+  const penalty = issues.reduce((acc, i) => acc + (severityWeights[i.severity] || 5), 0);
+  const score = Math.max(0, 100 - penalty);
+  
+  // Generate optimized prompt with REAL rewrites
+  let optimized = text;
+  
+  // 1. REFRAME NEGATIONS (not just synonyms - actual positive reframing)
+  if (lang === 'fr') {
+    optimized = optimized.replace(/\bne\s+pas\s+utiliser\s+de\s+boucles?\b/gi, 'utiliser des list comprehensions');
+    optimized = optimized.replace(/\bpas\s+de\s+commentaires?\b/gi, 'code auto-documenté');
+    optimized = optimized.replace(/\bpas\s+trop\s+long\b/gi, 'concis (max 100 lignes)');
+    optimized = optimized.replace(/\bpas\s+de\s+bullet\s*points?\b/gi, 'utiliser des paragraphes en prose');
+    optimized = optimized.replace(/\bsans\s+dépendances?\b/gi, 'avec la bibliothèque standard uniquement');
+    optimized = optimized.replace(/\bn['']?utilise\s+pas\b/gi, 'privilégier autre chose que');
+    optimized = optimized.replace(/\béviter?\b/gi, 'minimiser');
+  } else {
+    optimized = optimized.replace(/\bdon'?t\s+use\s+loops?\b/gi, 'use list comprehensions or functional methods');
+    optimized = optimized.replace(/\bdon'?t\s+add\s+comments?\b/gi, 'write self-documenting code');
+    optimized = optimized.replace(/\bdon'?t\s+make\s+it\s+long\b/gi, 'keep it concise (under 100 lines)');
+    optimized = optimized.replace(/\bdon'?t\s+use\s+bullet\s*points?\b/gi, 'use prose paragraphs');
+    optimized = optimized.replace(/\bwithout\s+dependencies\b/gi, 'using only standard library');
+    optimized = optimized.replace(/\bavoid\s+errors?\b/gi, 'implement robust error handling');
+    optimized = optimized.replace(/\bno\s+external\b/gi, 'use built-in modules only');
+    optimized = optimized.replace(/\bnot\s+too\s+long\b/gi, 'concise');
+    optimized = optimized.replace(/\bnot\s+too\s+short\b/gi, 'detailed');
+    optimized = optimized.replace(/\bdon'?t\s+use\b/gi, 'prefer alternatives to');
+    optimized = optimized.replace(/\bnever\s+use\b/gi, 'prefer alternatives to');
+  }
+  
+  // 2. RESOLVE CONFLICTS (pick one direction with constraint)
+  if (lang === 'fr') {
+    optimized = optimized.replace(/\b(court|bref)\b(.{0,20})\b(détaillé|complet)\b/gi, 'détaillé mais concis (max 200 mots)');
+    optimized = optimized.replace(/\b(détaillé|complet)\b(.{0,20})\b(court|bref)\b/gi, 'détaillé mais concis (max 200 mots)');
+    optimized = optimized.replace(/\b(simple)\b(.{0,20})\b(complet|exhaustif)\b/gi, 'complet avec structure claire');
+  } else {
+    optimized = optimized.replace(/\b(short|brief)\b(.{0,20})\b(detailed|comprehensive)\b/gi, 'detailed but concise (max 200 words)');
+    optimized = optimized.replace(/\b(detailed|comprehensive)\b(.{0,20})\b(short|brief)\b/gi, 'detailed but concise (max 200 words)');
+    optimized = optimized.replace(/\b(simple)\b(.{0,20})\b(comprehensive|thorough)\b/gi, 'comprehensive with clear structure');
+    optimized = optimized.replace(/\b(quick)\b(.{0,20})\b(thorough)\b/gi, 'thorough');
+  }
+  
+  // 3. CLARIFY VAGUE REFERENCES
+  if (/\bmy project\b/i.test(optimized) && !/\bcurrent\b/i.test(optimized)) {
+    optimized = optimized.replace(/\bmy project\b/gi, 'my project (the current one)');
+  }
+  if (/\bthe code\b/i.test(optimized) && !/\bfile\b/i.test(optimized)) {
+    optimized = optimized.replace(/\bthe code\b/gi, 'the source code files');
+  }
+  
+  // 4. ADD SCOPE HINTS for ambiguous quantities
+  optimized = optimized.replace(/\bsome\s+(\w+)\b/gi, '3-5 $1');
+  optimized = optimized.replace(/\ba few\s+(\w+)\b/gi, '2-3 $1');
+  optimized = optimized.replace(/\bseveral\s+(\w+)\b/gi, '4-6 $1');
+  optimized = optimized.replace(/\bquelques\s+(\w+)\b/gi, '3-5 $1');
+  
+  // 5. ADD FORMAT SPEC if missing and creating something
+  if (/\b(create|generate|write|build|make|créer|génère|écris)\b/i.test(optimized)) {
+    if (!/\b(html|json|python|react|markdown|file|fichier)\b/i.test(optimized)) {
+      optimized += lang === 'fr' 
+        ? '\n\nFormat: Retourner un fichier HTML complet avec CSS/JS intégrés.'
+        : '\n\nFormat: Return as a single HTML file with embedded CSS/JS.';
+    }
+  }
+  
+  return { lang, taskType, tokens, issues, score, optimized };
+}
+
+// ===== LINTER UI =====
+let lintTimer = null;
+let lastLintResult = null;
+
+function debounceLint() {
+  clearTimeout(lintTimer);
+  lintTimer = setTimeout(runLint, 350);
+}
+
+function runLint() {
+  const text = $('#input').value.trim();
+  const bar = $('#linterBar');
+  const fixBtn = $('#linterFixBtn');
+  
+  if (!text || text.length < 8) {
+    bar.classList.remove('visible');
+    return;
+  }
+  
+  const result = lintPrompt(text);
+  lastLintResult = result;
+  
+  // Update score
+  $('#linterScore').textContent = result.score;
+  
+  // Update bar class
+  bar.classList.remove('good', 'warn', 'bad');
+  if (result.score >= 80) bar.classList.add('good');
+  else if (result.score >= 50) bar.classList.add('warn');
+  else bar.classList.add('bad');
+  bar.classList.add('visible');
+  
+  // Update meta
+  $('#linterLang').textContent = '🌍 ' + result.lang.toUpperCase();
+  $('#linterTask').textContent = '🎯 ' + result.taskType;
+  $('#linterTokens').textContent = '📊 ~' + (result.tokens.input + result.tokens.output);
+  $('#linterCost').textContent = '💰 $' + result.tokens.cost;
+  
+  // Update issues
+  $('#linterIssues').innerHTML = result.issues.map(i => 
+    `<span class="linter-issue ${i.severity}" title="${i.fix}">${i.message}</span>`
+  ).join('');
+  
+  // Show fix button if there are fixable issues
+  fixBtn.style.display = result.issues.length > 0 && result.optimized !== text ? 'block' : 'none';
+}
+
+window.applyFix = function() {
+  if (lastLintResult && lastLintResult.optimized) {
+    $('#input').value = lastLintResult.optimized;
+    autoResize();
+    runLint();
+  }
+};
+
+// ===== UI =====
+function updateUI(state, detail = '') {
+  const status = $('#voiceStatus');
+  const btn = $('#voiceBtn');
+  const badge = $('#badge');
+  
+  status.className = 'voice-status';
+  btn.className = 'voice-btn';
+  badge.className = 'header-badge';
+  
+  $('#stopBtn').style.display = 'none';
+  $('#waveform').style.display = 'none';
+  $('#progressContainer').style.display = 'none';
+  
+  switch(state) {
+    case 'idle':
+      status.classList.remove('active');
+      badge.textContent = 'VOICE OFF';
+      break;
+      
+    case 'loading':
+      status.classList.add('active', 'loading');
+      $('#statusIcon').innerHTML = icons.running;
+      $('#statusText').textContent = detail || 'Loading...';
+      $('#progressContainer').style.display = 'block';
+      btn.classList.add('loading');
+      badge.textContent = 'LOADING';
+      badge.classList.add('loading');
+      break;
+      
+    case 'ready':
+      status.classList.remove('active');
+      btn.classList.add('ready');
+      badge.textContent = 'VOICE READY';
+      badge.classList.add('ready');
+      break;
+      
+    case 'recording':
+      status.classList.add('active', 'recording');
+      $('#statusIcon').innerHTML = icons.mic;
+      $('#statusText').textContent = 'Recording...';
+      $('#statusDetail').textContent = detail || 'Click "Stop" when done';
+      $('#waveform').style.display = 'flex';
+      $('#stopBtn').style.display = 'block';
+      btn.classList.add('recording');
+      badge.textContent = 'RECORDING';
+      badge.classList.add('recording');
+      break;
+      
+    case 'processing':
+      status.classList.add('active', 'processing');
+      $('#statusIcon').innerHTML = icons.running;
+      $('#statusText').textContent = 'Transcribing...';
+      $('#statusDetail').textContent = detail || 'Processing locally with Whisper';
+      btn.classList.add('processing');
+      badge.textContent = 'PROCESSING';
+      badge.classList.add('processing');
+      break;
+      
+    case 'error':
+      status.classList.add('active');
+      status.style.borderColor = 'var(--error)';
+      $('#statusIcon').innerHTML = icons.error;
+      $('#statusText').textContent = 'Error';
+      $('#statusDetail').textContent = detail;
+      badge.textContent = 'ERROR';
+      setTimeout(() => updateUI(modelLoaded ? 'ready' : 'idle'), 3000);
+      break;
+  }
+}
+
+// ===== LOAD MODEL =====
+async function loadModel() {
+  if (modelLoaded) return true;
+  
+  updateUI('loading', 'Downloading Whisper model...');
+  $('#statusDetail').textContent = '~40MB, cached after first load';
+  $('#progressBar').style.width = '0%';
+  
+  try {
+    const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1');
+    env.allowLocalModels = false;
+    env.useBrowserCache = true;
+    
+    transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
+      progress_callback: (p) => {
+        if (p.progress !== undefined) {
+          $('#progressBar').style.width = Math.round(p.progress) + '%';
+          $('#statusDetail').textContent = `${Math.round(p.progress)}%`;
+        }
+      }
+    });
+    
+    modelLoaded = true;
+    console.log('✓ Whisper loaded');
+    return true;
+  } catch(e) {
+    console.error('Model error:', e);
+    updateUI('error', e.message);
+    return false;
+  }
+}
+
+// ===== MIC PERMISSION =====
+async function requestMic() {
+  if (micPermissionGranted) return true;
+  
+  updateUI('loading', 'Requesting microphone...');
+  $('#statusDetail').textContent = 'Please allow access';
+  $('#progressContainer').style.display = 'none';
+  
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+    micPermissionGranted = true;
+    console.log('✓ Mic permission granted');
+    return true;
+  } catch(e) {
+    console.error('Mic error:', e);
+    updateUI('error', 'Microphone denied');
+    return false;
+  }
+}
+
+// ===== INIT =====
+async function initVoice() {
+  if (!modelLoaded && !(await loadModel())) return false;
+  if (!micPermissionGranted && !(await requestMic())) return false;
+  updateUI('ready');
+  return true;
+}
+
+// ===== RECORDING WITH RAW SAMPLES =====
+async function startRecording() {
+  if (isRecording) return;
+  
+  try {
+    currentStream = await navigator.mediaDevices.getUserMedia({ 
+      audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true }
+    });
+    
+    const audioCtx = new AudioContext({ sampleRate: 16000 });
+    const source = audioCtx.createMediaStreamSource(currentStream);
+    
+    const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+    recordedSamples = [];
+    
+    processor.onaudioprocess = (e) => {
+      if (!isRecording) return;
+      const input = e.inputBuffer.getChannelData(0);
+      recordedSamples.push(new Float32Array(input));
+    };
+    
+    source.connect(processor);
+    processor.connect(audioCtx.destination);
+    
+    window._audioCtx = audioCtx;
+    window._processor = processor;
+    
+    isRecording = true;
+    updateUI('recording');
+    
+    const analyser = audioCtx.createAnalyser();
+    source.connect(analyser);
+    analyser.fftSize = 64;
+    
+    $('#waveform').innerHTML = Array(8).fill('<div class="waveform-bar" style="height:20%"></div>').join('');
+    const bars = $('#waveform').querySelectorAll('.waveform-bar');
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    
+    function updateWaveform() {
+      if (!isRecording) return;
+      analyser.getByteFrequencyData(dataArray);
+      bars.forEach((bar, i) => {
+        bar.style.height = Math.max(15, (dataArray[i*2] || 0) / 255 * 100) + '%';
+      });
+      animationId = requestAnimationFrame(updateWaveform);
+    }
+    updateWaveform();
+    
+    console.log('✓ Recording started');
+    
+  } catch(e) {
+    console.error('Record error:', e);
+    updateUI('error', 'Failed to record');
+  }
+}
+
+async function stopRecording() {
+  if (!isRecording) return;
+  
+  isRecording = false;
+  cancelAnimationFrame(animationId);
+  currentStream?.getTracks().forEach(t => t.stop());
+  window._processor?.disconnect();
+  
+  if (recordedSamples.length === 0) {
+    updateUI('ready');
+    return;
+  }
+  
+  updateUI('processing', 'Preparing audio...');
+  
+  const totalLength = recordedSamples.reduce((acc, arr) => acc + arr.length, 0);
+  const merged = new Float32Array(totalLength);
+  let offset = 0;
+  for (const chunk of recordedSamples) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+  
+  console.log(`Audio: ${merged.length} samples, ${(merged.length/16000).toFixed(1)}s`);
+  
+  updateUI('processing', 'Running Whisper...');
+  
+  try {
+    const start = performance.now();
+    const result = await transcriber(merged, {
+      chunk_length_s: 30,
+      stride_length_s: 5,
+      return_timestamps: false
+    });
+    const elapsed = ((performance.now() - start) / 1000).toFixed(1);
+    
+    console.log('Result:', result, `(${elapsed}s)`);
+    
+    if (result?.text?.trim()) {
+      const text = result.text.trim();
+      const current = $('#input').value;
+      $('#input').value = current + (current ? ' ' : '') + text;
+      autoResize();
+      runLint(); // Run linter after voice input
+      console.log('✓ Transcribed:', text);
+    } else {
+      console.log('No speech detected');
+    }
+    
+    updateUI('ready');
+    
+  } catch(e) {
+    console.error('Transcribe error:', e);
+    updateUI('error', e.message);
+  }
+  
+  recordedSamples = [];
+  window._audioCtx?.close();
+}
+
+function cancelRecording() {
+  isRecording = false;
+  recordedSamples = [];
+  cancelAnimationFrame(animationId);
+  currentStream?.getTracks().forEach(t => t.stop());
+  window._processor?.disconnect();
+  window._audioCtx?.close();
+  updateUI(modelLoaded ? 'ready' : 'idle');
+}
+
+// ===== VOICE BUTTON - CLICK TO TOGGLE =====
+$('#voiceBtn').onclick = async () => {
+  if (!modelLoaded || !micPermissionGranted) {
+    await initVoice();
+    return;
+  }
+  
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+};
+
+$('#stopBtn').onclick = () => stopRecording();
+$('#cancelBtn').onclick = () => cancelRecording();
+
+// ===== OTHER HANDLERS =====
+$('#input').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+$('#input').oninput = () => { autoResize(); debounceLint(); };
+$('#send').onclick = send;
+$('#attachBtn').onclick = () => $('#fileInput').click();
+$('#fileInput').onchange = e => { addFiles(e.target.files); e.target.value = ''; };
+$('#scrollBtn').onclick = () => $('#msgs').scrollTo({ top: $('#msgs').scrollHeight, behavior: 'smooth' });
+
+function autoResize() {
+  const t = $('#input');
+  t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight, 200) + 'px';
+}
+
+document.ondragenter = e => { e.preventDefault(); $('#dropZone').classList.add('active'); };
+$('#dropZone').ondragleave = e => { e.preventDefault(); $('#dropZone').classList.remove('active'); };
+$('#dropZone').ondragover = e => e.preventDefault();
+$('#dropZone').ondrop = e => { e.preventDefault(); $('#dropZone').classList.remove('active'); addFiles(e.dataTransfer.files); };
+
+$('#msgs').onscroll = () => {
+  const m = $('#msgs');
+  $('#scrollBtn').classList.toggle('visible', m.scrollHeight - m.scrollTop - m.clientHeight > 100);
+};
+
+function addFiles(fileList) {
+  [...fileList].forEach(f => { if (f.size < 100*1024*1024) files.push(f); });
+  renderFiles();
+}
+
+function renderFiles() {
+  $('#inputFiles').innerHTML = files.map((f,i) => `
+    <div class="file">
+      <span class="file-icon">${icons.file}</span>
+      <span class="file-name" title="${f.name}">${f.name}</span>
+      <span class="file-size">${formatSize(f.size)}</span>
+      <button class="file-remove" data-i="${i}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+  `).join('');
+  $$('.file-remove').forEach(b => b.onclick = () => { files.splice(b.dataset.i, 1); renderFiles(); });
+}
+
+async function send() {
+  const text = $('#input').value.trim();
+  if ((!text && !files.length) || generating) return;
+  
+  $('.empty')?.remove();
+  generating = true;
+  $('#send').classList.add('stop');
+  $('#linterBar').classList.remove('visible');
+  
+  const userFiles = [...files];
+  addUserMsg(text, userFiles);
+  $('#input').value = '';
+  $('#input').style.height = 'auto';
+  files = [];
+  renderFiles();
+  
+  const el = addAssistantMsg();
+  const content = el.querySelector('.content');
+  
+  const stepsContainer = document.createElement('div');
+  stepsContainer.className = 'steps-container';
+  stepsContainer.innerHTML = `<div class="steps-header">${icons.chevron}<span>Processing</span><span class="count">2 steps</span></div><div class="steps-body"></div>`;
+  el.insertBefore(stepsContainer, el.firstChild);
+  
+  const stepsHeader = stepsContainer.querySelector('.steps-header');
+  const stepsBody = stepsContainer.querySelector('.steps-body');
+  stepsHeader.onclick = () => { stepsHeader.classList.toggle('open'); stepsBody.classList.toggle('open'); };
+  stepsHeader.classList.add('open');
+  stepsBody.classList.add('open');
+  
+  const step1 = addStep(stepsBody, 'Parse', 'running');
+  await delay(300);
+  updateStep(step1, 'success', 280);
+  
+  const step2 = addStep(stepsBody, 'Generate', 'running');
+  
+  let response = `You said: "${esc(text.slice(0,60))}"\n\n`;
+  if (userFiles.length) response += `📎 ${userFiles.length} file(s)\n\n`;
+  response += `🎤 **Local Whisper voice recognition**\n\nAll processing happens in your browser.\nNo audio sent to any server.`;
+  
+  content.innerHTML = '<span class="cursor"></span>';
+  const words = response.split(' ');
+  let buffer = '';
+  for (const word of words) {
+    buffer += word + ' ';
+    content.innerHTML = parseContent(buffer) + '<span class="cursor"></span>';
+    await delay(15);
+  }
+  
+  content.innerHTML = parseContent(buffer);
+  updateStep(step2, 'success', words.length * 15);
+  stepsHeader.classList.remove('open');
+  stepsBody.classList.remove('open');
+  
+  generating = false;
+  $('#send').classList.remove('stop');
+  $('#msgs').scrollTop = $('#msgs').scrollHeight;
+}
+
+function addStep(container, title, status) {
+  const step = document.createElement('div');
+  step.className = 'step';
+  step.innerHTML = `<div class="step-header"><span class="chevron">${icons.chevron}</span><span class="step-icon ${status}">${icons[status]}</span><span class="step-title">${title}</span><span class="step-time"></span></div><div class="step-content"></div>`;
+  container.appendChild(step);
+  return step;
+}
+
+function updateStep(step, status, duration) {
+  step.querySelector('.step-icon').className = 'step-icon ' + status;
+  step.querySelector('.step-icon').innerHTML = icons[status];
+  if (duration) step.querySelector('.step-time').textContent = (duration/1000).toFixed(2) + 's';
+}
+
+function addUserMsg(text, userFiles) {
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  const filesHtml = userFiles.length ? '<div class="files">' + userFiles.map(f => `<div class="file"><span class="file-icon">${icons.file}</span><span class="file-name">${f.name}</span></div>`).join('') + '</div>' : '';
+  el.innerHTML = `<div class="bubble"><div class="content">${esc(text)}</div>${filesHtml}<div class="meta">${time()}</div></div>`;
+  $('#msgs').appendChild(el);
+  $('#msgs').scrollTop = $('#msgs').scrollHeight;
+}
+
+function addAssistantMsg() {
+  const el = document.createElement('div');
+  el.className = 'msg assistant';
+  el.innerHTML = `<div class="bubble"><div class="content"><span class="cursor"></span></div><div class="meta">${time()}</div></div>`;
+  $('#msgs').appendChild(el);
+  return el;
+}
+
+function parseContent(s) {
+  s = s.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, l, c) => `<div class="code-block"><header><span>${l||'code'}</span></header><pre>${esc(c)}</pre></div>`);
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  return s;
+}
+</script>
+</body>
+</html>
