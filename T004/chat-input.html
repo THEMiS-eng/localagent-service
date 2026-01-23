@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Resizable Chat Input</title>
+    <link rel="stylesheet" href="chat-input.css">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-messages">
+            <div class="message">Welcome to the chat!</div>
+        </div>
+        <div class="chat-input-container">
+            <textarea 
+                id="chatInput" 
+                class="chat-input" 
+                placeholder="Type your message..." 
+                rows="1"
+                maxlength="1000"></textarea>
+            <button class="send-btn" onclick="sendMessage()">
+                <svg width="20" height="20" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    <script src="chat-input.js"></script>
+</body>
+</html>
