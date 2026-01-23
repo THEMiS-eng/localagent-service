@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a73e8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="LocalAgent">
+<link rel="manifest" href="/manifest.json">
+<title>LocalAgent Dashboard</title>
+<style>
+:root {
+    --bg: #f8f9fa; --bg-light: #f1f3f4; --white: #fff;
+    --border: #e0e0e0; --text: #202124; --text-sec: #5f6368;
+    --blue: #1a73e8; --blue-hover: #1557b0;
+    --success: #34a853; --warning: #fbbc04; --error: #ea4335;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* HEADER */
+.header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 52px; background: var(--white); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 16px; gap: 16px;
+}
+.logo { font-weight: 600; font-size: 16px; color: var(--blue); }
+.health { display: flex; gap: 12px; margin-left: auto; font-size: 12px; align-items: center; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+.dot.on { background: var(--success); }
+.dot.off { background: var(--error); }
+.dot.warn { background: var(--warning); animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: 0.5; } }
+.health-label { color: var(--text-sec); }
+
+/* LAYOUT */
+.main { position: fixed; top: 52px; bottom: 64px; left: 0; right: 0; display: grid; grid-template-columns: 1fr 380px; }
+
+/* CHAT */
+.chat { display: flex; flex-direction: column; background: var(--white); border-right: 1px solid var(--border); height: 100%; overflow: hidden; }
+.messages { flex: 1; overflow-y: auto; padding: 12px; min-height: 0; }
+.msg { padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; max-width: 90%; font-size: 13px; line-height: 1.5; }
+.msg.user { background: #e3f2fd; margin-left: auto; }
+.msg.agent { background: var(--bg-light); white-space: pre-wrap; }
+.msg-hdr { font-size: 11px; color: var(--text-sec); margin-bottom: 4px; display: flex; justify-content: space-between; }
+
+/* CHAT PRO ENHANCEMENTS */
+.msg-steps { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.step { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 8px; background: var(--bg-light); border-radius: 4px; border: 1px solid var(--border); }
+.step.running { border-color: var(--blue); color: var(--blue); }
+.step.complete { border-color: var(--success); color: var(--success); }
+.step.error { border-color: var(--error); color: var(--error); }
+.step-spinner { width: 12px; height: 12px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.step-check { color: var(--success); }
+.step-duration { font-size: 10px; color: var(--text-sec); margin-left: 4px; }
+
+.thinking-block { background: #f3e5f5; border: 1px solid #ce93d8; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; font-size: 12px; }
+.thinking-header { display: flex; align-items: center; gap: 6px; color: #7b1fa2; font-weight: 500; cursor: pointer; }
+.thinking-content { color: #6a1b9a; margin-top: 6px; white-space: pre-wrap; font-family: monospace; font-size: 11px; max-height: 100px; overflow-y: auto; }
+.thinking-block.collapsed .thinking-content { display: none; }
+
+.msg pre { background: #263238; color: #aed581; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; margin: 6px 0; }
+.msg code { background: #eceff1; padding: 2px 4px; border-radius: 3px; font-size: 12px; }
+
+/* SIDEBAR */
+.sidebar { overflow-y: auto; padding: 12px; background: var(--bg); }
+
+/* PROJECT BOX */
+.proj-box {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: white; padding: 14px; border-radius: 10px; margin-bottom: 12px;
+}
+.proj-box .lbl { font-size: 10px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+.proj-box .name { font-size: 16px; font-weight: 600; margin: 2px 0; }
+.proj-box .ver { font-size: 12px; opacity: 0.85; }
+.proj-box .path { font-size: 10px; opacity: 0.6; margin-top: 6px; word-break: break-all; }
+
+/* PANELS */
+.panel { background: var(--white); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+.panel-hdr {
+    font-size: 12px; font-weight: 500; padding: 10px 12px;
+    background: var(--bg-light); display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+}
+.panel-hdr .cnt { background: var(--blue); color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; }
+.panel-body { max-height: 160px; overflow-y: auto; }
+
+/* ITEMS */
+.item { padding: 8px 12px; border-bottom: 1px solid var(--bg-light); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.item:last-child { border-bottom: none; }
+.item.empty { color: var(--text-sec); justify-content: center; padding: 16px; }
+.item .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #e3f2fd; color: var(--blue); font-family: monospace; flex-shrink: 0; }
+.item .txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item.crit { border-left: 3px solid var(--error); }
+.item.high { border-left: 3px solid #ff9800; }
+.item.med { border-left: 3px solid var(--warning); }
+.item.low { border-left: 3px solid var(--success); }
+.item.file { background: #e8f5e9; }
+.item.file a { color: var(--text); text-decoration: none; flex: 1; }
+.item.file a:hover { color: var(--blue); }
+.item .sz { color: var(--text-sec); font-size: 10px; }
+
+/* CONSTRAINT ITEM - SPECIAL */
+.c-item { padding: 8px 12px; border-bottom: 1px solid var(--bg-light); font-size: 11px; }
+.c-item:last-child { border-bottom: none; }
+.c-item .c-id { font-weight: 600; color: var(--blue); font-family: monospace; }
+.c-item .c-rule { color: var(--text); margin-top: 2px; }
+.c-item .c-sev { font-size: 10px; padding: 1px 4px; border-radius: 3px; margin-left: 6px; }
+.c-item .c-sev.CRITICAL { background: #ffebee; color: var(--error); }
+.c-item .c-sev.HIGH { background: #fff3e0; color: #e65100; }
+.c-item .c-sev.MEDIUM { background: #fffde7; color: #f9a825; }
+
+/* ADD FORMS */
+.add-row { display: flex; gap: 6px; padding: 8px 12px; background: var(--bg-light); }
+.add-row input { flex: 1; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; }
+.add-row select { padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; }
+.add-row button { background: var(--blue); color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+
+/* INPUT AREA */
+.input-area { position: fixed; bottom: 0; left: 0; right: 380px; padding: 12px 16px; background: var(--white); border-top: 1px solid var(--border); }
+.input-row { display: flex; gap: 10px; }
+.input-row textarea { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 6px; resize: none; font-family: inherit; font-size: 13px; height: 40px; }
+.input-row textarea:focus { outline: none; border-color: var(--blue); }
+.input-row button { background: var(--blue); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 500; cursor: pointer; }
+.input-row button:hover { background: var(--blue-hover); }
+.input-row button:disabled { background: #bbb; }
+
+/* LINT STATUS BAR */
+.lint-bar { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 11px; min-height: 20px; }
+.lint-bar.hidden { display: none; }
+.lint-score { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 4px; font-weight: 500; }
+.lint-score.good { background: #e8f5e9; color: #2e7d32; }
+.lint-score.ok { background: #fff8e1; color: #f57f17; }
+.lint-score.bad { background: #ffebee; color: #c62828; }
+.lint-issues { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.lint-issue { padding: 2px 6px; border-radius: 3px; font-size: 10px; }
+.lint-issue.high { background: #ffebee; color: #c62828; }
+.lint-issue.medium { background: #fff8e1; color: #f57f17; }
+.lint-issue.low { background: #e3f2fd; color: #1565c0; }
+.lint-optimized { color: var(--blue); font-style: italic; cursor: pointer; }
+.lint-optimized:hover { text-decoration: underline; }
+
+/* TABS */
+.tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg-light); }
+.tab { padding: 8px 12px; font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { border-bottom-color: var(--blue); color: var(--blue); font-weight: 500; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="logo">🤖 LocalAgent</div>
+    <div class="health">
+        <span><span class="dot warn" id="apiDot"></span><span id="apiStatus">Connecting...</span></span>
+        <span class="health-label">|</span>
+        <span style="cursor:pointer;" onclick="showReleaseNotes()">v<span id="srvVersion">-</span></span>
+        <span id="updateBadge" style="display:none;margin-left:8px;background:#ff9800;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;cursor:pointer;" onclick="showUpdatePrompt()">⬆ Update Available</span>
+        <span class="health-label">|</span>
+        <span>API: <span id="apiKeyStatus">-</span></span>
+    </div>
+</div>
+
+<!-- Release Notes Modal -->
+<div id="releaseNotesModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;">
+    <div style="background:#1e1e1e;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;">
+        <h3 style="margin:0 0 16px;color:#fff;">📋 Release Notes - v<span id="releaseNotesVersion">-</span></h3>
+        <div id="releaseNotesContent" style="background:#2d2d2d;padding:16px;border-radius:8px;color:#ccc;font-size:13px;max-height:400px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;"></div>
+        <div style="margin-top:16px;display:flex;gap:12px;justify-content:flex-end;">
+            <button onclick="showFullReleaseNotes()" style="padding:8px 16px;border:1px solid #555;background:transparent;color:#fff;border-radius:6px;cursor:pointer;">View All Releases</button>
+            <button onclick="closeReleaseNotesModal()" style="padding:8px 16px;border:none;background:#1a73e8;color:#fff;border-radius:6px;cursor:pointer;">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Update Modal -->
+<div id="updateModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;">
+    <div style="background:#1e1e1e;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">
+        <h3 style="margin:0 0 16px;color:#fff;">🚀 Update Available</h3>
+        <div id="updateInfo" style="color:#ccc;margin-bottom:16px;"></div>
+        <div id="releaseNotes" style="background:#2d2d2d;padding:12px;border-radius:8px;color:#aaa;font-size:13px;margin-bottom:16px;max-height:200px;overflow-y:auto;"></div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button onclick="closeUpdateModal()" style="padding:8px 16px;border:1px solid #555;background:transparent;color:#fff;border-radius:6px;cursor:pointer;">Later</button>
+            <button onclick="installUpdate()" style="padding:8px 16px;border:none;background:#4CAF50;color:#fff;border-radius:6px;cursor:pointer;">Install Update</button>
+        </div>
+    </div>
+</div>
+
+<!-- What's New Modal (shows after update) -->
+<div id="whatsNewModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;">
+    <div style="background:#1e1e1e;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">
+        <h3 style="margin:0 0 16px;color:#fff;">🎉 What's New in v<span id="whatsNewVersion">-</span></h3>
+        <div id="whatsNewContent" style="background:#2d2d2d;padding:16px;border-radius:8px;color:#ccc;font-size:13px;max-height:300px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;"></div>
+        <div style="margin-top:16px;display:flex;gap:12px;justify-content:flex-end;">
+            <button onclick="closeWhatsNew()" style="padding:8px 16px;border:none;background:#1a73e8;color:#fff;border-radius:6px;cursor:pointer;">Got it!</button>
+        </div>
+    </div>
+</div>
+
+<div class="main">
+    <div class="chat">
+        <div class="messages" id="messages"></div>
+    </div>
+    
+    <div class="sidebar">
+        <!-- PROJECT -->
+        <div class="proj-box">
+            <div class="lbl">Current Project</div>
+            <div class="name" id="projName">-</div>
+            <div class="ver">v<span id="projVer">0.0.0</span></div>
+            <div class="path" id="projPath">-</div>
+        </div>
+        
+        <!-- TABS -->
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('files')">📁 Files</div>
+            <div class="tab" onclick="showTab('backlog')">📋 Backlog</div>
+            <div class="tab" onclick="showTab('todo')">✅ TODO</div>
+            <div class="tab" onclick="showTab('system')">⚙️ System</div>
+        </div>
+        
+        <!-- FILES TAB -->
+        <div class="tab-content active" id="tab-files">
+            <div class="panel">
+                <div class="panel-hdr">Output Files <span class="cnt" id="filesCount">0</span></div>
+                <div class="panel-body" id="filesPanel"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr">Snapshots <span class="cnt" id="snapshotsCount">0</span></div>
+                <div class="panel-body" id="snapshotsPanel"></div>
+            </div>
+        </div>
+        
+        <!-- BACKLOG TAB -->
+        <div class="tab-content" id="tab-backlog">
+            <div class="panel">
+                <div class="panel-hdr">Backlog <span class="cnt" id="backlogCount">0</span></div>
+                <div class="panel-body" id="backlogPanel"></div>
+                <div class="add-row">
+                    <input type="text" id="newBacklog" placeholder="New task...">
+                    <select id="backlogPrio"><option value="medium">Med</option><option value="high">High</option><option value="low">Low</option></select>
+                    <button onclick="addBacklog()">+</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TODO TAB -->
+        <div class="tab-content" id="tab-todo">
+            <div class="panel">
+                <div class="panel-hdr">
+                    TODO <span class="cnt" id="todoCount">0</span>
+                    <button onclick="processNextTodo()" style="background:var(--success);color:white;border:none;padding:4px 8px;border-radius:4px;font-size:10px;cursor:pointer;">▶ Process Next</button>
+                </div>
+                <div class="panel-body" id="todoPanel"></div>
+                <div class="add-row">
+                    <input type="text" id="newTodo" placeholder="New todo...">
+                    <button onclick="addTodo()">+</button>
+                </div>
+                <div class="add-row" style="justify-content:space-between;">
+                    <button onclick="processAllTodos()" style="background:#ff9800;color:white;border:none;padding:6px 12px;border-radius:4px;font-size:11px;cursor:pointer;flex:1;">⚡ Process All TODOs</button>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr">
+                    Bugfixes <span class="cnt" id="bugfixCount">0</span>
+                    <span style="font-size:10px;color:var(--text-sec);">(pending)</span>
+                </div>
+                <div class="panel-body" id="bugfixPanel"></div>
+                <div class="add-row">
+                    <input type="text" id="newBugfix" placeholder="New bugfix...">
+                    <button onclick="addBugfix()">+</button>
+                </div>
+            </div>
+            <div class="panel" id="processLog" style="display:none;">
+                <div class="panel-hdr">Processing Log</div>
+                <div class="panel-body" id="processLogContent" style="max-height:300px;font-size:11px;font-family:monospace;"></div>
+            </div>
+        </div>
+        
+        <!-- SYSTEM TAB -->
+        <div class="tab-content" id="tab-system">
+            <div class="panel">
+                <div class="panel-hdr">Constraints <span class="cnt" id="constraintsCount">0</span></div>
+                <div class="panel-body" id="constraintsPanel" style="max-height: 200px;"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr">Errors <span class="cnt" id="errorsCount">0</span></div>
+                <div class="panel-body" id="errorsPanel"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr">GitHub <span class="cnt" id="githubCount">-</span></div>
+                <div class="panel-body" id="githubPanel"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="input-area">
+    <div class="input-row">
+        <textarea id="input" placeholder="Type message... (Enter to send)" onkeydown="handleKey(event)" oninput="debouncedLint()"></textarea>
+        <button id="sendBtn" onclick="send()">Send</button>
+    </div>
+    <div class="lint-bar hidden" id="lintBar">
+        <div class="lint-score" id="lintScore">--</div>
+        <div class="lint-issues" id="lintIssues"></div>
+        <div class="lint-optimized" id="lintOptimized" onclick="applyOptimized()" style="display:none">✨ Apply fix</div>
+    </div>
+</div>
+
+<script>
+const API = 'http://localhost:9998';
+let sending = false;
+let lintTimeout = null;
+let lastLintResult = null;
+
+// ============================================================
+// REAL-TIME LINTING
+// ============================================================
+
+function debouncedLint() {
+    clearTimeout(lintTimeout);
+    const input = document.getElementById('input').value.trim();
+    
+    if (!input || input.length < 3) {
+        document.getElementById('lintBar').classList.add('hidden');
+        lastLintResult = null;
+        return;
+    }
+    
+    lintTimeout = setTimeout(() => lintInput(input), 300);
+}
+
+async function lintInput(text) {
+    try {
+        const r = await fetch(`${API}/api/lint/optimize`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({prompt: text})
+        });
+        const data = await r.json();
+        // Merge report into top-level for display
+        lastLintResult = {
+            ...data.report,
+            optimized: data.optimized,
+            was_modified: data.was_modified
+        };
+        displayLintResult(lastLintResult, text);
+    } catch (e) {
+        console.error('Lint error:', e);
+    }
+}
+
+function displayLintResult(data, originalText) {
+    const bar = document.getElementById('lintBar');
+    const scoreEl = document.getElementById('lintScore');
+    const issuesEl = document.getElementById('lintIssues');
+    const optimizedEl = document.getElementById('lintOptimized');
+    
+    bar.classList.remove('hidden');
+    
+    // Score display
+    const score = data.score || 0;
+    scoreEl.textContent = `${score}/100`;
+    scoreEl.className = 'lint-score ' + (score >= 80 ? 'good' : score >= 50 ? 'ok' : 'bad');
+    
+    // Issues display
+    const issues = data.issues || [];
+    if (issues.length === 0) {
+        issuesEl.innerHTML = '<span style="color:var(--success)">✓ No issues</span>';
+    } else {
+        issuesEl.innerHTML = issues.slice(0, 3).map(i => 
+            `<span class="lint-issue ${(i.severity || 'medium').toLowerCase()}">${i.message || i.type}</span>`
+        ).join('');
+        if (issues.length > 3) {
+            issuesEl.innerHTML += `<span class="lint-issue">+${issues.length - 3} more</span>`;
+        }
+    }
+    
+    // Optimized prompt available?
+    if (data.optimized && data.optimized !== originalText) {
+        optimizedEl.style.display = 'inline';
+        optimizedEl.innerHTML = '✨ Apply optimized';
+        optimizedEl.title = 'Click to replace with:\n\n' + data.optimized;
+        optimizedEl.style.background = '#e3f2fd';
+        optimizedEl.style.padding = '2px 8px';
+        optimizedEl.style.borderRadius = '4px';
+    } else {
+        optimizedEl.style.display = 'none';
+    }
+}
+
+function applyOptimized() {
+    if (lastLintResult && lastLintResult.optimized) {
+        document.getElementById('input').value = lastLintResult.optimized;
+        debouncedLint();
+    }
+}
+
+function showTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.tab-content#tab-${name}`).classList.add('active');
+    event.target.classList.add('active');
+}
+
+async function loadHealth() {
+    try {
+        const r = await fetch(`${API}/api/health`);
+        const d = await r.json();
+        document.getElementById('apiDot').className = 'dot on';
+        document.getElementById('apiStatus').textContent = 'Connected';
+        // Show GitHub version (ENV012) - this is the source of truth
+        const displayVersion = d.version || '-';  // Show LOCAL version, not GitHub
+        document.getElementById('srvVersion').textContent = displayVersion;
+        document.getElementById('apiKeyStatus').textContent = d.api_key ? '✓' : '✗';
+        document.getElementById('projName').textContent = d.project || '-';
+        document.getElementById('projPath').textContent = d.project_path || '-';
+        // Show project version (from project's VERSION file)
+        if (d.project_version) {
+            document.getElementById('projVer').textContent = d.project_version;
+        }
+        return true;
+    } catch (e) {
+        document.getElementById('apiDot').className = 'dot off';
+        document.getElementById('apiStatus').textContent = 'Offline';
+        return false;
+    }
+}
+
+async function loadOutputs() {
+    try {
+        const r = await fetch(`${API}/api/outputs`);
+        const files = await r.json();
+        document.getElementById('filesCount').textContent = files.length;
+        const p = document.getElementById('filesPanel');
+        if (!files.length) { p.innerHTML = '<div class="item empty">No files yet</div>'; return; }
+        p.innerHTML = files.map(f => {
+            const icon = {'.html':'🌐','.py':'🐍','.js':'📜','.css':'🎨','.json':'📋'}[f.ext] || '📄';
+            const sz = f.size > 1024 ? (f.size/1024).toFixed(1)+'KB' : f.size+'B';
+            return `<div class="item file"><a href="${API}/outputs/${f.name}" target="_blank">${icon} ${f.name}</a><span class="sz">${sz}</span></div>`;
+        }).join('');
+    } catch (e) { console.error('loadOutputs:', e); }
+}
+
+async function loadSnapshots() {
+    try {
+        const r = await fetch(`${API}/api/snapshots`);
+        const d = await r.json();
+        const snaps = d.snapshots || d || [];
+        document.getElementById('snapshotsCount').textContent = snaps.length;
+        const p = document.getElementById('snapshotsPanel');
+        if (!snaps.length) { p.innerHTML = '<div class="item empty">No snapshots</div>'; return; }
+        p.innerHTML = snaps.slice(0,5).map(s => 
+            `<div class="item"><span class="badge">${s.version || '?'}</span><span class="txt">${s.id || s.label || '-'}</span></div>`
+        ).join('');
+    } catch (e) { console.error('loadSnapshots:', e); }
+}
+
+async function loadBacklog() {
+    try {
+        const r = await fetch(`${API}/api/backlog`);
+        const items = await r.json();
+        const pending = items.filter(i => i.status === 'pending');
+        document.getElementById('backlogCount').textContent = pending.length;
+        const p = document.getElementById('backlogPanel');
+        if (!pending.length) { p.innerHTML = '<div class="item empty">No items</div>'; return; }
+        p.innerHTML = pending.slice(0,10).map(i => {
+            const cls = {critical:'crit',high:'high',medium:'med',low:'low'}[i.priority] || '';
+            return `<div class="item ${cls}"><span class="badge">${i.id}</span><span class="txt">${i.title}</span></div>`;
+        }).join('');
+    } catch (e) { console.error('loadBacklog:', e); }
+}
+
+async function loadTodo() {
+    try {
+        const r = await fetch(`${API}/api/todo`);
+        const items = await r.json();
+        const pending = items.filter(i => !i.done && i.status !== 'done');
+        const completed = items.filter(i => i.done || i.status === 'done');
+        document.getElementById('todoCount').textContent = pending.length;
+        const p = document.getElementById('todoPanel');
+        let html = '';
+        if (pending.length) {
+            html += pending.slice(0,10).map(i => 
+                `<div class="item"><span class="badge">${i.id}</span><span class="txt">${i.title}</span></div>`
+            ).join('');
+        }
+        if (completed.length) {
+            html += '<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--border);color:var(--text-sec);font-size:11px;">✓ Completed:</div>';
+            html += completed.map(i => 
+                `<div class="item" style="opacity:0.6;"><span class="badge" style="text-decoration:line-through;">${i.id}</span><span class="txt" style="text-decoration:line-through;">${i.title}</span>${i.version ? ' <span style="color:var(--success);font-size:10px;">v'+i.version+'</span>' : ''}</div>`
+            ).join('');
+        }
+        if (!html) { p.innerHTML = '<div class="item empty">No items</div>'; return; }
+        p.innerHTML = html;
+    } catch (e) { console.error('loadTodo:', e); }
+}
+
+async function loadBugfixes() {
+    try {
+        const r = await fetch(`${API}/api/bugfix/pending`);
+        const d = await r.json();
+        const items = d.bugfixes || [];
+        document.getElementById('bugfixCount').textContent = items.length;
+        const p = document.getElementById('bugfixPanel');
+        if (!items.length) { p.innerHTML = '<div class="item empty">No pending bugfixes</div>'; return; }
+        p.innerHTML = items.map(i => 
+            `<div class="item" style="border-left:3px solid var(--danger);padding-left:8px;">
+                <span class="badge" style="background:#ffebee;color:#c62828;">${i.id}</span>
+                <span class="txt">${i.title}</span>
+                <button onclick="applyBugfix('${i.id}')" style="background:var(--success);color:white;border:none;padding:2px 6px;border-radius:3px;font-size:10px;cursor:pointer;margin-left:4px;">Apply</button>
+            </div>`
+        ).join('');
+    } catch (e) { console.error('loadBugfixes:', e); }
+}
+
+async function addBugfix() {
+    const input = document.getElementById('newBugfix');
+    const title = input.value.trim();
+    if (!title) return;
+    try {
+        await fetch(`${API}/api/bugfix/add`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({title})
+        });
+        input.value = '';
+        loadBugfixes();
+    } catch (e) { console.error('addBugfix:', e); }
+}
+
+async function applyBugfix(bugfixId) {
+    if (!confirm(`Apply bugfix ${bugfixId}? This will create a new release.`)) return;
+    const commitSha = prompt('Enter commit SHA or description:', 'dashboard-apply');
+    if (!commitSha) return;
+    try {
+        const r = await fetch(`${API}/api/bugfix/apply`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({bugfix_id: bugfixId, commit_sha: commitSha})
+        });
+        const d = await r.json();
+        if (d.success) {
+            alert(`✅ Bugfix applied! Version ${d.version} released.\n\nUpdate available - restart to apply.`);
+            loadBugfixes();
+            checkForUpdates();
+        } else {
+            alert('❌ Failed: ' + (d.detail || 'unknown error'));
+        }
+    } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function loadConstraints() {
+    try {
+        const r = await fetch(`${API}/api/constraints`);
+        const data = await r.json();
+        let constraints = [];
+        if (Array.isArray(data)) {
+            constraints = data;
+        } else if (data.env) {
+            constraints = data.env;
+        } else if (typeof data === 'object') {
+            constraints = Object.entries(data).map(([k,v]) => ({id: k, rule: typeof v === 'string' ? v : v.rule || JSON.stringify(v), severity: v.severity || 'MEDIUM'}));
+        }
+        document.getElementById('constraintsCount').textContent = constraints.length;
+        const p = document.getElementById('constraintsPanel');
+        if (!constraints.length) { p.innerHTML = '<div class="item empty">No constraints</div>'; return; }
+        p.innerHTML = constraints.slice(0,15).map(c => 
+            `<div class="c-item">
+                <span class="c-id">${c.id || '-'}</span>
+                <span class="c-sev ${c.severity || ''}">${c.severity || ''}</span>
+                <div class="c-rule">${c.rule || ''}</div>
+            </div>`
+        ).join('');
+    } catch (e) { console.error('loadConstraints:', e); }
+}
+
+async function loadErrors() {
+    try {
+        const r = await fetch(`${API}/api/debug/errors`);
+        const d = await r.json();
+        const errors = d.errors || [];
+        document.getElementById('errorsCount').textContent = errors.length;
+        const p = document.getElementById('errorsPanel');
+        if (!errors.length) { p.innerHTML = '<div class="item empty">No errors</div>'; return; }
+        p.innerHTML = errors.slice(0,5).map(e => 
+            `<div class="item crit"><span class="txt">${(e.message || 'Unknown error').substring(0,50)}</span></div>`
+        ).join('');
+    } catch (e) { console.error('loadErrors:', e); }
+}
+
+async function loadGitHub() {
+    try {
+        const r = await fetch(`${API}/api/github/status`);
+        const d = await r.json();
+        const p = document.getElementById('githubPanel');
+        document.getElementById('githubCount').textContent = d.configured ? '✓' : '✗';
+        if (!d.configured) {
+            p.innerHTML = '<div class="item empty">Not configured</div>';
+            return;
+        }
+        let html = `
+            <div class="item"><span class="badge">User</span><span class="txt">${d.user || '-'}</span></div>
+            <div class="item"><span class="badge">Service</span><span class="txt">${d.service_repo || '-'} (v${d.service_version || '-'})</span></div>
+            <div class="item"><span class="badge">Dashboard</span><span class="txt">${d.dashboard_repo || '-'} (v${d.dashboard_version || '-'})</span></div>
+        `;
+        if (d.chat_module_repo) {
+            html += `<div class="item"><span class="badge">Chat</span><span class="txt">${d.chat_module_repo} (v${d.chat_module_version || '-'})</span></div>`;
+        }
+        html += `<div class="item"><span class="badge">Valid</span><span class="txt">${d.valid ? '✓' : '✗'}</span></div>`;
+        p.innerHTML = html;
+    } catch (e) { 
+        document.getElementById('githubPanel').innerHTML = '<div class="item empty">Error loading</div>';
+    }
+}
+
+async function addBacklog() {
+    const inp = document.getElementById('newBacklog');
+    const title = inp.value.trim();
+    if (!title) return;
+    await fetch(`${API}/api/backlog/add`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, priority: document.getElementById('backlogPrio').value})
+    });
+    inp.value = '';
+    loadBacklog();
+}
+
+async function addTodo() {
+    const inp = document.getElementById('newTodo');
+    const title = inp.value.trim();
+    if (!title) return;
+    await fetch(`${API}/api/todo/add`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, category: 'todo'})
+    });
+    inp.value = '';
+    loadTodo();
+}
+
+async function processNextTodo() {
+    const logPanel = document.getElementById('processLog');
+    const logContent = document.getElementById('processLogContent');
+    logPanel.style.display = 'block';
+    logContent.innerHTML = '<div>⏳ Processing next TODO...</div>';
+    
+    try {
+        const r = await fetch(`${API}/api/todo/process`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({max_items: 1, push: true})
+        });
+        const d = await r.json();
+        
+        let html = '';
+        if (d.success) {
+            html += `<div style="color:var(--success)">✅ Processed ${d.processed} TODO(s)</div>`;
+        } else {
+            html += `<div style="color:var(--error)">❌ Processing failed</div>`;
+        }
+        
+        if (d.results) {
+            d.results.forEach(r => {
+                html += `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;">`;
+                html += `<strong>${r.id}: ${r.title.substring(0,40)}</strong>`;
+                if (r.success) {
+                    html += ` <span style="color:var(--success)">✓ v${r.new_version}</span>`;
+                } else {
+                    html += ` <span style="color:var(--error)">✗ ${r.error || 'Failed'}</span>`;
+                }
+                if (r.steps) {
+                    r.steps.forEach(s => {
+                        const icon = s.success !== false ? '✓' : '✗';
+                        html += `<div style="margin-left:12px;color:var(--text-sec)">${icon} ${s.step}</div>`;
+                    });
+                }
+                html += '</div>';
+            });
+        }
+        
+        html += `<div style="margin-top:8px">Remaining: ${d.remaining || 0}</div>`;
+        logContent.innerHTML = html;
+        
+        loadTodo();
+        loadSnapshots();
+        loadOutputs();
+    } catch (e) {
+        logContent.innerHTML = `<div style="color:var(--error)">Error: ${e.message}</div>`;
+    }
+}
+
+async function processAllTodos() {
+    if (!confirm('Process ALL pending TODOs? Each will create a separate build and GitHub release.')) return;
+    
+    const logPanel = document.getElementById('processLog');
+    const logContent = document.getElementById('processLogContent');
+    logPanel.style.display = 'block';
+    logContent.innerHTML = '<div>⏳ Processing ALL TODOs... This may take a while.</div>';
+    
+    try {
+        const r = await fetch(`${API}/api/todo/process-all`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({push: true})
+        });
+        const d = await r.json();
+        
+        let html = `<div style="font-weight:bold;margin-bottom:8px;">`;
+        html += `Processed: ${d.processed} | Success: ${d.successful} | Failed: ${d.failed}`;
+        html += `</div>`;
+        
+        if (d.results) {
+            d.results.forEach(r => {
+                const status = r.success ? '✅' : '❌';
+                html += `<div>${status} ${r.id}: ${r.title.substring(0,30)} ${r.new_version ? 'v'+r.new_version : r.error || ''}</div>`;
+            });
+        }
+        
+        logContent.innerHTML = html;
+        loadTodo();
+        loadSnapshots();
+        loadOutputs();
+    } catch (e) {
+        logContent.innerHTML = `<div style="color:var(--error)">Error: ${e.message}</div>`;
+    }
+}
+
+function addMsg(role, content, steps = null, thinking = null) {
+    const msgs = document.getElementById('messages');
+    const icon = role === 'user' ? '👤 You' : '🤖 Agent';
+    const time = new Date().toLocaleTimeString();
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    
+    let html = `<div class="msg-hdr"><span>${icon}</span><span>${time}</span></div>`;
+    
+    // Processing steps (for agent messages)
+    if (role === 'agent' && steps && steps.length) {
+        html += `<div class="msg-steps">${steps.map(s => `
+            <div class="step ${s.status}">
+                ${s.status === 'running' ? '<div class="step-spinner"></div>' : s.status === 'complete' ? '<span class="step-check">✓</span>' : '<span>✗</span>'}
+                <span>${s.label}</span>
+                ${s.duration ? `<span class="step-duration">${s.duration}ms</span>` : ''}
+            </div>
+        `).join('')}</div>`;
+    }
+    
+    // Thinking block
+    if (thinking) {
+        html += `<div class="thinking-block collapsed" onclick="this.classList.toggle('collapsed')">
+            <div class="thinking-header">💭 Thinking ${thinking.duration ? `(${thinking.duration}ms)` : ''} ▼</div>
+            <div class="thinking-content">${thinking.content.replace(/</g,'&lt;')}</div>
+        </div>`;
+    }
+    
+    // Format content with code blocks
+    let formattedContent = content.replace(/</g,'&lt;');
+    formattedContent = formattedContent.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+    formattedContent = formattedContent.replace(/`([^`]+)`/g, '<code>$1</code>');
+    formattedContent = formattedContent.replace(/\n/g,'<br>');
+    
+    html += `<div>${formattedContent}</div>`;
+    div.innerHTML = html;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+}
+
+async function send() {
+    const inp = document.getElementById('input');
+    const msg = inp.value.trim();
+    if (!msg || sending) return;
+    sending = true;
+    document.getElementById('sendBtn').disabled = true;
+    addMsg('user', msg);
+    inp.value = '';
+    document.getElementById('lintBar').classList.add('hidden');
+    
+    // Create agent message with protocol steps
+    const steps = [
+        { label: 'Linting', status: 'running' },
+        { label: 'Constraints', status: 'pending' },
+        { label: 'Negotiating', status: 'pending' },
+        { label: 'Executing', status: 'pending' }
+    ];
+    const agentDiv = addMsg('agent', '...', steps);
+    
+    try {
+        // Step 1: Show linting
+        await new Promise(r => setTimeout(r, 100));
+        
+        // Call chat API which runs full protocol
+        const chatStart = Date.now();
+        const r = await fetch(`${API}/api/chat`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message: msg})
+        });
+        const d = await r.json();
+        const chatDuration = Date.now() - chatStart;
+        
+        // Map protocol steps from response
+        const protocolSteps = d.protocol || [];
+        const finalSteps = protocolSteps.map(p => ({
+            label: p.label || p.step,
+            status: p.status || 'complete',
+            duration: p.duration,
+            detail: p.error || (p.violations && p.violations.length ? p.violations.join(', ') : null)
+        }));
+        
+        // If no protocol steps, create basic ones
+        if (finalSteps.length === 0) {
+            finalSteps.push(
+                { label: 'Linting', status: 'complete' },
+                { label: 'Claude', status: d.status === 'ok' ? 'complete' : 'error', duration: chatDuration }
+            );
+        }
+        
+        // Build thinking content from protocol
+        let thinkingContent = '';
+        protocolSteps.forEach(p => {
+            if (p.step === 'lint' && p.issues && p.issues.length > 0) {
+                thinkingContent += `LINT ISSUES:\n${p.issues.map(i => `- [${i.severity}] ${i.message}`).join('\n')}\n\n`;
+            }
+            if (p.step === 'constraints' && p.context) {
+                thinkingContent += `CONSTRAINTS:\n${p.context}\n\n`;
+            }
+            if (p.step === 'constraints' && p.violations && p.violations.length > 0) {
+                thinkingContent += `VIOLATIONS:\n${p.violations.join('\n')}\n\n`;
+            }
+            if (p.step === 'negotiate' && p.attempts > 1) {
+                thinkingContent += `NEGOTIATION: ${p.attempts} attempts\n`;
+            }
+        });
+        
+        // Add server-provided thinking
+        if (d.thinking) {
+            thinkingContent += d.thinking;
+        }
+        
+        const thinking = thinkingContent ? { content: thinkingContent, duration: chatDuration } : null;
+        
+        // Update message with response
+        agentDiv.remove();
+        addMsg('agent', d.response || d.error || 'No response', finalSteps, thinking);
+        
+        setTimeout(() => { loadOutputs(); loadSnapshots(); }, 500);
+    } catch (e) {
+        agentDiv.remove();
+        addMsg('agent', 'Error: ' + e.message, [{ label: 'Error', status: 'error' }]);
+    }
+    sending = false;
+    document.getElementById('sendBtn').disabled = false;
+}
+
+function updateMsgSteps(div, steps) {
+    const stepsDiv = div.querySelector('.msg-steps');
+    if (stepsDiv) {
+        stepsDiv.innerHTML = steps.map(s => `
+            <div class="step ${s.status}">
+                ${s.status === 'running' ? '<div class="step-spinner"></div>' : s.status === 'complete' ? '<span class="step-check">✓</span>' : '<span>✗</span>'}
+                <span>${s.label}</span>
+                ${s.duration ? `<span class="step-duration">${s.duration}ms</span>` : ''}
+            </div>
+        `).join('');
+    }
+}
+
+function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+}
+
+// ============================================================
+// UPDATE CHECK & INSTALL
+// ============================================================
+
+let updateData = null;
+
+async function checkForUpdates() {
+    try {
+        const r = await fetch(`${API}/api/update/check`);
+        const d = await r.json();
+        
+        if (d.update_available) {
+            updateData = d;
+            document.getElementById('updateBadge').style.display = 'inline';
+            document.getElementById('updateBadge').textContent = `⬆ v${d.latest_version}`;
+        } else {
+            document.getElementById('updateBadge').style.display = 'none';
+        }
+    } catch (e) {
+        console.log('Update check failed:', e);
+    }
+}
+
+async function showUpdatePrompt() {
+    if (!updateData) return;
+    
+    const modal = document.getElementById('updateModal');
+    const info = document.getElementById('updateInfo');
+    const notes = document.getElementById('releaseNotes');
+    
+    info.innerHTML = `
+        <div><strong>Current:</strong> v${updateData.current_version}</div>
+        <div><strong>Latest:</strong> v${updateData.latest_version}</div>
+        <div><strong>Released:</strong> ${updateData.published_at || 'Unknown'}</div>
+    `;
+    
+    notes.innerHTML = updateData.release_notes || 'No release notes available.';
+    modal.style.display = 'flex';
+}
+
+function closeUpdateModal() {
+    document.getElementById('updateModal').style.display = 'none';
+}
+
+async function installUpdate() {
+    if (!updateData) return;
+    
+    const notes = document.getElementById('releaseNotes');
+    notes.innerHTML = '⏳ Downloading and installing update...';
+    
+    try {
+        const r = await fetch(`${API}/api/update/install-from-github`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const d = await r.json();
+        
+        if (d.success) {
+            notes.innerHTML = `✅ Update installed! v${d.old_version} → v${updateData.latest_version}\n\nRestart required. Restart now?`;
+            // Change button to restart
+            const modal = document.getElementById('updateModal');
+            const buttons = modal.querySelector('div:last-child');
+            buttons.innerHTML = `
+                <button onclick="closeUpdateModal()" style="padding:8px 16px;border:1px solid #555;background:transparent;color:#fff;border-radius:6px;cursor:pointer;">Later</button>
+                <button onclick="restartService()" style="padding:8px 16px;border:none;background:#4CAF50;color:#fff;border-radius:6px;cursor:pointer;">Restart Now</button>
+            `;
+        } else {
+            notes.innerHTML = `❌ Update failed: ${d.error || 'Unknown error'}`;
+        }
+    } catch (e) {
+        notes.innerHTML = `❌ Update failed: ${e.message}`;
+    }
+}
+
+async function restartService() {
+    const notes = document.getElementById('releaseNotes');
+    notes.innerHTML = '🔄 Restarting service...';
+    
+    try {
+        await fetch(`${API}/api/restart`, { method: 'POST' });
+    } catch (e) {
+        // Expected - service will restart and connection will drop
+    }
+    
+    notes.innerHTML = '⏳ Waiting for service to restart...';
+    
+    // Poll until service is back
+    let attempts = 0;
+    const checkService = setInterval(async () => {
+        attempts++;
+        try {
+            const r = await fetch(`${API}/api/health`);
+            if (r.ok) {
+                clearInterval(checkService);
+                notes.innerHTML = '✅ Service restarted!';
+                setTimeout(() => {
+                    closeUpdateModal();
+                    location.reload();
+                }, 1000);
+            }
+        } catch (e) {
+            if (attempts > 30) {
+                clearInterval(checkService);
+                notes.innerHTML = '⚠️ Service not responding. Please restart manually.';
+            }
+        }
+    }, 1000);
+}
+
+// ============================================================
+// RELEASE NOTES
+// ============================================================
+
+async function showReleaseNotes() {
+    const version = document.getElementById('srvVersion').textContent;
+    document.getElementById('releaseNotesVersion').textContent = version;
+    document.getElementById('releaseNotesContent').innerHTML = '⏳ Loading...';
+    document.getElementById('releaseNotesModal').style.display = 'flex';
+    
+    try {
+        // Try GitHub first
+        const r = await fetch(`${API}/api/release-notes/github?version=${version}`);
+        const d = await r.json();
+        
+        if (d.notes) {
+            document.getElementById('releaseNotesContent').textContent = d.notes;
+        } else {
+            // Fallback to local
+            const r2 = await fetch(`${API}/api/release-notes?version=${version}`);
+            const d2 = await r2.json();
+            
+            if (d2.notes) {
+                document.getElementById('releaseNotesContent').textContent = d2.notes;
+            } else {
+                document.getElementById('releaseNotesContent').textContent = 'No release notes available for this version.';
+            }
+        }
+    } catch (e) {
+        document.getElementById('releaseNotesContent').textContent = 'Error loading release notes: ' + e.message;
+    }
+}
+                document.getElementById('releaseNotesContent').textContent = 'No release notes available for this version.';
+            }
+        }
+    } catch (e) {
+        document.getElementById('releaseNotesContent').textContent = 'Error loading release notes: ' + e.message;
+    }
+}
+
+async function showFullReleaseNotes() {
+    document.getElementById('releaseNotesVersion').textContent = 'All';
+    document.getElementById('releaseNotesContent').innerHTML = '⏳ Loading all releases from GitHub...';
+    
+    try {
+        // Fetch from GitHub
+        const r = await fetch(`${API}/api/release-notes/github/all?limit=20`);
+        const d = await r.json();
+        
+        if (d.releases && d.releases.length > 0) {
+            let content = 'Release History (from GitHub):\n\n';
+            d.releases.forEach(rel => {
+                content += `=== v${rel.version} ===\n`;
+                content += `Released: ${new Date(rel.published_at).toLocaleDateString()}\n`;
+                if (rel.notes) {
+                    content += `${rel.notes}\n`;
+                }
+                content += '\n';
+            });
+            document.getElementById('releaseNotesContent').textContent = content;
+        } else {
+            // Fallback to local
+            const r2 = await fetch(`${API}/api/release-notes/full`);
+            const d2 = await r2.json();
+            
+            if (d2.notes) {
+                document.getElementById('releaseNotesContent').textContent = d2.notes;
+            } else {
+                document.getElementById('releaseNotesContent').textContent = 'No releases found.';
+            }
+        }
+    } catch (e) {
+        document.getElementById('releaseNotesContent').textContent = 'Error: ' + e.message;
+    }
+}
+
+function closeReleaseNotesModal() {
+    document.getElementById('releaseNotesModal').style.display = 'none';
+}
+
+async function init() {
+    addMsg('agent', 'Welcome! Service worker dashboard ready.\nType a message to interact with Claude.');
+    await loadHealth();
+    loadOutputs();
+    loadSnapshots();
+    loadBacklog();
+    loadTodo();
+    loadBugfixes();
+    loadConstraints();
+    loadErrors();
+    loadGitHub();
+    checkForUpdates();
+    setInterval(loadHealth, 10000);
+    setInterval(() => { loadOutputs(); loadSnapshots(); loadBugfixes(); }, 5000);
+    setInterval(checkForUpdates, 60000);  // Check every minute
+}
+
+// ============================================================
+// PWA INSTALL
+// ============================================================
+
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('installBtn').style.display = 'inline';
+    console.log('PWA install available');
+});
+
+window.addEventListener('appinstalled', () => {
+    document.getElementById('installBtn').style.display = 'none';
+    deferredPrompt = null;
+    console.log('PWA installed');
+});
+
+async function installPWA() {
+    if (!deferredPrompt) {
+        alert('App already installed or not available for install.\n\nTo install manually:\n- Chrome: Click ⋮ menu → "Install LocalAgent..."\n- Safari: Share → "Add to Home Screen"');
+        return;
+    }
+    
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('PWA install outcome:', outcome);
+    
+    if (outcome === 'accepted') {
+        document.getElementById('installBtn').style.display = 'none';
+    }
+    deferredPrompt = null;
+}
+
+// ============================================================
+// WHAT'S NEW (shows after version change)
+// ============================================================
+
+async function checkWhatsNew() {
+    try {
+        const r = await fetch(`${API}/api/health`);
+        const d = await r.json();
+        const currentVersion = d.version;
+        
+        const lastSeenVersion = localStorage.getItem('localagent_last_version');
+        
+        if (lastSeenVersion && lastSeenVersion !== currentVersion) {
+            // Version changed - show what's new
+            showWhatsNew(currentVersion);
+        }
+        
+        // Update stored version
+        localStorage.setItem('localagent_last_version', currentVersion);
+    } catch (e) {
+        console.error('checkWhatsNew:', e);
+    }
+}
+
+async function showWhatsNew(version) {
+    document.getElementById('whatsNewVersion').textContent = version;
+    document.getElementById('whatsNewContent').innerHTML = '⏳ Loading...';
+    document.getElementById('whatsNewModal').style.display = 'flex';
+    
+    try {
+        // Try GitHub first
+        const r = await fetch(`${API}/api/release-notes/github?version=${version}`);
+        const d = await r.json();
+        
+        if (d.notes) {
+            document.getElementById('whatsNewContent').textContent = d.notes;
+        } else if (d.error) {
+            // Fallback to local release notes
+            const r2 = await fetch(`${API}/api/release-notes?version=${version}`);
+            const d2 = await r2.json();
+            
+            if (d2.notes) {
+                document.getElementById('whatsNewContent').textContent = d2.notes;
+            } else {
+                document.getElementById('whatsNewContent').textContent = `Updated to v${version}\n\nNo detailed release notes available.`;
+            }
+        } else {
+            document.getElementById('whatsNewContent').textContent = `Updated to v${version}`;
+        }
+    } catch (e) {
+        document.getElementById('whatsNewContent').textContent = `Updated to v${version}`;
+    }
+}
+
+function closeWhatsNew() {
+    document.getElementById('whatsNewModal').style.display = 'none';
+}
+
+init();
+// Check for what's new after init
+setTimeout(checkWhatsNew, 1000);
+</script>
+</body>
+</html>
