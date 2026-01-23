@@ -29,7 +29,7 @@ ARCHITECTURE:
 import sys
 from pathlib import Path
 
-VERSION = "3.0.62"
+VERSION = "3.0.63"
 
 
 def main():
