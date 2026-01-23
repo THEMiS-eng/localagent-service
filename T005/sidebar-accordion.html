@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sidebar Accordion</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="accordion-item">
+            <div class="accordion-header" data-target="section1">
+                <span>Dashboard</span>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="accordion-content" id="section1">
+                <a href="#">Overview</a>
+                <a href="#">Analytics</a>
+                <a href="#">Reports</a>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <div class="accordion-header" data-target="section2">
+                <span>Users</span>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="accordion-content" id="section2">
+                <a href="#">All Users</a>
+                <a href="#">Add User</a>
+                <a href="#">User Roles</a>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <div class="accordion-header" data-target="section3">
+                <span>Settings</span>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="accordion-content" id="section3">
+                <a href="#">General</a>
+                <a href="#">Security</a>
+                <a href="#">Preferences</a>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
