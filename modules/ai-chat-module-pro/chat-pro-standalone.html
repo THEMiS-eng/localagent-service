@@ -197,6 +197,47 @@ textarea::placeholder{color:var(--muted)}
 
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{animation:spin .8s linear infinite}
+.protocol-modal {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.protocol-modal-content {
+  background: #1e1e1e; border-radius: 12px; max-width: 500px; width: 90%; max-height: 80vh; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.protocol-modal-content.wide { max-width: 800px; }
+.protocol-modal-header {
+  display: flex; justify-content: space-between; align-items: center; padding: 16px 20px;
+  border-bottom: 1px solid #333; background: #252525;
+}
+.protocol-modal-header h3 { margin: 0; font-size: 16px; color: #fff; }
+.protocol-modal-header button {
+  background: none; border: none; color: #888; font-size: 20px; cursor: pointer;
+}
+.protocol-modal-body { padding: 20px; overflow-y: auto; }
+.protocol-modal-body pre { 
+  background: #0d0d0d; padding: 12px; border-radius: 8px; overflow-x: auto;
+  font-size: 12px; color: #aaa; white-space: pre-wrap;
+}
+.protocol-status { 
+  display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-bottom: 12px;
+}
+.protocol-status.complete { background: #1b4332; color: #95d5b2; }
+.protocol-status.warning { background: #5c4813; color: #ffd166; }
+.protocol-status.error { background: #5c1313; color: #ff6b6b; }
+.protocol-score, .protocol-attempts, .protocol-valid { margin: 8px 0; font-size: 14px; color: #ccc; }
+.protocol-section { margin-top: 16px; }
+.protocol-section h4 { margin: 0 0 8px 0; font-size: 13px; color: #888; text-transform: uppercase; }
+.protocol-section.error { color: #ff6b6b; }
+.violation { background: #5c4813; color: #ffd166; padding: 8px 12px; border-radius: 6px; margin: 4px 0; font-size: 13px; }
+.issue { color: #aaa; padding: 4px 0; font-size: 13px; }
+.task { background: #1a3a52; color: #7cc5ff; padding: 8px 12px; border-radius: 6px; margin: 4px 0; font-size: 13px; }
+.audit-link { margin-top: 12px; padding-top: 12px; border-top: 1px solid #333; }
+.audit-link a { color: #7cc5ff; text-decoration: none; font-size: 13px; }
+.audit-link a:hover { text-decoration: underline; }
+.step-content { display: none; padding: 8px 12px 8px 32px; font-size: 12px; }
+.step { cursor: pointer; }
+.step:hover { background: rgba(255,255,255,0.05); }
 </style>
 </head>
 <body>
@@ -270,6 +311,8 @@ const icons = {
   running:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>',
   success:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>',
   error:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>',
+  warning:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>',
+  pending:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
   mic:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>',
   file:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>'
 };
@@ -855,25 +898,79 @@ async function send() {
   
   const stepsContainer = document.createElement('div');
   stepsContainer.className = 'steps-container';
-  stepsContainer.innerHTML = `<div class="steps-header">${icons.chevron}<span>Processing</span><span class="count">2 steps</span></div><div class="steps-body"></div>`;
+  stepsContainer.innerHTML = `<div class="steps-header">${icons.chevron}<span>Protocol</span><span class="count">...</span></div><div class="steps-body"></div>`;
   el.insertBefore(stepsContainer, el.firstChild);
   
   const stepsHeader = stepsContainer.querySelector('.steps-header');
   const stepsBody = stepsContainer.querySelector('.steps-body');
+  const stepsCount = stepsContainer.querySelector('.count');
   stepsHeader.onclick = () => { stepsHeader.classList.toggle('open'); stepsBody.classList.toggle('open'); };
   stepsHeader.classList.add('open');
   stepsBody.classList.add('open');
-  
-  const step1 = addStep(stepsBody, 'Parse', 'running');
-  await delay(300);
-  updateStep(step1, 'success', 280);
-  
-  const step2 = addStep(stepsBody, 'Generate', 'running');
-  
-  let response = `You said: "${esc(text.slice(0,60))}"\n\n`;
-  if (userFiles.length) response += `📎 ${userFiles.length} file(s)\n\n`;
-  response += `🎤 **Local Whisper voice recognition**\n\nAll processing happens in your browser.\nNo audio sent to any server.`;
-  
+
+  // Show initial steps
+  const stepLint = addStep(stepsBody, 'Lint', 'running');
+  const stepConstraints = addStep(stepsBody, 'Constraints', 'pending');
+  const stepNegotiate = addStep(stepsBody, 'Negotiate', 'pending');
+  const stepExecute = addStep(stepsBody, 'Execute', 'pending');
+
+  let response = '';
+  let protocolData = null;
+
+  try {
+    const API = window.API_BASE || 'http://localhost:9998';
+    const res = await fetch(`${API}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, files: userFiles.map(f => f.name) })
+    });
+    
+    const data = await res.json();
+    protocolData = data.protocol || [];
+    response = data.response || data.error || 'No response';
+    
+    // Update steps from protocol
+    for (const p of protocolData) {
+      let stepEl = null;
+      if (p.step === 'lint') stepEl = stepLint;
+      else if (p.step === 'constraints') stepEl = stepConstraints;
+      else if (p.step === 'negotiate') stepEl = stepNegotiate;
+      else if (p.step === 'execute') stepEl = stepExecute;
+      
+      if (stepEl) {
+        const status = p.status === 'complete' ? 'success' : p.status === 'warning' ? 'warning' : p.status === 'error' ? 'error' : 'success';
+        updateStep(stepEl, status);
+        stepEl.querySelector('.step-title').textContent = p.label || p.step;
+        
+        // Add click handler for details
+        stepEl.style.cursor = 'pointer';
+        stepEl.dataset.protocol = JSON.stringify(p);
+        stepEl.onclick = (e) => {
+          e.stopPropagation();
+          showProtocolDetail(JSON.parse(stepEl.dataset.protocol));
+        };
+        
+        // Show violations/issues inline
+        const detailEl = stepEl.querySelector('.step-content');
+        if (p.violations && p.violations.length > 0) {
+          detailEl.innerHTML = p.violations.map(v => `<div class="violation">⚠️ ${v}</div>`).join('');
+          detailEl.style.display = 'block';
+        } else if (p.issues && p.issues.length > 0) {
+          detailEl.innerHTML = p.issues.slice(0, 3).map(i => `<div class="issue">• ${i.message || i}</div>`).join('');
+          detailEl.style.display = 'block';
+        }
+      }
+    }
+    
+    stepsCount.textContent = `${protocolData.length} steps`;
+    
+  } catch (err) {
+    response = `❌ Error: ${err.message}`;
+    updateStep(stepLint, 'error');
+    stepsCount.textContent = 'failed';
+  }
+
+  // Render response with typing effect
   content.innerHTML = '<span class="cursor"></span>';
   const words = response.split(' ');
   let buffer = '';
@@ -884,7 +981,15 @@ async function send() {
   }
   
   content.innerHTML = parseContent(buffer);
-  updateStep(step2, 'success', words.length * 15);
+  
+  // Add audit link
+  if (protocolData) {
+    const auditLink = document.createElement('div');
+    auditLink.className = 'audit-link';
+    auditLink.innerHTML = `<a href="#" onclick="showFullAudit(event, ${esc(JSON.stringify(protocolData))})">📋 View full audit</a>`;
+    el.appendChild(auditLink);
+  }
+  
   stepsHeader.classList.remove('open');
   stepsBody.classList.remove('open');
   
@@ -905,6 +1010,53 @@ function updateStep(step, status, duration) {
   step.querySelector('.step-icon').className = 'step-icon ' + status;
   step.querySelector('.step-icon').innerHTML = icons[status];
   if (duration) step.querySelector('.step-time').textContent = (duration/1000).toFixed(2) + 's';
+}
+
+function showProtocolDetail(p) {
+  const modal = document.createElement('div');
+  modal.className = 'protocol-modal';
+  modal.innerHTML = `
+    <div class="protocol-modal-content">
+      <div class="protocol-modal-header">
+        <h3>${p.step.toUpperCase()}: ${p.label || ''}</h3>
+        <button onclick="this.closest('.protocol-modal').remove()">✕</button>
+      </div>
+      <div class="protocol-modal-body">
+        <div class="protocol-status ${p.status}">${p.status}</div>
+        ${p.score !== undefined ? `<div class="protocol-score">Score: ${p.score}/100</div>` : ''}
+        ${p.attempts !== undefined ? `<div class="protocol-attempts">Attempts: ${p.attempts}</div>` : ''}
+        ${p.valid !== undefined ? `<div class="protocol-valid">${p.valid ? '✅ Valid' : '❌ Invalid'}</div>` : ''}
+        ${p.violations && p.violations.length ? `<div class="protocol-section"><h4>Violations:</h4>${p.violations.map(v => `<div class="violation">⚠️ ${v}</div>`).join('')}</div>` : ''}
+        ${p.issues && p.issues.length ? `<div class="protocol-section"><h4>Issues:</h4>${p.issues.map(i => `<div class="issue">• ${typeof i === 'string' ? i : i.message || JSON.stringify(i)}</div>`).join('')}</div>` : ''}
+        ${p.optimized ? `<div class="protocol-section"><h4>Optimized prompt:</h4><pre>${esc(p.optimized)}</pre></div>` : ''}
+        ${p.context ? `<div class="protocol-section"><h4>Context:</h4><pre>${esc(p.context)}</pre></div>` : ''}
+        ${p.tasks && p.tasks.length ? `<div class="protocol-section"><h4>Tasks:</h4>${p.tasks.map(t => `<div class="task">📋 ${t.id}: ${t.type}</div>`).join('')}</div>` : ''}
+        ${p.error ? `<div class="protocol-section error"><h4>Error:</h4><pre>${esc(p.error)}</pre></div>` : ''}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+function showFullAudit(e, protocolData) {
+  e.preventDefault();
+  const data = typeof protocolData === 'string' ? JSON.parse(protocolData) : protocolData;
+  const modal = document.createElement('div');
+  modal.className = 'protocol-modal';
+  modal.innerHTML = `
+    <div class="protocol-modal-content wide">
+      <div class="protocol-modal-header">
+        <h3>📋 Full Protocol Audit</h3>
+        <button onclick="this.closest('.protocol-modal').remove()">✕</button>
+      </div>
+      <div class="protocol-modal-body">
+        <pre>${JSON.stringify(data, null, 2)}</pre>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 }
 
 function addUserMsg(text, userFiles) {

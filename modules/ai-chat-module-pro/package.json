@@ -1,6 +1,6 @@
 {
   "name": "@themis-eng/ai-chat-module-pro",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Enterprise-grade chat component with Claude API optimizer and prompt linter",
   "main": "AIChatModulePro.jsx",
   "module": "AIChatModulePro.jsx",

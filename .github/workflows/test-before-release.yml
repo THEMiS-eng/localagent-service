@@ -1,0 +1,107 @@
+name: Test Before Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi uvicorn pydantic httpx
+          pip install pytest pytest-asyncio
+      
+      - name: Check Python syntax
+        run: |
+          python -m py_compile localagent/core/constraints.py
+          python -m py_compile localagent/core/negotiator.py
+          python -m py_compile localagent/core/learning.py
+          python -m py_compile localagent/core/orchestrator.py
+          python -m py_compile localagent/service/server.py
+          echo "✅ All Python files have valid syntax"
+      
+      - name: Verify constraints structure
+        run: |
+          python -c "
+          from localagent.core.constraints import get_all_constraints, ENV_CONSTRAINTS, CTX_CONSTRAINTS
+          
+          # Check all constraints have required fields
+          for c in get_all_constraints():
+              assert 'id' in c, f'Missing id in {c}'
+              assert 'rule' in c, f'Missing rule in {c}'
+              assert 'severity' in c, f'Missing severity in {c}'
+              assert c['severity'] in ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW'), f'Invalid severity in {c}'
+          
+          # Check no duplicate IDs
+          ids = [c['id'] for c in get_all_constraints()]
+          assert len(ids) == len(set(ids)), 'Duplicate constraint IDs found'
+          
+          # Check ENV/CTX prefixes
+          for c in ENV_CONSTRAINTS:
+              assert c['id'].startswith('ENV'), f'ENV constraint must start with ENV: {c}'
+          for c in CTX_CONSTRAINTS:
+              assert c['id'].startswith('CTX'), f'CTX constraint must start with CTX: {c}'
+          
+          print(f'✅ {len(ENV_CONSTRAINTS)} ENV + {len(CTX_CONSTRAINTS)} CTX = {len(ids)} constraints validated')
+          "
+      
+      - name: Verify VERSION format
+        run: |
+          VERSION=$(cat VERSION)
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid VERSION format: $VERSION"
+            exit 1
+          fi
+          echo "✅ VERSION format valid: $VERSION"
+      
+      - name: Test server imports
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+          from localagent.core.constraints import get_all_constraints
+          from localagent.core.negotiator import negotiate_request
+          from localagent.core.learning import load_learned_errors, learn_from_error
+          print('✅ All core imports successful')
+          "
+
+  validate-version:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Check version increment
+        run: |
+          # Get current and previous VERSION
+          CURRENT=$(cat VERSION)
+          git checkout HEAD~1 -- VERSION 2>/dev/null || echo "0.0.0" > VERSION
+          PREVIOUS=$(cat VERSION)
+          git checkout HEAD -- VERSION
+          
+          echo "Previous: $PREVIOUS"
+          echo "Current: $CURRENT"
+          
+          # Compare versions
+          if [ "$CURRENT" == "$PREVIOUS" ]; then
+            echo "⚠️ WARNING: VERSION not incremented ($PREVIOUS -> $CURRENT)"
+            # Don't fail, just warn - some commits may not need version bump
+          else
+            echo "✅ VERSION incremented: $PREVIOUS -> $CURRENT"
+          fi

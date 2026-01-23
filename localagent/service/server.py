@@ -28,7 +28,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Response, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
@@ -315,6 +315,15 @@ async def manifest():
         "theme_color": "#1a73e8"
     })
 
+
+@app.get("/modules/{path:path}")
+async def serve_module(path: str):
+    """Serve module files"""
+    module_path = Path("/Users/marcvanryckeghem/localagent_v3/modules") / path
+    if module_path and module_path.exists() and module_path.is_file():
+        content_type = "text/html" if path.endswith(".html") else "application/javascript" if path.endswith(".js") else "text/plain"
+        return Response(content=module_path.read_text(), media_type=content_type)
+    return JSONResponse({"detail": "Not Found"}, status_code=404)
 # ============================================================
 # HEALTH
 # ============================================================

@@ -172,6 +172,27 @@ CTX_CONSTRAINTS = [
         "severity": "MEDIUM",
         "check": "self_reference"
     },
+    {
+        "id": "CTX011",
+        "rule": "MUST check /api/health version match BEFORE any work",
+        "severity": "CRITICAL",
+        "check": "version_check_before_work",
+        "learned_from": "session_2026-01-23: Local 3.0.66 vs GitHub 3.0.68 caused confusion"
+    },
+    {
+        "id": "CTX012",
+        "rule": "MUST test locally in browser BEFORE any push/release",
+        "severity": "CRITICAL",
+        "check": "test_before_push",
+        "learned_from": "session_2026-01-23: Module v1.2.0 pushed without test broke dashboard"
+    },
+    {
+        "id": "CTX013",
+        "rule": "MUST verify imports when adding code using new classes",
+        "severity": "HIGH",
+        "check": "import_verification",
+        "learned_from": "session_2026-01-23: Response class used without import caused 500 error"
+    },
 ]
 
 
