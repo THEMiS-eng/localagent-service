@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with File Drop</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .chat-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .chat-header {
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+        .chat-messages {
+            height: 300px;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .chat-input-container {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            position: relative;
+        }
+        .chat-input {
+            width: 100%;
+            min-height: 60px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            resize: vertical;
+            outline: none;
+        }
+        .chat-input.drag-over {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+        .file-preview {
+            margin-top: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .send-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>Chat with File Upload</h2>
+        </div>
+        <div class="chat-messages" id="messages"></div>
+        <div class="chat-input-container">
+            <textarea id="chatInput" class="chat-input" placeholder="Type a message or drop files here..."></textarea>
+            <div id="filePreview" class="file-preview" style="display: none;"></div>
+            <button id="sendBtn" class="send-btn">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatInput = document.getElementById('chatInput');
+        const filePreview = document.getElementById('filePreview');
+        const messages = document.getElementById('messages');
+        const sendBtn = document.getElementById('sendBtn');
+        let attachedFiles = [];
+
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            chatInput.addEventListener(eventName, e => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+
+        // Visual feedback for drag over
+        chatInput.addEventListener('dragenter', () => chatInput.classList.add('drag-over'));
+        chatInput.addEventListener('dragleave', () => chatInput.classList.remove('drag-over'));
+        
+        // Handle file drop
+        chatInput.addEventListener('drop', (e) => {
+            chatInput.classList.remove('drag-over');
+            const files = [...e.dataTransfer.files];
+            attachedFiles = files;
+            showFilePreview(files);
+        });
+
+        function showFilePreview(files) {
+            if (files.length > 0) {
+                filePreview.style.display = 'block';
+                filePreview.innerHTML = files.map(f => `📎 ${f.name} (${(f.size/1024).toFixed(1)}KB)`).join('<br>');
+            } else {
+                filePreview.style.display = 'none';
+            }
+        }
+
+        function addMessage(text, files = []) {
+            const msg = document.createElement('div');
+            msg.className = 'message';
+            let content = text;
+            if (files.length > 0) {
+                content += '<br><small>Files: ' + files.map(f => f.name).join(', ') + '</small>';
+            }
+            msg.innerHTML = content;
+            messages.appendChild(msg);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        sendBtn.addEventListener('click', () => {
+            const text = chatInput.value.trim();
+            if (text || attachedFiles.length > 0) {
+                addMessage(text || 'File(s) attached', attachedFiles);
+                chatInput.value = '';
+                attachedFiles = [];
+                showFilePreview([]);
+            }
+        });
+
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendBtn.click();
+            }
+        });
+    </script>
+</body>
+</html>

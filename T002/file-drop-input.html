@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Drop Input</title>
+    <style>
+        .drop-zone {
+            width: 100%;
+            max-width: 400px;
+            height: 200px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px auto;
+            text-align: center;
+            background: #f9f9f9;
+        }
+        .drop-zone.dragover {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+        .drop-zone p {
+            margin: 0;
+            color: #666;
+        }
+        .file-input {
+            display: none;
+        }
+        .file-list {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .file-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin: 5px 0;
+            border-radius: 4px;
+            background: #fff;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">File Drop Input</h1>
+    
+    <div class="drop-zone" id="dropZone">
+        <p>Drop files here or click to select</p>
+        <input type="file" id="fileInput" class="file-input" multiple>
+    </div>
+    
+    <div class="file-list" id="fileList"></div>
+
+    <script src="file-drop.js"></script>
+</body>
+</html>

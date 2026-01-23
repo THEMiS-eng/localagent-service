@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Address Bar Downloader",
+  "version": "1.0",
+  "description": "Download files directly from the address bar",
+  "permissions": [
+    "downloads",
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "omnibox": {
+    "keyword": "dl"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Quick Download"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
