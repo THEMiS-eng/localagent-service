@@ -1,0 +1,2 @@
+[console_scripts]
+localagent-dev = localagent.main:main

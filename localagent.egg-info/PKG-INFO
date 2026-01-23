@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: localagent
+Version: 3.0.32
+Summary: Smart Agent Orchestrator
+Author: THEMiS-eng
+Requires-Python: >=3.9
+Dynamic: author
+Dynamic: requires-python
+Dynamic: summary
