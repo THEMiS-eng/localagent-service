@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocalAgent v3.0.42</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #09090b;
+  --bg-secondary: #0f0f12;
+  --surface: #18181b;
+  --surface-hover: #1f1f23;
+  --border: #27272a;
+  --border-light: #3f3f46;
+  --text: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-muted: rgba(99, 102, 241, 0.15);
+  --success: #22c55e;
+  --success-muted: rgba(34, 197, 94, 0.15);
+  --warning: #f59e0b;
+  --warning-muted: rgba(245, 158, 11, 0.15);
+  --error: #ef4444;
+  --error-muted: rgba(239, 68, 68, 0.15);
+  --user-bg: #1e1b4b;
+  --assistant-bg: #18181b;
+  --code-bg: #0d0d0f;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --font: 'Inter', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --transition: 0.15s ease;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; height: 100vh; overflow: hidden; }
+
+/* HEADER */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 48px; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 16px; gap: 16px;
+}
+.logo { font-weight: 600; font-size: 15px; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+.logo svg { width: 20px; height: 20px; }
+.health { display: flex; gap: 16px; margin-left: auto; font-size: 12px; align-items: center; color: var(--text-secondary); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.dot.on { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.dot.off { background: var(--error); }
+.dot.warn { background: var(--warning); animation: pulse 1.5s infinite; }
+@keyframes pulse { 50% { opacity: 0.5; } }
+.version { font-family: var(--font-mono); font-size: 11px; background: var(--bg); padding: 4px 8px; border-radius: 4px; }
+.update-badge { background: var(--warning); color: #000; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; cursor: pointer; }
+
+/* LAYOUT */
+.main { position: fixed; top: 48px; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: 1fr 340px; }
+
+/* CHAT PANEL */
+.chat-panel { display: flex; flex-direction: column; background: var(--bg); border-right: 1px solid var(--border); }
+.messages { flex: 1; overflow-y: auto; padding: 16px; }
+.messages::-webkit-scrollbar { width: 6px; }
+.messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* MESSAGES */
+.msg { margin-bottom: 16px; max-width: 85%; }
+.msg.user { margin-left: auto; }
+.msg-bubble { padding: 12px 16px; border-radius: var(--radius-lg); font-size: 14px; line-height: 1.6; }
+.msg.user .msg-bubble { background: var(--user-bg); border: 1px solid #312e81; }
+.msg.assistant .msg-bubble { background: var(--surface); border: 1px solid var(--border); }
+.msg-meta { font-size: 11px; color: var(--text-muted); margin-top: 6px; display: flex; gap: 8px; }
+
+/* PROCESSING STEPS */
+.msg-steps { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.step { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 10px; background: var(--bg-secondary); border-radius: 6px; border: 1px solid var(--border); }
+.step.running { border-color: var(--accent); }
+.step.complete { border-color: var(--success); }
+.step.error { border-color: var(--error); }
+.step-icon { width: 14px; height: 14px; }
+.step.running .step-icon { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.step-label { color: var(--text-secondary); }
+.step-duration { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+
+/* THINKING BLOCK */
+.thinking { background: #1a1a2e; border: 1px solid #2d2d5a; border-radius: var(--radius); padding: 12px; margin-bottom: 10px; font-size: 13px; }
+.thinking-header { display: flex; align-items: center; gap: 8px; color: var(--accent); font-size: 12px; font-weight: 500; margin-bottom: 8px; cursor: pointer; }
+.thinking-content { color: var(--text-secondary); white-space: pre-wrap; font-family: var(--font-mono); font-size: 12px; max-height: 150px; overflow-y: auto; }
+.thinking.collapsed .thinking-content { display: none; }
+
+/* CODE BLOCKS */
+.msg-bubble pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin: 8px 0; overflow-x: auto; font-family: var(--font-mono); font-size: 13px; }
+.msg-bubble code { font-family: var(--font-mono); font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
+.msg-bubble pre code { background: none; padding: 0; }
+
+/* INPUT AREA */
+.input-area { padding: 16px; background: var(--surface); border-top: 1px solid var(--border); }
+.input-row { display: flex; gap: 12px; align-items: flex-end; }
+.input-wrapper { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 10px 14px; transition: var(--transition); }
+.input-wrapper:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-muted); }
+.input-wrapper textarea { width: 100%; background: none; border: none; color: var(--text); font-family: var(--font); font-size: 14px; resize: none; outline: none; min-height: 24px; max-height: 200px; }
+.input-wrapper textarea::placeholder { color: var(--text-muted); }
+.send-btn { width: 44px; height: 44px; background: var(--accent); border: none; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition); }
+.send-btn:hover { background: var(--accent-hover); }
+.send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.send-btn svg { color: white; }
+
+/* SIDEBAR */
+.sidebar { overflow-y: auto; padding: 12px; background: var(--bg-secondary); }
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* PROJECT BOX */
+.project-box { background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 14px; border-radius: var(--radius-lg); margin-bottom: 12px; }
+.project-box .label { font-size: 10px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+.project-box .name { font-size: 15px; font-weight: 600; margin: 2px 0; }
+.project-box .ver { font-size: 12px; opacity: 0.85; }
+.project-box .path { font-size: 10px; opacity: 0.6; margin-top: 6px; word-break: break-all; }
+
+/* PANELS */
+.panel { background: var(--surface); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; border: 1px solid var(--border); }
+.panel-header { font-size: 12px; font-weight: 500; padding: 10px 12px; background: var(--bg-secondary); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+.panel-header .count { background: var(--accent); color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; }
+.panel-body { max-height: 180px; overflow-y: auto; }
+
+/* ITEMS */
+.item { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12px; display: flex; align-items: center; gap: 10px; transition: var(--transition); }
+.item:last-child { border-bottom: none; }
+.item:hover { background: var(--surface-hover); }
+.item.empty { color: var(--text-muted); justify-content: center; padding: 20px; }
+.item .badge { font-size: 10px; padding: 3px 8px; border-radius: 4px; background: var(--accent-muted); color: var(--accent); font-family: var(--font-mono); flex-shrink: 0; }
+.item .text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+.item.critical { border-left: 3px solid var(--error); }
+.item.high { border-left: 3px solid var(--warning); }
+.item.medium { border-left: 3px solid #f59e0b; }
+.item.low { border-left: 3px solid var(--success); }
+
+/* BUTTONS */
+.btn { padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: var(--transition); border: none; }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-success { background: var(--success); color: white; }
+.btn-warning { background: var(--warning); color: #000; }
+.btn-sm { padding: 4px 8px; font-size: 11px; }
+
+/* ADD ROW */
+.add-row { display: flex; gap: 8px; padding: 10px 12px; background: var(--bg-secondary); }
+.add-row input { flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--bg); color: var(--text); }
+.add-row input::placeholder { color: var(--text-muted); }
+.add-row select { padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--bg); color: var(--text); }
+
+/* TABS */
+.tabs { display: flex; gap: 4px; padding: 8px 12px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.tab { padding: 6px 12px; border-radius: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer; transition: var(--transition); }
+.tab:hover { color: var(--text); background: var(--surface); }
+.tab.active { color: var(--accent); background: var(--accent-muted); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* MODAL */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+.modal-content { background: var(--surface); border-radius: var(--radius-lg); padding: 24px; max-width: 500px; width: 90%; border: 1px solid var(--border); }
+.modal h3 { margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+.empty-state svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.5; }
+.empty-state h3 { color: var(--text); margin-bottom: 8px; font-size: 16px; }
+.empty-state p { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+    LocalAgent
+  </div>
+  <div class="health">
+    <span><span class="dot warn" id="apiDot"></span><span id="apiStatus">Connecting...</span></span>
+    <span class="version" id="srvVersion">v-</span>
+    <span id="updateBadge" class="update-badge" style="display:none" onclick="showUpdatePrompt()">Update</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="chat-panel">
+    <div class="messages" id="messages">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <h3>Start a conversation</h3>
+        <p>Send a message to interact with Claude via the Service Worker</p>
+      </div>
+    </div>
+    <div class="input-area">
+      <div class="input-row">
+        <div class="input-wrapper">
+          <textarea id="chatInput" placeholder="Type a message..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        </div>
+        <button class="send-btn" id="sendBtn" onclick="send()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="project-box">
+      <div class="label">Active Project</div>
+      <div class="name" id="projName">LOCALAGENT</div>
+      <div class="ver" id="projVersion">v-</div>
+      <div class="path" id="projPath">-</div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('files')">Files</div>
+      <div class="tab" onclick="switchTab('todo')">TODO</div>
+      <div class="tab" onclick="switchTab('backlog')">Backlog</div>
+      <div class="tab" onclick="switchTab('system')">System</div>
+    </div>
+
+    <div class="tab-content active" id="tab-files">
+      <div class="panel">
+        <div class="panel-header">Output Files <span class="count" id="filesCount">0</span></div>
+        <div class="panel-body" id="filesPanel"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">Snapshots <span class="count" id="snapshotsCount">0</span></div>
+        <div class="panel-body" id="snapshotsPanel"></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-todo">
+      <div class="panel">
+        <div class="panel-header">TODO <span class="count" id="todoCount">0</span>
+          <button class="btn btn-success btn-sm" onclick="processNextTodo()">▶ Process</button>
+        </div>
+        <div class="panel-body" id="todoPanel"></div>
+        <div class="add-row">
+          <input type="text" id="newTodo" placeholder="New todo...">
+          <button class="btn btn-primary btn-sm" onclick="addTodo()">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-backlog">
+      <div class="panel">
+        <div class="panel-header">Backlog <span class="count" id="backlogCount">0</span></div>
+        <div class="panel-body" id="backlogPanel"></div>
+        <div class="add-row">
+          <input type="text" id="newBacklog" placeholder="New task...">
+          <select id="backlogPrio"><option value="medium">Med</option><option value="high">High</option><option value="low">Low</option></select>
+          <button class="btn btn-primary btn-sm" onclick="addBacklog()">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-system">
+      <div class="panel">
+        <div class="panel-header">GitHub <span class="count" id="githubCount">0</span></div>
+        <div class="panel-body" id="githubPanel"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">Errors <span class="count" id="errorsCount">0</span></div>
+        <div class="panel-body" id="errorsPanel"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="updateModal">
+  <div class="modal-content">
+    <h3>🚀 Update Available</h3>
+    <div id="updateInfo"></div>
+    <div id="releaseNotes" style="background:var(--bg);padding:12px;border-radius:8px;margin-top:12px;max-height:200px;overflow-y:auto;font-size:13px;color:var(--text-secondary);"></div>
+    <div class="modal-actions">
+      <button class="btn" style="background:var(--border);color:var(--text);" onclick="closeModal()">Later</button>
+      <button class="btn btn-success" onclick="installUpdate()">Install</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:9998';
+let messages = [];
+let isGenerating = false;
+
+function addMsg(role, content, steps = [], thinking = null) {
+  messages.push({ role, content, steps, thinking, time: new Date() });
+  renderMessages();
+  scrollToBottom();
+}
+
+function renderMessages() {
+  const container = document.getElementById('messages');
+  if (messages.length === 0) {
+    container.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><h3>Start a conversation</h3><p>Send a message to interact with Claude via the Service Worker</p></div>`;
+    return;
+  }
+  container.innerHTML = messages.map(m => {
+    let html = `<div class="msg ${m.role}">`;
+    if (m.role === 'assistant' && m.steps?.length) {
+      html += `<div class="msg-steps">${m.steps.map(s => `<div class="step ${s.status}"><svg class="step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${s.status === 'running' ? '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>' : s.status === 'complete' ? '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' : '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}</svg><span class="step-label">${s.label}</span>${s.duration ? `<span class="step-duration">${s.duration}ms</span>` : ''}</div>`).join('')}</div>`;
+    }
+    if (m.thinking) {
+      html += `<div class="thinking collapsed" onclick="this.classList.toggle('collapsed')"><div class="thinking-header"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Thinking ${m.thinking.duration ? `(${m.thinking.duration}ms)` : ''} ▼</div><div class="thinking-content">${escapeHtml(m.thinking.content)}</div></div>`;
+    }
+    html += `<div class="msg-bubble">${formatContent(m.content)}</div><div class="msg-meta"><span>${m.time.toLocaleTimeString()}</span></div></div>`;
+    return html;
+  }).join('');
+}
+
+function formatContent(c) {
+  if (!c) return '';
+  let h = escapeHtml(c);
+  h = h.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+  h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/\n/g, '<br>');
+  return h;
+}
+
+function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+function scrollToBottom() { const c = document.getElementById('messages'); c.scrollTop = c.scrollHeight; }
+
+async function send() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || isGenerating) return;
+  input.value = ''; autoResize(input);
+  addMsg('user', text);
+  isGenerating = true; updateSendBtn();
+  const msg = { role: 'assistant', content: '', steps: [], thinking: null, time: new Date() };
+  messages.push(msg);
+  msg.steps.push({ label: 'Linting', status: 'running' }); renderMessages();
+  await delay(100);
+  msg.steps[0] = { label: 'Linting', status: 'complete', duration: 100 }; renderMessages();
+  msg.steps.push({ label: 'Calling Claude', status: 'running' }); renderMessages();
+  try {
+    const st = Date.now();
+    const r = await fetch(`${API}/api/claude/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: text }) });
+    const d = await r.json();
+    const dur = Date.now() - st;
+    msg.steps[1] = { label: 'Calling Claude', status: 'complete', duration: dur };
+    if (d.thinking) msg.thinking = { content: d.thinking, duration: dur };
+    msg.steps.push({ label: 'Generating', status: 'running' }); renderMessages();
+    msg.content = d.content || d.response || 'No response';
+    msg.steps[2] = { label: 'Generating', status: 'complete' };
+  } catch (e) {
+    msg.steps[msg.steps.length - 1].status = 'error';
+    msg.content = `Error: ${e.message}`;
+  }
+  isGenerating = false; updateSendBtn(); renderMessages(); scrollToBottom();
+}
+
+function updateSendBtn() { document.getElementById('sendBtn').disabled = isGenerating; }
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 200) + 'px'; }
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab:nth-child(${['files','todo','backlog','system'].indexOf(tab)+1})`).classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.add('active');
+}
+
+async function loadHealth() {
+  try {
+    const r = await fetch(`${API}/api/health`); const d = await r.json();
+    document.getElementById('apiDot').className = 'dot on';
+    document.getElementById('apiStatus').textContent = 'Connected';
+    document.getElementById('srvVersion').textContent = 'v' + d.version;
+    document.getElementById('projVersion').textContent = 'v' + d.version;
+    if (d.project) document.getElementById('projName').textContent = d.project;
+    if (d.outputs_path) document.getElementById('projPath').textContent = d.outputs_path;
+  } catch (e) { document.getElementById('apiDot').className = 'dot off'; document.getElementById('apiStatus').textContent = 'Offline'; }
+}
+
+async function loadFiles() {
+  try {
+    const r = await fetch(`${API}/api/outputs`); const d = await r.json();
+    document.getElementById('filesCount').textContent = d.files?.length || 0;
+    document.getElementById('filesPanel').innerHTML = !d.files?.length ? '<div class="item empty">No files</div>' : d.files.slice(0,10).map(f => `<div class="item"><span class="badge">${f.ext}</span><span class="text">${f.name}</span></div>`).join('');
+  } catch (e) {}
+}
+
+async function loadSnapshots() {
+  try {
+    const r = await fetch(`${API}/api/snapshots`); const d = await r.json();
+    document.getElementById('snapshotsCount').textContent = d.snapshots?.length || 0;
+    document.getElementById('snapshotsPanel').innerHTML = !d.snapshots?.length ? '<div class="item empty">No snapshots</div>' : d.snapshots.slice(0,5).map(s => `<div class="item"><span class="badge">${s.version}</span><span class="text">${s.timestamp?.split('T')[0] || '-'}</span></div>`).join('');
+  } catch (e) {}
+}
+
+async function loadTodo() {
+  try {
+    const r = await fetch(`${API}/api/todo`); const d = await r.json();
+    const p = d.todo?.filter(t => !t.done) || [];
+    document.getElementById('todoCount').textContent = p.length;
+    document.getElementById('todoPanel').innerHTML = !p.length ? '<div class="item empty">No TODOs</div>' : p.slice(0,10).map(t => `<div class="item"><span class="badge">${t.id}</span><span class="text">${t.title}</span></div>`).join('');
+  } catch (e) {}
+}
+
+async function addTodo() {
+  const inp = document.getElementById('newTodo'); const title = inp.value.trim(); if (!title) return;
+  await fetch(`${API}/api/todo/add`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ title, category: 'todo' }) });
+  inp.value = ''; loadTodo();
+}
+
+async function processNextTodo() {
+  addMsg('assistant', '⏳ Processing next TODO...');
+  try {
+    const r = await fetch(`${API}/api/todo/process`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ max_items: 1, push: true }) });
+    const d = await r.json();
+    addMsg('assistant', d.success ? `✅ Processed ${d.processed} TODO(s). ${d.results?.[0]?.new_version ? 'v' + d.results[0].new_version : ''}` : `❌ Failed: ${d.error || 'Unknown'}`);
+    loadTodo();
+  } catch (e) { addMsg('assistant', `❌ Error: ${e.message}`); }
+}
+
+async function loadBacklog() {
+  try {
+    const r = await fetch(`${API}/api/backlog`); const d = await r.json();
+    const p = d.backlog?.filter(b => b.status === 'pending') || [];
+    document.getElementById('backlogCount').textContent = p.length;
+    document.getElementById('backlogPanel').innerHTML = !p.length ? '<div class="item empty">No backlog</div>' : p.slice(0,10).map(b => `<div class="item ${b.priority}"><span class="badge">${b.id}</span><span class="text">${b.title}</span></div>`).join('');
+  } catch (e) {}
+}
+
+async function addBacklog() {
+  const inp = document.getElementById('newBacklog'); const title = inp.value.trim(); if (!title) return;
+  await fetch(`${API}/api/backlog/add`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ title, priority: document.getElementById('backlogPrio').value }) });
+  inp.value = ''; loadBacklog();
+}
+
+async function loadGitHub() {
+  try {
+    const r = await fetch(`${API}/api/github/releases`); const d = await r.json();
+    document.getElementById('githubCount').textContent = d.releases?.length || 0;
+    document.getElementById('githubPanel').innerHTML = !d.releases?.length ? '<div class="item empty">No releases</div>' : d.releases.slice(0,5).map(rel => `<div class="item"><span class="badge">${rel.tag}</span><span class="text">${rel.repo_type}</span></div>`).join('');
+  } catch (e) {}
+}
+
+async function loadErrors() {
+  try {
+    const r = await fetch(`${API}/api/debug/console-errors`); const d = await r.json();
+    document.getElementById('errorsCount').textContent = d.count || 0;
+    document.getElementById('errorsPanel').innerHTML = !d.count ? '<div class="item empty">No errors</div>' : d.errors.slice(0,5).map(e => `<div class="item critical"><span class="text">${e.message || e}</span></div>`).join('');
+  } catch (e) {}
+}
+
+async function checkForUpdates() {
+  try {
+    const r = await fetch(`${API}/api/update/check`); const d = await r.json();
+    if (d.update_available) { window.updateData = d; document.getElementById('updateBadge').style.display = 'inline'; document.getElementById('updateBadge').textContent = `⬆ v${d.latest_version}`; }
+  } catch (e) {}
+}
+
+function showUpdatePrompt() {
+  if (!window.updateData) return;
+  document.getElementById('updateInfo').innerHTML = `<p>Current: <strong>v${window.updateData.current_version}</strong></p><p>Latest: <strong>v${window.updateData.latest_version}</strong></p>`;
+  document.getElementById('releaseNotes').textContent = window.updateData.release_notes || 'No notes';
+  document.getElementById('updateModal').style.display = 'flex';
+}
+
+function closeModal() { document.getElementById('updateModal').style.display = 'none'; }
+
+async function installUpdate() {
+  document.getElementById('releaseNotes').textContent = '⏳ Installing...';
+  try {
+    const r = await fetch(`${API}/api/update/install`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ version: window.updateData.latest_version }) });
+    const d = await r.json();
+    if (d.success) { document.getElementById('releaseNotes').textContent = '✅ Installed! Restarting...'; setTimeout(() => location.reload(), 2000); }
+    else { document.getElementById('releaseNotes').textContent = '❌ Failed: ' + (d.error || 'Unknown'); }
+  } catch (e) { document.getElementById('releaseNotes').textContent = '❌ Error: ' + e.message; }
+}
+
+async function init() {
+  await loadHealth(); loadFiles(); loadSnapshots(); loadTodo(); loadBacklog(); loadGitHub(); loadErrors(); checkForUpdates();
+  setInterval(loadHealth, 10000); setInterval(() => { loadFiles(); loadSnapshots(); }, 5000);
+}
+init();
+</script>
+</body>
+</html>
