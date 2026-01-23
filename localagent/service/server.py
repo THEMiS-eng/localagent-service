@@ -83,7 +83,7 @@ APPS_DIR = SERVICE_DIR / "apps"
 
 HOST = os.environ.get("LOCALAGENT_HOST", "127.0.0.1")
 PORT = int(os.environ.get("LOCALAGENT_PORT", "9998"))
-VERSION = "3.0.61"
+VERSION = "3.0.62"
 
 DEFAULT_PROJECT = "LOCALAGENT"
 
