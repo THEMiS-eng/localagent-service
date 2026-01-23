@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocalAgent Dashboard v3.0.20</title>
+<style>
+:root {
+    --bg: #f8f9fa; --bg-light: #f1f3f4; --white: #fff;
+    --border: #e0e0e0; --text: #202124; --text-sec: #5f6368;
+    --blue: #1a73e8; --blue-hover: #1557b0;
+    --success: #34a853; --warning: #fbbc04; --error: #ea4335;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* HEADER */
+.header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 52px; background: var(--white); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 16px; gap: 16px;
+}
+.logo { font-weight: 600; font-size: 16px; color: var(--blue); }
+.health { display: flex; gap: 12px; margin-left: auto; font-size: 12px; align-items: center; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+.dot.on { background: var(--success); }
+.dot.off { background: var(--error); }
+.dot.warn { background: var(--warning); animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: 0.5; } }
+.health-label { color: var(--text-sec); }
+
+/* LAYOUT */
+.main { position: fixed; top: 52px; bottom: 64px; left: 0; right: 0; display: grid; grid-template-columns: 1fr 380px; }
+
+/* CHAT */
+.chat { display: flex; flex-direction: column; background: var(--white); border-right: 1px solid var(--border); }
+.messages { flex: 1; overflow-y: auto; padding: 12px; }
+.msg { padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; max-width: 90%; font-size: 13px; line-height: 1.5; }
+.msg.user { background: #e3f2fd; margin-left: auto; }
+.msg.agent { background: var(--bg-light); white-space: pre-wrap; }
+.msg-hdr { font-size: 11px; color: var(--text-sec); margin-bottom: 4px; display: flex; justify-content: space-between; }
+
+/* SIDEBAR */
+.sidebar { overflow-y: auto; padding: 12px; background: var(--bg); }
+
+/* PROJECT BOX */
+.proj-box {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: white; padding: 14px; border-radius: 10px; margin-bottom: 12px;
+}
+.proj-box .lbl { font-size: 10px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+.proj-box .name { font-size: 16px; font-weight: 600; margin: 2px 0; }
+.proj-box .ver { font-size: 12px; opacity: 0.85; }
+.proj-box .path { font-size: 10px; opacity: 0.6; margin-top: 6px; word-break: break-all; }
+
+/* PANELS */
+.panel { background: var(--white); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+.panel-hdr {
+    font-size: 12px; font-weight: 500; padding: 10px 12px;
+    background: var(--bg-light); display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+}
+.panel-hdr .cnt { background: var(--blue); color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; }
+.panel-body { max-height: 160px; overflow-y: auto; }
+
+/* ITEMS */
+.item { padding: 8px 12px; border-bottom: 1px solid var(--bg-light); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.item:last-child { border-bottom: none; }
+.item.empty { color: var(--text-sec); justify-content: center; padding: 16px; }
+.item .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #e3f2fd; color: var(--blue); font-family: monospace; flex-shrink: 0; }
+.item .txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item.crit { border-left: 3px solid var(--error); }
+.item.high { border-left: 3px solid #ff9800; }
+.item.med { border-left: 3px solid var(--warning); }
+.item.low { border-left: 3px solid var(--success); }
+.item.file { background: #e8f5e9; }
+.item.file a { color: var(--text); text-decoration: none; flex: 1; }
+.item.file a:hover { color: var(--blue); }
+.item .sz { color: var(--text-sec); font-size: 10px; }
+
+/* CONSTRAINT ITEM - SPECIAL */
+.c-item { padding: 8px 12px; border-bottom: 1px solid var(--bg-light); font-size: 11px; }
+.c-item:last-child { border-bottom: none; }
+.c-item .c-id { font-weight: 600; color: var(--blue); font-family: monospace; }
+.c-item .c-rule { color: var(--text); margin-top: 2px; }
+.c-item .c-sev { font-size: 10px; padding: 1px 4px; border-radius: 3px; margin-left: 6px; }
+.c-item .c-sev.CRITICAL { background: #ffebee; color: var(--error); }
+.c-item .c-sev.HIGH { background: #fff3e0; color: #e65100; }
+.c-item .c-sev.MEDIUM { background: #fffde7; color: #f9a825; }
+
+/* ADD FORMS */
+.add-row { display: flex; gap: 6px; padding: 8px 12px; background: var(--bg-light); }
+.add-row input { flex: 1; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; }
+.add-row select { padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; }
+.add-row button { background: var(--blue); color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+
+/* INPUT AREA */
+.input-area { position: fixed; bottom: 0; left: 0; right: 380px; padding: 12px 16px; background: var(--white); border-top: 1px solid var(--border); }
+.input-row { display: flex; gap: 10px; }
+.input-row textarea { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 6px; resize: none; font-family: inherit; font-size: 13px; height: 40px; }
+.input-row textarea:focus { outline: none; border-color: var(--blue); }
+.input-row button { background: var(--blue); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 500; cursor: pointer; }
+.input-row button:hover { background: var(--blue-hover); }
+.input-row button:disabled { background: #bbb; }
+
+/* TABS */
+.tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg-light); }
+.tab { padding: 8px 12px; font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { border-bottom-color: var(--blue); color: var(--blue); font-weight: 500; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="logo">🤖 LocalAgent</div>
+    <div class="health">
+        <span><span class="dot warn" id="apiDot"></span><span id="apiStatus">Connecting...</span></span>
+        <span class="health-label">|</span>
+        <span>v<span id="srvVersion">-</span></span>
+        <span id="updateBadge" style="display:none;margin-left:8px;background:#ff9800;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;cursor:pointer;" onclick="showUpdatePrompt()">⬆ Update Available</span>
+        <span class="health-label">|</span>
+        <span>API: <span id="apiKeyStatus">-</span></span>
+    </div>
+</div>
+
+<!-- Update Modal -->
+<div id="updateModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;justify-content:center;align-items:center;">
+    <div style="background:#1e1e1e;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">
+        <h3 style="margin:0 0 16px;color:#fff;">🚀 Update Available</h3>
+        <div id="updateInfo" style="color:#ccc;margin-bottom:16px;"></div>
+        <div id="releaseNotes" style="background:#2d2d2d;padding:12px;border-radius:8px;color:#aaa;font-size:13px;margin-bottom:16px;max-height:200px;overflow-y:auto;"></div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+            <button onclick="closeUpdateModal()" style="padding:8px 16px;border:1px solid #555;background:transparent;color:#fff;border-radius:6px;cursor:pointer;">Later</button>
+            <button onclick="installUpdate()" style="padding:8px 16px;border:none;background:#4CAF50;color:#fff;border-radius:6px;cursor:pointer;">Install Update</button>
+        </div>
+    </div>
+</div>
+
+<div class="main">
+    <div class="chat">
+        <div class="messages" id="messages"></div>
+    </div>
+    
+    <div class="sidebar">
+        <!-- PROJECT -->
+        <div class="proj-box">
+            <div class="lbl">Current Project</div>
+            <div class="name" id="projName">-</div>
+            <div class="ver">v<span id="projVer">0.0.0</span></div>
+            <div class="path" id="projPath">-</div>
+        </div>
+        
+        <!-- TABS -->
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('files')">📁 Files</div>
+            <div class="tab" onclick="showTab('backlog')">📋 Backlog</div>
+            <div class="tab" onclick="showTab('todo')">✅ TODO</div>
+            <div class="tab" onclick="showTab('system')">⚙️ System</div>
+        </div>
+        
+        <!-- FILES TAB -->
+        <div class="tab-content active" id="tab-files">
+            <div class="panel">
+                <div class="panel-hdr">Output Files <span class="cnt" id="filesCount">0</span></div>
+                <div class="panel-body" id="filesPanel"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr">Snapshots <span class="cnt" id="snapshotsCount">0</span></div>
+                <div class="panel-body" id="snapshotsPanel"></div>
+            </div>
+        </div>
+        
+        <!-- BACKLOG TAB -->
+        <div class="tab-content" id="tab-backlog">
+            <div class="panel">
+                <div class="panel-hdr">Backlog <span class="cnt" id="backlogCount">0</span></div>
+                <div class="panel-body" id="backlogPanel"></div>
+                <div class="add-row">
+                    <input type="text" id="newBacklog" placeholder="New task...">
+                    <select id="backlogPrio"><option value="medium">Med</option><option value="high">High</option><option value="low">Low</option></select>
+                    <button onclick="addBacklog()">+</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TODO TAB -->
+        <div class="tab-content" id="tab-todo">
+            <div class="panel">
+                <div class="panel-hdr">
+                    TODO <span class="cnt" id="todoCount">0</span>
+                    <button onclick="processNextTodo()" style="background:var(--success);color:white;border:none;padding:4px 8px;border-radius:4px;font-size:10px;cursor:pointer;">▶ Process Next</button>
+                </div>
+                <div class="panel-body" id="todoPanel"></div>
+                <div class="add-row">
+                    <input type="text" id="newTodo" placeholder="New todo...">
+                    <button onclick="addTodo()">+</button>
+                </div>
+                <div class="add-row" style="justify-content:space-between;">
+                    <button onclick="processAllTodos()" style="background:#ff9800;color:white;border:none;padding:6px 12px;border-radius:4px;font-size:11px;cursor:pointer;flex:1;">⚡ Process All TODOs</button>
+                </div>
+            </div>
+            <div class="panel" id="processLog" style="display:none;">
+                <div class="panel-hdr">Processing Log</div>
+                <div class="panel-body" id="processLogContent" style="max-height:300px;font-size:11px;font-family:monospace;"></div>
+            </div>
+        </div>
+        
+        <!-- SYSTEM TAB -->
+        <div class="tab-content" id="tab-system">
+            <div class="panel">
+                <div class="panel-hdr">Constraints <span class="cnt" id="constraintsCount">0</span></div>
+                <div class="panel-body" id="constraintsPanel" style="max-height: 200px;"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr">Errors <span class="cnt" id="errorsCount">0</span></div>
+                <div class="panel-body" id="errorsPanel"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr">GitHub <span class="cnt" id="githubCount">-</span></div>
+                <div class="panel-body" id="githubPanel"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="input-area">
+    <div class="input-row">
+        <textarea id="input" placeholder="Type message... (Enter to send)" onkeydown="handleKey(event)"></textarea>
+        <button id="sendBtn" onclick="send()">Send</button>
+    </div>
+</div>
+
+<script>
+const API = 'http://localhost:9998';
+let sending = false;
+
+function showTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.tab-content#tab-${name}`).classList.add('active');
+    event.target.classList.add('active');
+}
+
+async function loadHealth() {
+    try {
+        const r = await fetch(`${API}/api/health`);
+        const d = await r.json();
+        document.getElementById('apiDot').className = 'dot on';
+        document.getElementById('apiStatus').textContent = 'Connected';
+        // Show GitHub version (ENV012) - this is the source of truth
+        const displayVersion = d.github_version || d.version || '-';
+        document.getElementById('srvVersion').textContent = displayVersion;
+        document.getElementById('apiKeyStatus').textContent = d.api_key ? '✓' : '✗';
+        document.getElementById('projName').textContent = d.project || '-';
+        document.getElementById('projPath').textContent = d.project_path || '-';
+        // Show project version (from project's VERSION file)
+        if (d.project_version) {
+            document.getElementById('projVer').textContent = d.project_version;
+        }
+        return true;
+    } catch (e) {
+        document.getElementById('apiDot').className = 'dot off';
+        document.getElementById('apiStatus').textContent = 'Offline';
+        return false;
+    }
+}
+
+async function loadOutputs() {
+    try {
+        const r = await fetch(`${API}/api/outputs`);
+        const files = await r.json();
+        document.getElementById('filesCount').textContent = files.length;
+        const p = document.getElementById('filesPanel');
+        if (!files.length) { p.innerHTML = '<div class="item empty">No files yet</div>'; return; }
+        p.innerHTML = files.map(f => {
+            const icon = {'.html':'🌐','.py':'🐍','.js':'📜','.css':'🎨','.json':'📋'}[f.ext] || '📄';
+            const sz = f.size > 1024 ? (f.size/1024).toFixed(1)+'KB' : f.size+'B';
+            return `<div class="item file"><a href="${API}/outputs/${f.name}" target="_blank">${icon} ${f.name}</a><span class="sz">${sz}</span></div>`;
+        }).join('');
+    } catch (e) { console.error('loadOutputs:', e); }
+}
+
+async function loadSnapshots() {
+    try {
+        const r = await fetch(`${API}/api/snapshots`);
+        const d = await r.json();
+        const snaps = d.snapshots || d || [];
+        document.getElementById('snapshotsCount').textContent = snaps.length;
+        const p = document.getElementById('snapshotsPanel');
+        if (!snaps.length) { p.innerHTML = '<div class="item empty">No snapshots</div>'; return; }
+        p.innerHTML = snaps.slice(0,5).map(s => 
+            `<div class="item"><span class="badge">${s.version || '?'}</span><span class="txt">${s.id || s.label || '-'}</span></div>`
+        ).join('');
+    } catch (e) { console.error('loadSnapshots:', e); }
+}
+
+async function loadBacklog() {
+    try {
+        const r = await fetch(`${API}/api/backlog`);
+        const items = await r.json();
+        const pending = items.filter(i => i.status === 'pending');
+        document.getElementById('backlogCount').textContent = pending.length;
+        const p = document.getElementById('backlogPanel');
+        if (!pending.length) { p.innerHTML = '<div class="item empty">No items</div>'; return; }
+        p.innerHTML = pending.slice(0,10).map(i => {
+            const cls = {critical:'crit',high:'high',medium:'med',low:'low'}[i.priority] || '';
+            return `<div class="item ${cls}"><span class="badge">${i.id}</span><span class="txt">${i.title}</span></div>`;
+        }).join('');
+    } catch (e) { console.error('loadBacklog:', e); }
+}
+
+async function loadTodo() {
+    try {
+        const r = await fetch(`${API}/api/todo`);
+        const items = await r.json();
+        const pending = items.filter(i => !i.done && i.status !== 'done');
+        const completed = items.filter(i => i.done || i.status === 'done');
+        document.getElementById('todoCount').textContent = pending.length;
+        const p = document.getElementById('todoPanel');
+        let html = '';
+        if (pending.length) {
+            html += pending.slice(0,10).map(i => 
+                `<div class="item"><span class="badge">${i.id}</span><span class="txt">${i.title}</span></div>`
+            ).join('');
+        }
+        if (completed.length) {
+            html += '<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--border);color:var(--text-sec);font-size:11px;">✓ Completed:</div>';
+            html += completed.map(i => 
+                `<div class="item" style="opacity:0.6;"><span class="badge" style="text-decoration:line-through;">${i.id}</span><span class="txt" style="text-decoration:line-through;">${i.title}</span>${i.version ? ' <span style="color:var(--success);font-size:10px;">v'+i.version+'</span>' : ''}</div>`
+            ).join('');
+        }
+        if (!html) { p.innerHTML = '<div class="item empty">No items</div>'; return; }
+        p.innerHTML = html;
+    } catch (e) { console.error('loadTodo:', e); }
+}
+
+async function loadConstraints() {
+    try {
+        const r = await fetch(`${API}/api/constraints`);
+        const data = await r.json();
+        let constraints = [];
+        if (Array.isArray(data)) {
+            constraints = data;
+        } else if (data.env) {
+            constraints = data.env;
+        } else if (typeof data === 'object') {
+            constraints = Object.entries(data).map(([k,v]) => ({id: k, rule: typeof v === 'string' ? v : v.rule || JSON.stringify(v), severity: v.severity || 'MEDIUM'}));
+        }
+        document.getElementById('constraintsCount').textContent = constraints.length;
+        const p = document.getElementById('constraintsPanel');
+        if (!constraints.length) { p.innerHTML = '<div class="item empty">No constraints</div>'; return; }
+        p.innerHTML = constraints.slice(0,15).map(c => 
+            `<div class="c-item">
+                <span class="c-id">${c.id || '-'}</span>
+                <span class="c-sev ${c.severity || ''}">${c.severity || ''}</span>
+                <div class="c-rule">${c.rule || ''}</div>
+            </div>`
+        ).join('');
+    } catch (e) { console.error('loadConstraints:', e); }
+}
+
+async function loadErrors() {
+    try {
+        const r = await fetch(`${API}/api/debug/errors`);
+        const d = await r.json();
+        const errors = d.errors || [];
+        document.getElementById('errorsCount').textContent = errors.length;
+        const p = document.getElementById('errorsPanel');
+        if (!errors.length) { p.innerHTML = '<div class="item empty">No errors</div>'; return; }
+        p.innerHTML = errors.slice(0,5).map(e => 
+            `<div class="item crit"><span class="txt">${(e.message || 'Unknown error').substring(0,50)}</span></div>`
+        ).join('');
+    } catch (e) { console.error('loadErrors:', e); }
+}
+
+async function loadGitHub() {
+    try {
+        const r = await fetch(`${API}/api/github/status`);
+        const d = await r.json();
+        const p = document.getElementById('githubPanel');
+        document.getElementById('githubCount').textContent = d.configured ? '✓' : '✗';
+        if (!d.configured) {
+            p.innerHTML = '<div class="item empty">Not configured</div>';
+            return;
+        }
+        p.innerHTML = `
+            <div class="item"><span class="badge">User</span><span class="txt">${d.user || '-'}</span></div>
+            <div class="item"><span class="badge">Service</span><span class="txt">${d.service_repo || '-'} (v${d.service_version || '-'})</span></div>
+            <div class="item"><span class="badge">Dashboard</span><span class="txt">${d.dashboard_repo || '-'} (v${d.dashboard_version || '-'})</span></div>
+            <div class="item"><span class="badge">Valid</span><span class="txt">${d.valid ? '✓' : '✗'}</span></div>
+        `;
+    } catch (e) { 
+        document.getElementById('githubPanel').innerHTML = '<div class="item empty">Error loading</div>';
+    }
+}
+
+async function addBacklog() {
+    const inp = document.getElementById('newBacklog');
+    const title = inp.value.trim();
+    if (!title) return;
+    await fetch(`${API}/api/backlog/add`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, priority: document.getElementById('backlogPrio').value})
+    });
+    inp.value = '';
+    loadBacklog();
+}
+
+async function addTodo() {
+    const inp = document.getElementById('newTodo');
+    const title = inp.value.trim();
+    if (!title) return;
+    await fetch(`${API}/api/todo/add`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, category: 'todo'})
+    });
+    inp.value = '';
+    loadTodo();
+}
+
+async function processNextTodo() {
+    const logPanel = document.getElementById('processLog');
+    const logContent = document.getElementById('processLogContent');
+    logPanel.style.display = 'block';
+    logContent.innerHTML = '<div>⏳ Processing next TODO...</div>';
+    
+    try {
+        const r = await fetch(`${API}/api/todo/process`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({max_items: 1, push: true})
+        });
+        const d = await r.json();
+        
+        let html = '';
+        if (d.success) {
+            html += `<div style="color:var(--success)">✅ Processed ${d.processed} TODO(s)</div>`;
+        } else {
+            html += `<div style="color:var(--error)">❌ Processing failed</div>`;
+        }
+        
+        if (d.results) {
+            d.results.forEach(r => {
+                html += `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;">`;
+                html += `<strong>${r.id}: ${r.title.substring(0,40)}</strong>`;
+                if (r.success) {
+                    html += ` <span style="color:var(--success)">✓ v${r.new_version}</span>`;
+                } else {
+                    html += ` <span style="color:var(--error)">✗ ${r.error || 'Failed'}</span>`;
+                }
+                if (r.steps) {
+                    r.steps.forEach(s => {
+                        const icon = s.success !== false ? '✓' : '✗';
+                        html += `<div style="margin-left:12px;color:var(--text-sec)">${icon} ${s.step}</div>`;
+                    });
+                }
+                html += '</div>';
+            });
+        }
+        
+        html += `<div style="margin-top:8px">Remaining: ${d.remaining || 0}</div>`;
+        logContent.innerHTML = html;
+        
+        loadTodo();
+        loadSnapshots();
+        loadOutputs();
+    } catch (e) {
+        logContent.innerHTML = `<div style="color:var(--error)">Error: ${e.message}</div>`;
+    }
+}
+
+async function processAllTodos() {
+    if (!confirm('Process ALL pending TODOs? Each will create a separate build and GitHub release.')) return;
+    
+    const logPanel = document.getElementById('processLog');
+    const logContent = document.getElementById('processLogContent');
+    logPanel.style.display = 'block';
+    logContent.innerHTML = '<div>⏳ Processing ALL TODOs... This may take a while.</div>';
+    
+    try {
+        const r = await fetch(`${API}/api/todo/process-all`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({push: true})
+        });
+        const d = await r.json();
+        
+        let html = `<div style="font-weight:bold;margin-bottom:8px;">`;
+        html += `Processed: ${d.processed} | Success: ${d.successful} | Failed: ${d.failed}`;
+        html += `</div>`;
+        
+        if (d.results) {
+            d.results.forEach(r => {
+                const status = r.success ? '✅' : '❌';
+                html += `<div>${status} ${r.id}: ${r.title.substring(0,30)} ${r.new_version ? 'v'+r.new_version : r.error || ''}</div>`;
+            });
+        }
+        
+        logContent.innerHTML = html;
+        loadTodo();
+        loadSnapshots();
+        loadOutputs();
+    } catch (e) {
+        logContent.innerHTML = `<div style="color:var(--error)">Error: ${e.message}</div>`;
+    }
+}
+
+function addMsg(role, content) {
+    const msgs = document.getElementById('messages');
+    const icon = role === 'user' ? '👤 You' : '🤖 Agent';
+    const time = new Date().toLocaleTimeString();
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    div.innerHTML = `<div class="msg-hdr"><span>${icon}</span><span>${time}</span></div><div>${content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function send() {
+    const inp = document.getElementById('input');
+    const msg = inp.value.trim();
+    if (!msg || sending) return;
+    sending = true;
+    document.getElementById('sendBtn').disabled = true;
+    addMsg('user', msg);
+    inp.value = '';
+    try {
+        const r = await fetch(`${API}/api/chat`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message: msg})
+        });
+        const d = await r.json();
+        addMsg('agent', d.response || d.error || 'No response');
+        setTimeout(() => { loadOutputs(); loadSnapshots(); }, 500);
+    } catch (e) {
+        addMsg('agent', 'Error: ' + e.message);
+    }
+    sending = false;
+    document.getElementById('sendBtn').disabled = false;
+}
+
+function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+}
+
+// ============================================================
+// UPDATE CHECK & INSTALL
+// ============================================================
+
+let updateData = null;
+
+async function checkForUpdates() {
+    try {
+        const r = await fetch(`${API}/api/update/check`);
+        const d = await r.json();
+        
+        if (d.update_available) {
+            updateData = d;
+            document.getElementById('updateBadge').style.display = 'inline';
+            document.getElementById('updateBadge').textContent = `⬆ v${d.latest_version}`;
+        } else {
+            document.getElementById('updateBadge').style.display = 'none';
+        }
+    } catch (e) {
+        console.log('Update check failed:', e);
+    }
+}
+
+async function showUpdatePrompt() {
+    if (!updateData) return;
+    
+    const modal = document.getElementById('updateModal');
+    const info = document.getElementById('updateInfo');
+    const notes = document.getElementById('releaseNotes');
+    
+    info.innerHTML = `
+        <div><strong>Current:</strong> v${updateData.current_version}</div>
+        <div><strong>Latest:</strong> v${updateData.latest_version}</div>
+        <div><strong>Released:</strong> ${updateData.published_at || 'Unknown'}</div>
+    `;
+    
+    notes.innerHTML = updateData.release_notes || 'No release notes available.';
+    modal.style.display = 'flex';
+}
+
+function closeUpdateModal() {
+    document.getElementById('updateModal').style.display = 'none';
+}
+
+async function installUpdate() {
+    if (!updateData) return;
+    
+    const notes = document.getElementById('releaseNotes');
+    notes.innerHTML = '⏳ Installing update...';
+    
+    try {
+        const r = await fetch(`${API}/api/update/install`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({version: updateData.latest_version})
+        });
+        const d = await r.json();
+        
+        if (d.success) {
+            notes.innerHTML = '✅ Update installed! Restarting service...';
+            setTimeout(() => {
+                closeUpdateModal();
+                location.reload();
+            }, 3000);
+        } else {
+            notes.innerHTML = `❌ Update failed: ${d.error || 'Unknown error'}`;
+        }
+    } catch (e) {
+        notes.innerHTML = `❌ Update failed: ${e.message}`;
+    }
+}
+
+async function init() {
+    addMsg('agent', 'Welcome! Service worker dashboard ready.\nType a message to interact with Claude.');
+    await loadHealth();
+    loadOutputs();
+    loadSnapshots();
+    loadBacklog();
+    loadTodo();
+    loadConstraints();
+    loadErrors();
+    loadGitHub();
+    checkForUpdates();
+    setInterval(loadHealth, 10000);
+    setInterval(() => { loadOutputs(); loadSnapshots(); }, 5000);
+    setInterval(checkForUpdates, 60000);  // Check every minute
+}
+
+init();
+</script>
+</body>
+</html>
