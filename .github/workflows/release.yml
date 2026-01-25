@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        pip install pytest pytest-asyncio httpx
+        pip install fastapi uvicorn websockets anthropic
+        pip install -e .
+    
+    - name: Run tests
+      run: pytest tests/ -v --tb=short
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Get version from tag
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+    
+    - name: Create release zip
+      run: |
+        zip -r localagent_v${{ steps.version.outputs.VERSION }}.zip . \
+          -x "*.git*" \
+          -x "*.pyc" \
+          -x "*__pycache__*" \
+          -x "*.pytest_cache*"
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: LocalAgent v${{ steps.version.outputs.VERSION }}
+        body: |
+          ## LocalAgent v${{ steps.version.outputs.VERSION }}
+          
+          ### Installation
+          ```bash
+          unzip localagent_v${{ steps.version.outputs.VERSION }}.zip -d ~/localagent_v3
+          cd ~/localagent_v3
+          python3 -m localagent.service.server
+          ```
+          
+          ### Tests
+          ✅ All tests passed
+        files: |
+          localagent_v${{ steps.version.outputs.VERSION }}.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
