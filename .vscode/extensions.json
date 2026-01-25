@@ -1,0 +1,31 @@
+{
+  "recommendations": [
+    // Python
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.black-formatter",
+    "ms-python.isort",
+    
+    // AI Assistants
+    "github.copilot",
+    "github.copilot-chat",
+    
+    // Git
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github",
+    
+    // Testing
+    "littlefoxteam.vscode-python-test-adapter",
+    
+    // Code Quality
+    "sonarsource.sonarlint-vscode",
+    
+    // Productivity
+    "usernamehw.errorlens",
+    "streetsidesoftware.code-spell-checker",
+    
+    // API Development
+    "humao.rest-client",
+    "42crunch.vscode-openapi"
+  ]
+}
