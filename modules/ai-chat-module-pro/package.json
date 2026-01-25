@@ -1,0 +1,47 @@
+{
+  "name": "@themis-eng/ai-chat-module-pro",
+  "version": "1.2.0",
+  "description": "Enterprise-grade chat component with Claude API optimizer and prompt linter",
+  "main": "AIChatModulePro.jsx",
+  "module": "AIChatModulePro.jsx",
+  "files": [
+    "AIChatModulePro.jsx",
+    "AIChatWithOptimizer.jsx",
+    "ClaudeContextOptimizer.js",
+    "PromptLinter.js",
+    "Demo.jsx",
+    "README.md"
+  ],
+  "exports": {
+    ".": "./AIChatModulePro.jsx",
+    "./optimizer": "./ClaudeContextOptimizer.js",
+    "./with-optimizer": "./AIChatWithOptimizer.jsx",
+    "./linter": "./PromptLinter.js",
+    "./demo": "./Demo.jsx"
+  },
+  "scripts": {
+    "lint": "eslint *.jsx *.js",
+    "test": "echo \"No tests yet\""
+  },
+  "keywords": [
+    "react",
+    "chat",
+    "claude",
+    "anthropic",
+    "ai",
+    "context-optimizer",
+    "prompt-linter"
+  ],
+  "author": "THEMiS-eng",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/THEMiS-eng/ai-chat-module-pro.git"
+  },
+  "peerDependencies": {
+    "react": ">=17.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0"
+  }
+}
