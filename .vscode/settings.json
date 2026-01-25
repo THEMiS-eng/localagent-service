@@ -1,0 +1,46 @@
+{
+  // Python
+  "python.defaultInterpreterPath": "python3",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+  
+  // Formatting
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "ms-python.black-formatter",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  
+  // Linting
+  "python.linting.enabled": true,
+  "python.linting.flake8Enabled": true,
+  
+  // Testing
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["tests/", "-q"],
+  
+  // Copilot
+  "github.copilot.enable": {
+    "*": true,
+    "markdown": true,
+    "python": true,
+    "javascript": true
+  },
+  
+  // Files
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/*.pyc": true
+  },
+  
+  // Search
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/__pycache__": true,
+    "**/outputs": true
+  }
+}

@@ -1,0 +1,98 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/setup.py') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio httpx pytest-cov
+        pip install fastapi uvicorn websockets anthropic
+        pip install -e .
+    
+    - name: Run tests with coverage
+      run: |
+        pytest tests/ -v --tb=short --color=yes --cov=localagent --cov-report=term-missing
+      env:
+        PYTHONPATH: ${{ github.workspace }}
+    
+    - name: Test summary
+      if: always()
+      run: |
+        echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+        pytest tests/ -q --tb=no 2>&1 | tail -5 >> $GITHUB_STEP_SUMMARY || true
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install linters
+      run: |
+        pip install flake8 black isort bandit
+    
+    - name: Check syntax
+      run: |
+        python -m py_compile localagent/**/*.py
+        echo "✅ Syntax OK"
+    
+    - name: Check formatting (black)
+      run: |
+        black --check --line-length=100 localagent/ || echo "⚠️ Formatting issues found"
+      continue-on-error: true
+    
+    - name: Check imports (isort)
+      run: |
+        isort --check-only --profile=black localagent/ || echo "⚠️ Import order issues"
+      continue-on-error: true
+    
+    - name: Security scan (bandit)
+      run: |
+        bandit -r localagent/ -ll -q || echo "⚠️ Security issues found"
+      continue-on-error: true
+
+  badge:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Create test badge
+      run: |
+        echo "Tests passed on Python 3.10, 3.11, 3.12"
