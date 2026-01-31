@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whisper Voice Transcription</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .record-btn {
+            background: #e74c3c;
+            color: white;
+        }
+        .record-btn:disabled {
+            background: #95a5a6;
+        }
+        .transcribe-btn {
+            background: #3498db;
+            color: white;
+        }
+        #transcriptionResult {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            min-height: 100px;
+            white-space: pre-wrap;
+            border-left: 4px solid #3498db;
+        }
+        .status {
+            text-align: center;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        .recording {
+            color: #e74c3c;
+        }
+        .ready {
+            color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Whisper Voice Transcription</h1>
+        
+        <div class="controls">
+            <button id="recordBtn" class="record-btn">Start Recording</button>
+            <button id="transcribeBtn" class="transcribe-btn" disabled>Transcribe</button>
+        </div>
+        
+        <div id="status" class="status ready">Ready to record</div>
+        
+        <div id="transcriptionResult">Transcription will appear here...</div>
+    </div>
+
+    <script src="whisper-module.js"></script>
+    <script src="whisper-app.js"></script>
+</body>
+</html>
