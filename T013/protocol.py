@@ -1,63 +1,71 @@
 import json
-import logging
 import asyncio
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
+import logging
 from pathlib import Path
 
-from .github_utils import create_github_release
-from .file_manager import FileManager
-from .code_generator import CodeGenerator
-from .version_manager import VersionManager
-from .websocket_manager import WebSocketManager
+# Import GitHub utilities
+from github_utils import create_github_release
 
 logger = logging.getLogger(__name__)
 
 class ProtocolHandler:
-    def __init__(self, file_manager: FileManager, code_generator: CodeGenerator, 
-                 version_manager: VersionManager, websocket_manager: WebSocketManager):
-        self.file_manager = file_manager
-        self.code_generator = code_generator
-        self.version_manager = version_manager
-        self.websocket_manager = websocket_manager
-        
-    async def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle incoming protocol requests"""
+    """Handles protocol-level communication and operations"""
+    
+    def __init__(self):
+        self.active_connections = set()
+        self.message_handlers = {
+            'ping': self._handle_ping,
+            'status': self._handle_status,
+            'release': self._handle_release,
+            'version': self._handle_version
+        }
+    
+    async def handle_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Process incoming protocol messages"""
         try:
-            command = request.get('command')
+            msg_type = message.get('type')
+            handler = self.message_handlers.get(msg_type)
             
-            if command == 'create_release':
-                return await self._handle_create_release(request)
-            elif command == 'generate_code':
-                return await self._handle_generate_code(request)
-            elif command == 'get_version':
-                return await self._handle_get_version(request)
+            if handler:
+                return await handler(message)
             else:
-                return {'error': f'Unknown command: {command}'}
+                return {'error': f'Unknown message type: {msg_type}'}
                 
         except Exception as e:
             logger.error(f"Protocol error: {e}")
             return {'error': str(e)}
     
-    async def _handle_create_release(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_ping(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle ping messages"""
+        return {'type': 'pong', 'timestamp': datetime.now().isoformat()}
+    
+    async def _handle_status(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle status requests"""
+        return {
+            'type': 'status_response',
+            'active_connections': len(self.active_connections),
+            'timestamp': datetime.now().isoformat()
+        }
+    
+    async def _handle_release(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Handle GitHub release creation"""
         try:
-            version = request.get('version')
-            notes = request.get('notes', '')
+            version = message.get('version')
+            if not version:
+                return {'error': 'Version required for release'}
             
-            result = await create_github_release(version, notes)
-            return {'success': True, 'release_url': result.get('html_url')}
+            result = await create_github_release(version)
+            return {'type': 'release_response', 'result': result}
             
         except Exception as e:
-            return {'error': f'Release creation failed: {str(e)}'}
+            return {'error': f'Release failed: {str(e)}'}
     
-    async def _handle_generate_code(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle code generation requests"""
-        prompt = request.get('prompt')
-        result = await self.code_generator.generate(prompt)
-        return result
-    
-    async def _handle_get_version(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle version info requests"""
-        version_info = self.version_manager.get_current_version()
-        return {'version': version_info}
+    async def _handle_version(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle version requests"""
+        return {
+            'type': 'version_response',
+            'version': '3.3.007',
+            'timestamp': datetime.now().isoformat()
+        }
