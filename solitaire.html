@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solitaire</title>
+    <style>
+        body { font-family: Arial; background: #0f5132; margin: 0; padding: 20px; }
+        .game-board { max-width: 800px; margin: 0 auto; }
+        .card { width: 60px; height: 80px; border: 1px solid #000; background: white; border-radius: 5px; display: inline-block; margin: 2px; cursor: pointer; text-align: center; line-height: 80px; }
+        .card.red { color: red; }
+        .card.black { color: black; }
+        .card.back { background: #1f3a8c; color: white; }
+        .foundation, .tableau, .stock { margin: 10px 0; }
+        .pile { display: inline-block; vertical-align: top; margin: 5px; min-height: 90px; min-width: 70px; border: 2px dashed #666; }
+    </style>
+</head>
+<body>
+    <div class="game-board">
+        <h1>Solitaire</h1>
+        <div class="foundation">
+            <div class="pile" id="f1"></div>
+            <div class="pile" id="f2"></div>
+            <div class="pile" id="f3"></div>
+            <div class="pile" id="f4"></div>
+        </div>
+        <div class="tableau">
+            <div class="pile" id="t1"></div>
+            <div class="pile" id="t2"></div>
+            <div class="pile" id="t3"></div>
+            <div class="pile" id="t4"></div>
+            <div class="pile" id="t5"></div>
+            <div class="pile" id="t6"></div>
+            <div class="pile" id="t7"></div>
+        </div>
+        <button onclick="newGame()">Nouveau Jeu</button>
+    </div>
+    <script>
+        const suits = ['♠','♥','♦','♣'];
+        const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+        let deck = [];
+        
+        function createDeck() {
+            deck = [];
+            for(let suit of suits) {
+                for(let value of values) {
+                    deck.push({suit, value, color: (suit === '♥' || suit === '♦') ? 'red' : 'black'});
+                }
+            }
+            return deck.sort(() => Math.random() - 0.5);
+        }
+        
+        function dealCards() {
+            createDeck();
+            for(let i = 1; i <= 7; i++) {
+                const pile = document.getElementById('t' + i);
+                pile.innerHTML = '';
+                for(let j = 0; j < i; j++) {
+                    const card = deck.pop();
+                    const cardEl = document.createElement('div');
+                    cardEl.className = 'card ' + card.color;
+                    cardEl.textContent = card.value + card.suit;
+                    pile.appendChild(cardEl);
+                }
+            }
+        }
+        
+        function newGame() {
+            dealCards();
+        }
+        
+        newGame();
+    </script>
+</body>
+</html>

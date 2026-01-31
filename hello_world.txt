@@ -1,0 +1,5 @@
+Hello, World!
+
+This is a simple text file created to demonstrate basic file creation.
+
+Welcome to the wonderful world of programming!

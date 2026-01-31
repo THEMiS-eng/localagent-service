@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu de l'Oie</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        .board { display: grid; grid-template-columns: repeat(10, 40px); gap: 2px; margin: 20px auto; max-width: 420px; }
+        .case { width: 40px; height: 40px; border: 1px solid #333; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+        .player1 { background-color: red; color: white; }
+        .player2 { background-color: blue; color: white; }
+        .dice { font-size: 30px; margin: 20px; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Jeu de l'Oie</h1>
+    <div class="board" id="board"></div>
+    <div class="dice" id="dice">🎲</div>
+    <button onclick="rollDice()">Lancer le dé</button>
+    <div id="message">Joueur 1, c'est à vous!</div>
+    <script>
+        let positions = [0, 0]; let currentPlayer = 0;
+        function createBoard() {
+            const board = document.getElementById('board');
+            for (let i = 1; i <= 63; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'case';
+                cell.id = 'case' + i;
+                cell.textContent = i;
+                board.appendChild(cell);
+            }
+        }
+        function rollDice() {
+            const dice = Math.floor(Math.random() * 6) + 1;
+            document.getElementById('dice').textContent = dice;
+            movePlayer(dice);
+        }
+        function movePlayer(dice) {
+            const oldPos = positions[currentPlayer];
+            if (oldPos > 0) document.getElementById('case' + oldPos).classList.remove('player' + (currentPlayer + 1));
+            positions[currentPlayer] = Math.min(positions[currentPlayer] + dice, 63);
+            const newPos = positions[currentPlayer];
+            if (newPos > 0) document.getElementById('case' + newPos).classList.add('player' + (currentPlayer + 1));
+            if (newPos === 63) {
+                document.getElementById('message').textContent = 'Joueur ' + (currentPlayer + 1) + ' a gagné!';
+                return;
+            }
+            currentPlayer = 1 - currentPlayer;
+            document.getElementById('message').textContent = 'Joueur ' + (currentPlayer + 1) + ', c\'est à vous!';
+        }
+        createBoard();
+    </script>
+</body>
+</html>

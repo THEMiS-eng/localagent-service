@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yesterday's Weather</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: white;
+        }
+        .weather-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+        .date {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        .note {
+            margin-top: 30px;
+            font-style: italic;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="weather-card">
+        <h1>🌤️ Yesterday's Weather</h1>
+        <div class="date" id="yesterday-date"></div>
+        <p>Weather data for yesterday would typically include:</p>
+        <ul style="text-align: left; display: inline-block;">
+            <li>Temperature highs and lows</li>
+            <li>Humidity levels</li>
+            <li>Wind speed and direction</li>
+            <li>Precipitation amounts</li>
+            <li>Weather conditions</li>
+        </ul>
+        <div class="note">
+            Note: This is a demo page. For actual weather data, you would need to integrate with a weather API service.
+        </div>
+    </div>
+    <script>
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        document.getElementById('yesterday-date').textContent = yesterday.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    </script>
+</body>
+</html>

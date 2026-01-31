@@ -1,0 +1,11 @@
+Hello! I'm Claude, an AI assistant created by Anthropic.
+
+I'm here to help you with code generation and development tasks for your LOCALAGENT project.
+
+I can help you:
+- Create and modify files
+- Generate code
+- Debug issues
+- Follow your project constraints and learned patterns
+
+What would you like me to help you build today?
