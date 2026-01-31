@@ -1,0 +1,84 @@
+.skill-selector {
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+}
+
+.skill-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.skill-selector-header:hover {
+  border-color: #007bff;
+}
+
+.dropdown-arrow {
+  transition: transform 0.2s;
+  font-size: 12px;
+}
+
+.dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+.skill-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 1000;
+  max-height: 300px;
+  overflow: hidden;
+}
+
+.skill-search {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-bottom: 1px solid #eee;
+  outline: none;
+}
+
+.skill-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.skill-item {
+  padding: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.skill-item:hover {
+  background: #f8f9fa;
+}
+
+.skill-item.selected {
+  background: #007bff;
+  color: white;
+}
+
+.skill-name {
+  font-weight: 500;
+  display: block;
+}
+
+.skill-description {
+  font-size: 12px;
+  color: #666;
+  display: block;
+  margin-top: 4px;
+}
