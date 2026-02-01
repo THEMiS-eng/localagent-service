@@ -1,0 +1,48 @@
+{
+  "test_scenarios": {
+    "valid_match": {
+      "expected": {"id": "T001", "type": "create_file", "filename": "test.py"},
+      "actual": {"id": "T001", "type": "create_file", "filename": "test.py"},
+      "should_pass": true
+    },
+    "id_mismatch": {
+      "expected": {"id": "T001", "type": "create_file", "filename": "test.py"},
+      "actual": {"id": "T002", "type": "create_file", "filename": "test.py"},
+      "should_pass": false,
+      "error_type": "TaskMismatchError",
+      "error_message": "Task ID mismatch"
+    },
+    "type_mismatch": {
+      "expected": {"id": "T001", "type": "create_file", "filename": "test.py"},
+      "actual": {"id": "T001", "type": "update_file", "filename": "test.py"},
+      "should_pass": false,
+      "error_type": "TaskMismatchError",
+      "error_message": "Task type mismatch"
+    },
+    "filename_mismatch": {
+      "expected": {"id": "T001", "type": "create_file", "filename": "test.py"},
+      "actual": {"id": "T001", "type": "create_file", "filename": "other.py"},
+      "should_pass": false,
+      "error_type": "TaskMismatchError",
+      "error_message": "Filename mismatch"
+    },
+    "multiple_mismatches": {
+      "expected": {"id": "T001", "type": "create_file", "filename": "test.py"},
+      "actual": {"id": "T002", "type": "update_file", "filename": "other.py"},
+      "should_pass": false,
+      "error_type": "TaskMismatchError",
+      "error_message": "Multiple mismatches detected"
+    }
+  },
+  "test_config": {
+    "max_retries": 3,
+    "timeout_seconds": 30,
+    "log_level": "DEBUG",
+    "validate_strict": true
+  },
+  "mock_responses": {
+    "success": {"status": "completed", "tasks_processed": 1},
+    "partial_failure": {"status": "partial", "tasks_processed": 1, "failed_at": 2},
+    "complete_failure": {"status": "failed", "tasks_processed": 0, "error": "TaskMismatchError"}
+  }
+}
