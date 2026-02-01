@@ -1,0 +1,56 @@
+{
+  "test_name": "task_mismatch_validation_v2",
+  "version": "3.3.021",
+  "scenarios": [
+    {
+      "id": "tm001",
+      "name": "invalid_task_type",
+      "input": {
+        "message": "Test invalid task type",
+        "tasks": [
+          {
+            "id": "T001",
+            "type": "invalid_type",
+            "description": "This should fail",
+            "filename": "test.txt",
+            "content": "test content"
+          }
+        ]
+      },
+      "expected_error": "task_mismatch"
+    },
+    {
+      "id": "tm002",
+      "name": "missing_required_field",
+      "input": {
+        "message": "Test missing filename",
+        "tasks": [
+          {
+            "id": "T001",
+            "type": "create_file",
+            "description": "Missing filename field",
+            "content": "test content"
+          }
+        ]
+      },
+      "expected_error": "task_mismatch"
+    },
+    {
+      "id": "tm003",
+      "name": "empty_content_field",
+      "input": {
+        "message": "Test empty content",
+        "tasks": [
+          {
+            "id": "T001",
+            "type": "create_file",
+            "description": "Empty content field",
+            "filename": "empty.txt",
+            "content": ""
+          }
+        ]
+      },
+      "expected_error": "task_mismatch"
+    }
+  ]
+}
