@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat - Enhanced Input</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .chat-input-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            outline: none;
+            resize: none;
+        }
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .action-btn:hover {
+            transform: scale(1.05);
+            opacity: 0.9;
+        }
+        .action-btn.secondary {
+            background: #6c757d;
+        }
+        .action-btn.success {
+            background: #28a745;
+        }
+        .action-btn.warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        .btn-group {
+            display: flex;
+            gap: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-input-container">
+        <button class="action-btn secondary" id="attachBtn" title="Attach file">
+            <i class="fas fa-paperclip"></i>
+        </button>
+        <textarea class="chat-input" placeholder="Type your message..." rows="1"></textarea>
+        <div class="btn-group">
+            <button class="action-btn warning" id="emojiBtn" title="Add emoji">
+                <i class="fas fa-smile"></i>
+            </button>
+            <button class="action-btn secondary" id="voiceBtn" title="Voice input">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <button class="action-btn success" id="sendBtn" title="Send message">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</body>
+</html>
