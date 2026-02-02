@@ -1,0 +1,6 @@
+{
+  "name": "new-module",
+  "version": "1.0.0",
+  "description": "LocalAgent module: new-module",
+  "main": "index.js"
+}
