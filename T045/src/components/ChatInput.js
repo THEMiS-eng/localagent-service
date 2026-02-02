@@ -1,18 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import './ChatInput.css';
 
 const ChatInput = ({ 
   onSendMessage, 
   placeholder = "Type your message...",
-  actionButtons = [],
+  actionButton = {
+    text: "Send",
+    icon: "→",
+    color: "#007bff",
+    hoverColor: "#0056b3",
+    onClick: null
+  },
   disabled = false 
 }) => {
   const [message, setMessage] = useState('');
+  const inputRef = useRef(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (message.trim() && !disabled) {
-      onSendMessage(message.trim());
+      if (actionButton.onClick) {
+        actionButton.onClick(message.trim());
+      } else {
+        onSendMessage(message.trim());
+      }
       setMessage('');
     }
   };
@@ -25,43 +36,32 @@ const ChatInput = ({
   };
 
   return (
-    <div className="chat-input-container">
-      <form onSubmit={handleSubmit} className="chat-input-form">
-        <div className="input-wrapper">
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={placeholder}
-            disabled={disabled}
-            className="message-input"
-            rows={1}
-          />
-          <div className="action-buttons">
-            {actionButtons.map((btn, index) => (
-              <button
-                key={btn.id || index}
-                type="button"
-                onClick={() => btn.onClick(message, setMessage)}
-                className={`action-btn ${btn.className || ''}`}
-                disabled={disabled || btn.disabled}
-                title={btn.tooltip}
-              >
-                {btn.icon && <span className="btn-icon">{btn.icon}</span>}
-                {btn.label}
-              </button>
-            ))}
-            <button
-              type="submit"
-              disabled={!message.trim() || disabled}
-              className="send-btn"
-            >
-              Send
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
+    <form className="chat-input-form" onSubmit={handleSubmit}>
+      <div className="chat-input-container">
+        <input
+          ref={inputRef}
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="chat-input-field"
+        />
+        <button
+          type="submit"
+          disabled={!message.trim() || disabled}
+          className="chat-action-button"
+          style={{
+            backgroundColor: actionButton.color,
+            '--hover-color': actionButton.hoverColor
+          }}
+        >
+          {actionButton.icon && <span className="button-icon">{actionButton.icon}</span>}
+          {actionButton.text && <span className="button-text">{actionButton.text}</span>}
+        </button>
+      </div>
+    </form>
   );
 };
 

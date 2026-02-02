@@ -1,83 +1,72 @@
-.chat-input-container {
-  background: white;
-  border-top: 1px solid #e1e5e9;
-  padding: 16px;
-}
-
 .chat-input-form {
   width: 100%;
+  margin: 0;
 }
 
-.input-wrapper {
+.chat-input-container {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
+  padding: 12px;
   background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 20px;
-  padding: 8px 12px;
+  border-top: 1px solid #dee2e6;
+  border-radius: 0 0 8px 8px;
 }
 
-.message-input {
+.chat-input-field {
   flex: 1;
-  border: none;
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 20px;
   outline: none;
-  background: transparent;
-  resize: none;
   font-size: 14px;
-  line-height: 1.4;
-  max-height: 100px;
-  overflow-y: auto;
+  background: white;
+  transition: border-color 0.2s ease;
 }
 
-.action-buttons {
+.chat-input-field:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.chat-input-field:disabled {
+  background: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.chat-action-button {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.action-btn {
-  background: transparent;
+  padding: 8px 16px;
   border: none;
-  padding: 6px 8px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 12px;
-  color: #6c757d;
-  transition: all 0.2s;
-}
-
-.action-btn:hover:not(:disabled) {
-  background: #e9ecef;
-  color: #495057;
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-icon {
-  margin-right: 4px;
-}
-
-.send-btn {
+  border-radius: 20px;
   background: #007bff;
   color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 16px;
-  cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  transition: background-color 0.2s;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 60px;
 }
 
-.send-btn:hover:not(:disabled) {
-  background: #0056b3;
+.chat-action-button:hover:not(:disabled) {
+  background: var(--hover-color, #0056b3);
+  transform: translateY(-1px);
 }
 
-.send-btn:disabled {
+.chat-action-button:disabled {
   background: #6c757d;
   cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.button-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.button-text {
+  font-size: 14px;
 }
