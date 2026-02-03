@@ -97,15 +97,33 @@ def get_evidence(case_id: str = None):
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def serve_themis_ui():
-    """Serve Themis UI."""
-    paths = [
-        Path(__file__).parent.parent.parent.parent / "themis_react_no_jsx.html",
-        Path(__file__).parent.parent.parent.parent / "themis.html",
+    """Serve Themis UI from external module (not bundled)."""
+    import urllib.request
+    
+    # 1. Check local installed module
+    local_paths = [
+        Path.home() / ".localagent" / "modules" / "themis-ui" / "index.html",
+        Path.home() / "localagent-modular" / "themis-ui" / "index.html",
     ]
-    for p in paths:
+    for p in local_paths:
         if p.exists():
             return HTMLResponse(p.read_text())
-    return HTMLResponse("<h1>Themis UI not found</h1>")
+    
+    # 2. Fetch from GitHub module
+    try:
+        url = "https://raw.githubusercontent.com/THEMiS-eng/themis-ui/main/index.html"
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            return HTMLResponse(resp.read().decode('utf-8'))
+    except:
+        pass
+    
+    return HTMLResponse("""
+        <html><head><title>Themis</title></head>
+        <body style="font-family:system-ui;padding:40px;text-align:center">
+            <h1>Themis UI Module Not Found</h1>
+            <p>Install: <code>./INSTALL.sh</code> or check <a href="https://github.com/THEMiS-eng/themis-ui">THEMiS-eng/themis-ui</a></p>
+        </body></html>
+    """)
 
 
 # =============================================================================
@@ -148,6 +166,14 @@ async def service_logs(lines: int = 50):
 async def list_cases():
     """List all cases."""
     return get_cases()
+
+@router.get("/api/cases/search")
+async def search_cases(q: str = ""):
+    """Search cases."""
+    if not q:
+        return get_cases()
+    q_lower = q.lower()
+    return [c for c in get_cases() if q_lower in c.get("name", "").lower() or q_lower in c.get("id", "").lower()]
 
 @router.post("/api/cases")
 async def create_case(request: Request):
@@ -220,14 +246,6 @@ async def close_case(case_id: str):
             return {"status": "closed"}
     return JSONResponse({"error": "Case not found"}, status_code=404)
 
-@router.get("/api/cases/search")
-async def search_cases(q: str = ""):
-    """Search cases."""
-    if not q:
-        return get_cases()
-    q_lower = q.lower()
-    return [c for c in get_cases() if q_lower in c.get("name", "").lower() or q_lower in c.get("id", "").lower()]
-
 
 # =============================================================================
 # EVIDENCE
@@ -258,6 +276,15 @@ async def upload_evidence(request: Request):
         data = await request.json()
         case_id = data.get("case_id")
         filename = data.get("filename", "upload.bin")
+
+        # SECURITY: Sanitize filename to prevent path traversal
+        # Remove path separators and parent directory references
+        filename = filename.replace("\\", "/")  # Normalize separators
+        filename = filename.split("/")[-1]      # Keep only filename part
+        filename = filename.lstrip(".")         # Remove leading dots
+        if not filename or filename in (".", ".."):
+            return JSONResponse({"error": "Invalid filename"}, status_code=400)
+
         title = data.get("title", filename)
         file_content = data.get("content", "").encode() if data.get("content") else b""
     else:
@@ -271,6 +298,12 @@ async def upload_evidence(request: Request):
     upload_dir = DATA_DIR / "uploads" / case_id
     upload_dir.mkdir(parents=True, exist_ok=True)
     file_path = upload_dir / filename
+
+    # SECURITY: Verify resolved path is within upload_dir
+    resolved_path = file_path.resolve()
+    if not str(resolved_path).startswith(str(upload_dir.resolve())):
+        return JSONResponse({"error": "Invalid file path"}, status_code=400)
+
     file_path.write_bytes(file_content)
     
     # Create evidence record
@@ -598,76 +631,55 @@ _pending_corrections: Dict[str, Dict] = {}
 async def report_console_error(request: Request):
     """
     Receive console errors from frontend and trigger re-negotiation.
-    
-    This is called when the frontend catches a runtime error after
-    receiving code/HTML from the LLM. The Negotiator will:
-    1. Classify the error
-    2. Build feedback for the LLM
-    3. Retry with the error context
-    4. Return corrected response
-    
-    Request body:
-    {
-        "message_id": str,           # ID of the message that caused the error
-        "error_message": str,        # The console error
-        "error_type": str,           # Optional: js_error, python_error, etc.
-        "code_context": str,         # Optional: code snippet that caused error
-        "original_prompt": str,      # The original user prompt
-        "original_response": str,    # The LLM response that caused error
-        "case_id": str,              # Case context
-        "skill_used": str            # Skill that was active
-    }
-    
-    Returns:
-        Corrected response after re-negotiation
     """
-    data = await request.json()
-    
-    error_message = data.get("error_message", "")
-    code_context = data.get("code_context", "")
-    original_prompt = data.get("original_prompt", "")
-    original_response = data.get("original_response", "")
-    case_id = data.get("case_id")
-    skill_used = data.get("skill_used")
-    message_id = data.get("message_id", str(uuid.uuid4()))
-    
-    print(f"[NEGOTIATOR] Console error received: {error_message[:100]}...")
-    
-    # Classify the error
-    from ...core.negotiator import classify_console_error, build_error_feedback, should_retry
-    from ...core.learning import learn_from_error
-    
-    error_type, cleaned_message = classify_console_error(error_message)
-    print(f"[NEGOTIATOR] Classified as: {error_type}")
-    
-    # Learn from this error
-    learn_from_error(
-        project="THEMIS",
-        error_type=error_type,
-        error_message=cleaned_message,
-        context={
-            "skill": skill_used,
-            "case_id": case_id,
-            "code_length": len(code_context)
-        }
-    )
-    
-    # Check if we should retry
-    retry_count = _pending_corrections.get(message_id, {}).get("retry_count", 0)
-    
-    if not should_retry(error_type, retry_count):
-        return {
-            "success": False,
-            "error": "Max retries exceeded for this error type",
-            "error_type": error_type,
-            "retry_count": retry_count
-        }
-    
-    # Build feedback for LLM
-    feedback = build_error_feedback(error_type, cleaned_message, code_context)
-    
-    # Build retry prompt
-    retry_prompt = f"""{original_prompt}
+    try:
+        data = await request.json()
+        
+        error_message = data.get("error_message", "")
+        code_context = data.get("code_context", "")
+        original_prompt = data.get("original_prompt", "")
+        original_response = data.get("original_response", "")
+        case_id = data.get("case_id")
+        skill_used = data.get("skill_used")
+        message_id = data.get("message_id", str(uuid.uuid4()))
+        
+        print(f"[NEGOTIATOR] Console error received: {error_message[:100]}...")
+        
+        # Classify the error
+        from ...core.negotiator import classify_console_error, build_error_feedback, should_retry
+        from ...core.learning import learn_from_error
+        
+        error_type, cleaned_message = classify_console_error(error_message)
+        print(f"[NEGOTIATOR] Classified as: {error_type}")
+        
+        # Learn from this error
+        learn_from_error(
+            project="THEMIS",
+            error_type=error_type,
+            error_message=cleaned_message,
+            context={
+                "skill": skill_used,
+                "case_id": case_id,
+                "code_length": len(code_context)
+            }
+        )
+        
+        # Check if we should retry
+        retry_count = _pending_corrections.get(message_id, {}).get("retry_count", 0)
+        
+        if not should_retry(error_type, retry_count):
+            return {
+                "success": False,
+                "error": "Max retries exceeded for this error type",
+                "error_type": error_type,
+                "retry_count": retry_count
+            }
+        
+        # Build feedback for LLM
+        feedback = build_error_feedback(error_type, cleaned_message, code_context)
+        
+        # Build retry prompt
+        retry_prompt = f"""{original_prompt}
 
 === RUNTIME ERROR DETECTED ===
 Your previous response caused an error when executed.
@@ -679,65 +691,71 @@ Your previous response caused an error when executed.
 
 Please provide a CORRECTED response that fixes the error."""
 
-    # Track this correction attempt
-    _pending_corrections[message_id] = {
-        "retry_count": retry_count + 1,
-        "original_prompt": original_prompt,
-        "errors": _pending_corrections.get(message_id, {}).get("errors", []) + [
-            {"type": error_type, "message": cleaned_message}
-        ]
-    }
-    
-    # Build system prompt with skill
-    system_parts = ["You are a code correction assistant. Fix errors while preserving the original intent."]
-    
-    if skill_used:
-        skill_prompt = _get_skill_system_prompt(skill_used)
-        if skill_prompt:
-            system_parts.append(f"\n=== ACTIVE SKILL: {skill_used} ===\n{skill_prompt}")
-    
-    system = "\n".join(system_parts)
-    
-    # Build context
-    history = _chat_history.get(case_id, [])
-    context_str = "\n".join([f"{m['role']}: {m['content'][:200]}" for m in history[-4:]])
-    
-    # Call LLM with error context
-    result = chat_completion(retry_prompt, context=context_str, system=system)
-    response_text = result.get("response", "")
-    ai_source = result.get("source", "unknown")
-    
-    # Store the correction attempt in history
-    if case_id:
-        if case_id not in _chat_history:
-            _chat_history[case_id] = []
-        _chat_history[case_id].append({
-            "role": "system",
-            "content": f"[Error correction: {error_type}]",
-            "timestamp": datetime.now().isoformat()
-        })
-        _chat_history[case_id].append({
-            "role": "assistant",
-            "content": response_text,
-            "timestamp": datetime.now().isoformat(),
-            "source": ai_source,
-            "correction_for": message_id,
-            "error_type": error_type
-        })
-    
-    return {
-        "success": True,
-        "response": response_text,
-        "message_id": message_id,
-        "error_type": error_type,
-        "retry_count": retry_count + 1,
-        "ai_source": ai_source,
-        "protocol": [
-            {"step": "error_received", "label": f"❌ {error_type}", "status": "complete"},
-            {"step": "correction", "label": f"🔄 Retry {retry_count + 1}", "status": "complete"},
-            {"step": "response", "label": f"✅ Corrected ({ai_source})", "status": "complete"}
-        ]
-    }
+        # Track this correction attempt
+        _pending_corrections[message_id] = {
+            "retry_count": retry_count + 1,
+            "original_prompt": original_prompt,
+            "errors": _pending_corrections.get(message_id, {}).get("errors", []) + [
+                {"type": error_type, "message": cleaned_message}
+            ]
+        }
+        
+        # Build system prompt with skill
+        system_parts = ["You are a code correction assistant. Fix errors while preserving the original intent."]
+        
+        if skill_used:
+            skill_prompt = _get_skill_system_prompt(skill_used)
+            if skill_prompt:
+                system_parts.append(f"\n=== ACTIVE SKILL: {skill_used} ===\n{skill_prompt}")
+        
+        system = "\n".join(system_parts)
+        
+        # Build context
+        history = _chat_history.get(case_id, [])
+        context_str = "\n".join([f"{m['role']}: {m['content'][:200]}" for m in history[-4:]])
+        
+        # Call LLM with error context
+        result = chat_completion(retry_prompt, context=context_str, system=system)
+        response_text = result.get("response", "")
+        ai_source = result.get("source", "unknown")
+        
+        # Store the correction attempt in history
+        if case_id:
+            if case_id not in _chat_history:
+                _chat_history[case_id] = []
+            _chat_history[case_id].append({
+                "role": "system",
+                "content": f"[Error correction: {error_type}]",
+                "timestamp": datetime.now().isoformat()
+            })
+            _chat_history[case_id].append({
+                "role": "assistant",
+                "content": response_text,
+                "timestamp": datetime.now().isoformat(),
+                "source": ai_source,
+                "correction_for": message_id,
+                "error_type": error_type
+            })
+        
+        return {
+            "success": True,
+            "response": response_text,
+            "message_id": message_id,
+            "error_type": error_type,
+            "retry_count": retry_count + 1,
+            "ai_source": ai_source,
+            "protocol": [
+                {"step": "error_received", "label": f"❌ {error_type}", "status": "complete"},
+                {"step": "correction", "label": f"🔄 Retry {retry_count + 1}", "status": "complete"},
+                {"step": "response", "label": f"✅ Corrected ({ai_source})", "status": "complete"}
+            ]
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Error processing correction request"
+        }
 
 
 @router.delete("/api/chat/error/{message_id}")
@@ -929,6 +947,24 @@ async def get_analysis_methods():
 async def list_outputs(case_id: str = None):
     """List outputs for a case."""
     return load_data("outputs")
+
+@router.post("/api/outputs")
+async def create_output(request: Request):
+    """Create a new output."""
+    data = await request.json()
+    output_id = f"OUT-{str(uuid.uuid4())[:8].upper()}"
+    output = {
+        "id": output_id,
+        "title": data.get("title", "Output"),
+        "content": data.get("content", ""),
+        "case_id": data.get("case_id"),
+        "type": data.get("type", "general"),
+        "created_at": datetime.now().isoformat()
+    }
+    outputs = load_data("outputs")
+    outputs.append(output)
+    save_data("outputs", outputs)
+    return output
 
 @router.get("/api/outputs/{output_id}")
 async def get_output(output_id: str):

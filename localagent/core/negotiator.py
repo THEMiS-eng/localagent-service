@@ -820,7 +820,7 @@ def negotiate_request(
         # Validate tasks match instruction (prevent creating unrelated files)
         task_match = validate_tasks_match_instruction(validation["tasks"], instruction)
         if not task_match["valid"]:
-            error_type = task_match["error_type"]
+            error_type = task_match.get("error_type", "task_mismatch")
             print(f"      ❌ Task mismatch: {task_match.get('detail', '')[:100]}")
             attempt["error_type"] = error_type
             attempt["error"] = task_match.get("detail", "")

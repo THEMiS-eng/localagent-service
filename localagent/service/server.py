@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import uvicorn
@@ -127,6 +127,75 @@ async def dashboard():
     if dashboard_file.exists():
         return HTMLResponse(dashboard_file.read_text())
     return HTMLResponse("<h1>Dashboard not found</h1>")
+
+@app.get("/chat-pro-standalone.html", response_class=HTMLResponse)
+@app.get("/modules/ai-chat-module-pro/chat-pro-standalone.html", response_class=HTMLResponse)
+async def serve_chat_module():
+    """Serve chat module from external prompt-linter module."""
+    import urllib.request
+    
+    # 1. Check local installed module
+    local_paths = [
+        Path.home() / ".localagent" / "modules" / "prompt-linter" / "chat-module" / "chat-pro-standalone.html",
+        Path.home() / "localagent-modular" / "prompt-linter" / "chat-module" / "chat-pro-standalone.html",
+    ]
+    for p in local_paths:
+        if p.exists():
+            return HTMLResponse(p.read_text())
+    
+    # 2. Fetch from GitHub module
+    try:
+        url = "https://raw.githubusercontent.com/THEMiS-eng/prompt-linter/main/chat-module/chat-pro-standalone.html"
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            return HTMLResponse(resp.read().decode('utf-8'))
+    except:
+        pass
+    
+    return HTMLResponse("<h1>Chat Module Not Found</h1><p>Install prompt-linter module</p>")
+
+@app.get("/modules/ai-chat-module-pro/PromptLinter.bundle.js")
+async def serve_prompt_linter():
+    """Serve PromptLinter from prompt-linter module."""
+    local_paths = [
+        Path.home() / ".localagent" / "modules" / "prompt-linter" / "dist" / "PromptLinter.bundle.js",
+        Path.home() / "localagent-modular" / "prompt-linter" / "dist" / "PromptLinter.bundle.js",
+    ]
+    for p in local_paths:
+        if p.exists():
+            return Response(content=p.read_text(), media_type="application/javascript")
+    
+    # Fetch from GitHub
+    try:
+        import urllib.request
+        url = "https://raw.githubusercontent.com/THEMiS-eng/prompt-linter/main/dist/PromptLinter.bundle.js"
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            return Response(content=resp.read().decode('utf-8'), media_type="application/javascript")
+    except:
+        pass
+    
+    return Response(content="// PromptLinter not found", media_type="application/javascript")
+
+@app.get("/modules/whisper-module/WhisperTranscriber.js")
+async def serve_whisper():
+    """Serve WhisperTranscriber from whisper-module."""
+    local_paths = [
+        Path.home() / ".localagent" / "modules" / "whisper-module" / "src" / "WhisperTranscriber.js",
+        Path.home() / "localagent-modular" / "whisper-module" / "src" / "WhisperTranscriber.js",
+    ]
+    for p in local_paths:
+        if p.exists():
+            return Response(content=p.read_text(), media_type="application/javascript")
+    
+    # Fetch from GitHub
+    try:
+        import urllib.request
+        url = "https://raw.githubusercontent.com/THEMiS-eng/whisper-module/main/src/WhisperTranscriber.js"
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            return Response(content=resp.read().decode('utf-8'), media_type="application/javascript")
+    except:
+        pass
+    
+    return Response(content="// WhisperTranscriber not found", media_type="application/javascript")
 
 @app.get("/outputs/{filename:path}")
 async def serve_output(filename: str):
@@ -253,14 +322,25 @@ async def get_errors():
     return {"errors": get_pending_errors()}
 
 @app.post("/api/clear")
-async def clear_outputs():
-    """Clear output files."""
+async def clear_outputs(data: Dict[str, Any] = None):
+    """Clear output files. Requires confirmation."""
+    data = data or {}
+
+    # SECURITY: Require explicit confirmation to prevent accidental deletion
+    if data.get("confirm") != True:
+        return {"error": "Confirmation required. Send {\"confirm\": true} to proceed.", "cleared": False}
+
     output_dir = PROJECTS_DIR / DEFAULT_PROJECT / "current"
+    deleted_files = []
+
     if output_dir.exists():
         for f in output_dir.iterdir():
             if f.is_file():
+                deleted_files.append(f.name)
                 f.unlink()
-    return {"cleared": True}
+
+    logger.warning(f"Cleared {len(deleted_files)} files from {output_dir}")
+    return {"cleared": True, "files_deleted": len(deleted_files), "files": deleted_files}
 
 @app.get("/api/update/check")
 async def check_update():
@@ -270,12 +350,77 @@ async def check_update():
     return {"local": VERSION, "github": github_version, "update_available": github_version and github_version > VERSION}
 
 @app.post("/api/update/install")
-async def install_update(data: Dict[str, Any]):
+async def install_update_endpoint(data: Dict[str, Any]):
     """Install update from GitHub."""
-    from ..core.updater import install_update
-    version = data.get("version")
-    result = install_update(version)
+    from ..core.updater import install_from_github
+    download_url = data.get("download_url")
+    result = install_from_github(download_url)
     return result
+
+# ============================================================
+# AUTO-FIX & ANALYZE (called by debug router)
+# ============================================================
+async def auto_fix_error(error_id: str):
+    """Auto-fix an error using Claude."""
+    from ..core.debugger import get_pending_errors
+    from ..connectors.llm import call_claude
+    
+    errors = get_pending_errors()
+    error = next((e for e in errors if e.get("id") == error_id), None)
+    
+    if not error:
+        return {"success": False, "error": f"Error {error_id} not found"}
+    
+    prompt = f"""Fix this error:
+Message: {error.get('message', '')}
+Source: {error.get('source', '')}
+Stack: {error.get('stack', '')[:500]}
+
+Provide a brief fix description and code if applicable."""
+    
+    result = call_claude(prompt, "You are a debugging assistant. Provide concise fixes.")
+    
+    if result.get("success"):
+        return {
+            "success": True,
+            "error_id": error_id,
+            "fix_suggestion": result.get("response", "")
+        }
+    return {"success": False, "error": "Claude call failed"}
+
+
+async def analyze_error_with_claude(error_id: str):
+    """Analyze an error using Claude."""
+    from ..core.debugger import get_pending_errors
+    from ..connectors.llm import call_claude
+    
+    errors = get_pending_errors()
+    error = next((e for e in errors if e.get("id") == error_id), None)
+    
+    if not error:
+        return {"success": False, "error": f"Error {error_id} not found"}
+    
+    prompt = f"""Analyze this error:
+Message: {error.get('message', '')}
+Source: {error.get('source', '')}
+File: {error.get('file', '')}
+Line: {error.get('line', '')}
+Stack: {error.get('stack', '')[:500]}
+
+Provide:
+1. Root cause analysis
+2. Severity (low/medium/high/critical)
+3. Recommended fix"""
+    
+    result = call_claude(prompt, "You are a senior debugger. Analyze errors precisely.")
+    
+    if result.get("success"):
+        return {
+            "success": True,
+            "error_id": error_id,
+            "analysis": result.get("response", "")
+        }
+    return {"success": False, "error": "Analysis failed"}
 
 # ============================================================
 # RUN

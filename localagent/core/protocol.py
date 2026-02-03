@@ -558,9 +558,10 @@ Response must be valid JSON only.
             try:
                 ctx = get_skill_context()
                 best_template = self._apply_context_to_template(best_template, ctx)
-            except:
-                pass
-        
+            except Exception as e:
+                # Log error but continue with unmodified template (graceful fallback)
+                logger.warning(f"Failed to apply skill context to template: {e}")
+
         return best_template
     
     def _apply_context_to_template(self, template: str, context: Dict) -> str:
@@ -616,9 +617,13 @@ Response must be valid JSON only.
         
         try:
             # call_claude signature: (prompt, context="", system=None)
+            # Pass case_context if available for additional context
+            context = self._claude_context.get("case_context", "") or ""
+
             result = self._call_claude_fn(
-                prompt=self._claude_context["user"],
-                system=self._claude_context["system"]
+                self._claude_context["user"],
+                context,
+                self._claude_context["system"]
             )
             
             # Handle dict response from call_claude
@@ -707,12 +712,16 @@ Response must be valid JSON only.
         
         if not mismatch_result.get("valid"):
             strategy = NEGOTIATION_STRATEGIES.get("task_mismatch", {})
-            if self._retry_count < strategy.get("max_retries", 3):
-                self._retry_count += 1
-                feedback = mismatch_result.get("detail", strategy.get("feedback", "Task does not match instruction"))
-                logger.warning(f"   ❌ Task mismatch: {feedback[:100]}")
-                return self._retry_with_feedback(feedback)
-            return False, None, f"Task mismatch after {self._retry_count} retries: {mismatch_result.get('detail', '')}"
+            max_retries = strategy.get("max_retries", 3)
+
+            # Check if max retries exceeded BEFORE attempting another retry
+            if self._retry_count >= max_retries:
+                return False, None, f"Task mismatch after {self._retry_count} retries (max: {max_retries}): {mismatch_result.get('detail', '')}"
+
+            self._retry_count += 1
+            feedback = mismatch_result.get("detail", strategy.get("feedback", "Task does not match instruction"))
+            logger.warning(f"   ❌ Task mismatch (retry {self._retry_count}/{max_retries}): {feedback[:100]}")
+            return self._retry_with_feedback(feedback)
         
         return True, {"task_count": len(tasks), "tasks": [t.get("id") for t in tasks]}, None
     
@@ -899,13 +908,25 @@ Response must be valid JSON only.
 {self.execution.commit_sha or 'N/A'}
 """
         
-        result = github_create_release("service", version, body)
+        # Try to create release, handle "already exists" by incrementing version
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            result = github_create_release("service", version, body, repo=self.github_repo)
+            
+            if result.get("success"):
+                self.execution.release_url = result.get("url", f"https://github.com/{self.github_repo}/releases/tag/v{version}")
+                self.execution.calculated_next_version = version  # Update if we had to increment
+                return True, {"release_url": self.execution.release_url, "version": version}, None
+            elif "already exists" in result.get("error", "").lower():
+                # Increment version and retry
+                parts = version.split(".")
+                parts[-1] = str(int(parts[-1]) + 1)
+                version = ".".join(parts)
+                logger.info(f"      Release exists, trying v{version}")
+            else:
+                return False, None, f"ENV012: Failed to create GitHub release - {result.get('error', 'unknown')}"
         
-        if result.get("success"):
-            self.execution.release_url = result.get("url", f"https://github.com/{self.github_repo}/releases/tag/v{version}")
-            return True, {"release_url": self.execution.release_url}, None
-        else:
-            return False, None, f"ENV012: Failed to create GitHub release - {result.get('error', 'unknown')}"
+        return False, None, f"ENV012: Failed to create GitHub release after {max_attempts} attempts"
     
     def _step_verify_release(self) -> Tuple[bool, Optional[Dict], Optional[str]]:
         """STEP 12: Verify release exists (ENV013)."""
