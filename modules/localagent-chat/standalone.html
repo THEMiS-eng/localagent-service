@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LocalAgent Chat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {}
+      }
+    }
+  </script>
+  <style>
+    @keyframes bounce-dot {
+      0%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-4px); }
+    }
+    .animate-bounce-dot { animation: bounce-dot 1.4s infinite ease-in-out both; }
+    .animate-bounce-dot:nth-child(1) { animation-delay: 0s; }
+    .animate-bounce-dot:nth-child(2) { animation-delay: 0.16s; }
+    .animate-bounce-dot:nth-child(3) { animation-delay: 0.32s; }
+  </style>
+</head>
+<body class="bg-white dark:bg-gray-900">
+  <div id="root" class="h-screen"></div>
+
+  <script type="module">
+    // ============================================================
+    // LOCALAGENT PROVIDER (inline)
+    // ============================================================
+
+    const LOCALAGENT_URL = 'http://localhost:9998';
+
+    async function complete(request) {
+      try {
+        const response = await fetch(`${LOCALAGENT_URL}/api/llm/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: request.prompt,
+            system: request.system || '',
+            context: request.context || '',
+            skill_name: request.skill_name,
+            provider: request.provider,
+            fallback: request.fallback ?? true,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+          return { success: false, response: '', provider: 'error', error: error.detail };
+        }
+
+        return response.json();
+      } catch (err) {
+        return { success: false, response: '', provider: 'error', error: err.message };
+      }
+    }
+
+    async function getStatus() {
+      try {
+        const response = await fetch(`${LOCALAGENT_URL}/api/llm/status`);
+        if (!response.ok) return null;
+        return response.json();
+      } catch {
+        return null;
+      }
+    }
+
+    function formatProvider(provider) {
+      const names = { mlx: 'MLX (Local)', ollama: 'Ollama (Local)', claude: 'Claude', openai: 'OpenAI' };
+      return names[provider] || provider;
+    }
+
+    function isLocalProvider(provider) {
+      return ['mlx', 'ollama'].includes(provider);
+    }
+
+    // ============================================================
+    // CHAT STATE
+    // ============================================================
+
+    let messages = [];
+    let isLoading = false;
+    let error = null;
+    let activeProvider = null;
+    let skillName = null; // Set via URL param or config
+
+    // Get skill from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    skillName = urlParams.get('skill') || null;
+
+    // ============================================================
+    // RENDER FUNCTIONS
+    // ============================================================
+
+    function render() {
+      const root = document.getElementById('root');
+      root.innerHTML = `
+        <div class="flex flex-col h-full bg-white dark:bg-gray-900">
+          <!-- Header -->
+          <header class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <h1 class="text-lg font-semibold text-gray-900 dark:text-white">LocalAgent Chat</h1>
+            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <span class="w-2 h-2 rounded-full ${
+                activeProvider
+                  ? isLocalProvider(activeProvider) ? 'bg-green-500' : 'bg-blue-500'
+                  : 'bg-gray-400'
+              }"></span>
+              <span>${activeProvider ? formatProvider(activeProvider) : 'Connecting...'}</span>
+              ${skillName ? `<span class="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded">+ ${skillName}</span>` : ''}
+            </div>
+          </header>
+
+          <!-- Messages -->
+          <div class="flex-1 overflow-y-auto px-4 py-4" id="messages-container">
+            <div class="max-w-3xl mx-auto space-y-4">
+              ${messages.length === 0 && !isLoading ? renderGreeting() : ''}
+              ${messages.map(renderMessage).join('')}
+              ${isLoading ? renderThinking() : ''}
+              ${error ? `<div class="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg text-sm">Error: ${error}</div>` : ''}
+              <div id="messages-end"></div>
+            </div>
+          </div>
+
+          <!-- Input -->
+          <div class="border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+            <div class="max-w-3xl mx-auto">
+              <form id="chat-form" class="flex items-end gap-2 p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus-within:border-blue-500 transition-colors">
+                <textarea
+                  id="chat-input"
+                  placeholder="Send a message..."
+                  class="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-400 text-sm min-h-[44px] max-h-[200px] py-2 px-2"
+                  rows="1"
+                  ${isLoading ? 'disabled' : ''}
+                ></textarea>
+                <button
+                  type="submit"
+                  id="send-button"
+                  class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                    isLoading ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }"
+                  ${isLoading ? 'disabled' : ''}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Attach event listeners
+      document.getElementById('chat-form').addEventListener('submit', handleSubmit);
+      document.getElementById('chat-input').addEventListener('keydown', handleKeyDown);
+      document.getElementById('chat-input').addEventListener('input', handleInput);
+
+      // Scroll to bottom
+      document.getElementById('messages-end')?.scrollIntoView({ behavior: 'smooth' });
+
+      // Focus input
+      if (!isLoading) {
+        document.getElementById('chat-input')?.focus();
+      }
+    }
+
+    function renderGreeting() {
+      return `
+        <div class="text-center py-12">
+          <div class="text-4xl mb-4">
+            <svg class="mx-auto" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"/>
+            </svg>
+          </div>
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">How can I help you today?</h2>
+          <p class="text-gray-500 dark:text-gray-400">Ask me anything. I'm connected to your LocalAgent.</p>
+        </div>
+      `;
+    }
+
+    function renderMessage(msg) {
+      const isUser = msg.role === 'user';
+      return `
+        <div class="flex w-full ${isUser ? 'justify-end' : 'justify-start gap-3'}">
+          ${!isUser ? `
+            <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"/>
+              </svg>
+            </div>
+          ` : ''}
+          <div>
+            <div class="max-w-[80%] px-4 py-2 rounded-2xl text-sm ${
+              isUser
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+            }">
+              <div class="whitespace-pre-wrap break-words">${escapeHtml(msg.content)}</div>
+            </div>
+            ${!isUser && msg.provider ? `
+              <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                ${formatProvider(msg.provider)}${msg.skill_injected ? ' + Skill' : ''}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderThinking() {
+      return `
+        <div class="flex w-full justify-start gap-3">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700 animate-pulse">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"/>
+            </svg>
+          </div>
+          <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
+            <span>Thinking</span>
+            <span class="flex gap-1">
+              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce-dot"></span>
+              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce-dot"></span>
+              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce-dot"></span>
+            </span>
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ============================================================
+    // EVENT HANDLERS
+    // ============================================================
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const content = input.value.trim();
+      if (!content || isLoading) return;
+
+      // Add user message
+      messages.push({
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: content,
+        createdAt: new Date(),
+      });
+
+      input.value = '';
+      isLoading = true;
+      error = null;
+      render();
+
+      // Send to LocalAgent
+      const result = await complete({
+        prompt: content,
+        skill_name: skillName,
+        fallback: true,
+      });
+
+      isLoading = false;
+
+      if (result.success) {
+        messages.push({
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: result.response,
+          createdAt: new Date(),
+          provider: result.provider,
+          skill_injected: result.skill_injected,
+        });
+        activeProvider = result.provider;
+      } else {
+        error = result.error || 'Unknown error';
+      }
+
+      render();
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('chat-form').requestSubmit();
+      }
+    }
+
+    function handleInput(e) {
+      const textarea = e.target;
+      textarea.style.height = '44px';
+      textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+
+    async function init() {
+      // Check backend status
+      const status = await getStatus();
+      if (status?.llm?.active) {
+        activeProvider = status.llm.active;
+      } else if (status?.llm?.available?.length > 0) {
+        activeProvider = status.llm.available[0];
+      }
+
+      // Check for dark mode
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      }
+
+      render();
+    }
+
+    init();
+  </script>
+</body>
+</html>
