@@ -3,301 +3,3542 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LocalAgent Chat</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {}
-      }
-    }
-  </script>
+  <title>LocalAgent Chat Pro</title>
   <style>
-    @keyframes bounce-dot {
-      0%, 80%, 100% { transform: translateY(0); }
-      40% { transform: translateY(-4px); }
+    /* =================================================================
+       LOCALAGENT CHAT - CHAMELEON CSS
+       Inherits ALL colors from parent. Zero hardcoded colors.
+       ================================================================= */
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Base - inherit everything, ensure full height */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
     }
-    .animate-bounce-dot { animation: bounce-dot 1.4s infinite ease-in-out both; }
-    .animate-bounce-dot:nth-child(1) { animation-delay: 0s; }
-    .animate-bounce-dot:nth-child(2) { animation-delay: 0.16s; }
-    .animate-bounce-dot:nth-child(3) { animation-delay: 0.32s; }
+    body, .container {
+      font-family: inherit;
+      background: transparent;
+      color: inherit;
+      height: 100%;
+      overflow: hidden;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Header - hidden in THEMIS mode, shown standalone */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(128,128,128,0.2);
+      background: transparent;
+    }
+    .header-title { font-size: 16px; font-weight: 600; }
+    .header-status { display: flex; align-items: center; gap: 8px; font-size: 13px; opacity: 0.7; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(34, 197, 94, 0.9); }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+
+    /* Messages area */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      padding-bottom: 80px;
+      min-height: 0;
+      background: transparent;
+      position: relative;
+      z-index: 1;
+    }
+    /* THEMIS MODE: No input inside iframe, so no extra padding needed */
+    body.themis-mode .messages {
+      padding-bottom: 16px;
+    }
+    .messages-inner { max-width: 800px; margin: 0 auto; }
+
+    .message { display: flex; gap: 12px; margin-bottom: 16px; }
+    .message.user { justify-content: flex-end; background: rgba(59, 130, 246, 0.05); padding: 8px; border-radius: 12px; }
+
+    .message-avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid rgba(128,128,128,0.3);
+      background: transparent;
+    }
+    .message-content { max-width: 70%; }
+    .message-bubble {
+      padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5;
+      white-space: pre-wrap; word-break: break-word;
+      border: 1px solid rgba(128,128,128,0.2);
+      background: transparent;
+    }
+    .message.user .message-bubble {
+      border-radius: 16px 16px 4px 16px;
+      background: rgba(59, 130, 246, 0.9);
+      color: white;
+    }
+    .message.assistant .message-bubble {
+      border-radius: 16px 16px 16px 4px;
+      background: rgba(128,128,128,0.08);
+    }
+    .message-meta { font-size: 11px; opacity: 0.5; margin-top: 4px; }
+
+    /* Greeting */
+    .greeting {
+      text-align: center;
+      padding: 60px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      background: transparent;
+    }
+    .greeting h2 { font-size: 20px; margin-bottom: 8px; }
+    .greeting p { opacity: 0.6; font-size: 14px; }
+
+    /* THEMIS Welcome */
+    .chat-welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      flex: 1;
+    }
+    .chat-welcome svg {
+      width: 200px;
+      height: 200px;
+    }
+    .chat-welcome p {
+      font-size: 14px;
+      opacity: 0.6;
+      margin: 20px 0 0 0;
+      color: var(--text-secondary, currentColor);
+    }
+
+    /* Conversation Selector */
+    .conversation-selector {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 10;
+    }
+    .conversation-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-secondary, rgba(128, 128, 128, 0.1));
+      border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+      border-radius: 6px;
+      color: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .conversation-toggle:hover {
+      background: var(--bg-hover, rgba(128, 128, 128, 0.15));
+    }
+    .conversation-toggle svg {
+      width: 14px;
+      height: 14px;
+      opacity: 0.6;
+    }
+    .conversation-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 240px;
+      max-height: 300px;
+      overflow-y: auto;
+      background: var(--bg-primary, #fff);
+      border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .conversation-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.1));
+      transition: background 0.15s ease;
+    }
+    .conversation-item:hover {
+      background: var(--bg-hover, rgba(128, 128, 128, 0.1));
+    }
+    .conversation-item.active {
+      background: var(--accent-bg, rgba(59, 130, 246, 0.1));
+    }
+    .conversation-item:last-child {
+      border-bottom: none;
+    }
+    .conversation-title {
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+    .conversation-meta {
+      font-size: 11px;
+      opacity: 0.5;
+    }
+    .conversation-new {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border-color, rgba(128, 128, 128, 0.15));
+      cursor: pointer;
+      color: var(--accent-color, #3b82f6);
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .conversation-new:hover {
+      background: var(--bg-hover, rgba(128, 128, 128, 0.1));
+    }
+
+    /* THEMIS Loading Spinner */
+    .chat-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .chat-loading .spinner {
+      width: 48px;
+      height: 48px;
+    }
+
+    /* Spinner */
+    .spinner { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+    .spinner-text { font-size: 14px; opacity: 0.6; }
+
+    /* Progress bar */
+    .progress-container {
+      padding: 12px 16px;
+      background: rgba(59, 130, 246, 0.05);
+      border-radius: 8px;
+      margin: 8px 0;
+    }
+    .progress-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .progress-spinner svg {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .progress-info { flex: 1; }
+    .progress-text { font-size: 13px; font-weight: 500; }
+    .progress-substatus { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+    .progress-percent { font-size: 12px; font-weight: 600; color: #3b82f6; }
+    .progress-bar-row { margin-top: 8px; }
+    .progress-bar {
+      height: 4px;
+      background: rgba(128, 128, 128, 0.2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #3b82f6;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .progress-steps { margin-top: 8px; font-size: 11px; }
+    .progress-step { display: flex; align-items: center; gap: 6px; padding: 2px 0; opacity: 0.6; }
+    .progress-step.running { opacity: 1; font-weight: 500; }
+    .progress-step.success { opacity: 0.8; color: #22c55e; }
+    .progress-step.failed { opacity: 1; color: #ef4444; }
+    .progress-step-constraint { font-family: monospace; font-size: 10px; opacity: 0.5; }
+    .progress-negotiation { margin-top: 8px; padding: 8px; background: rgba(251, 191, 36, 0.1); border-radius: 4px; font-size: 11px; }
+
+    /* Linter bar */
+    .linter-bar {
+      display: none;
+      padding: 8px 16px;
+      border-top: 1px solid rgba(128,128,128,0.2);
+      font-size: 12px;
+      background: transparent;
+    }
+    .linter-bar.visible { display: flex; }
+    .linter-inner {
+      max-width: 800px; margin: 0 auto; width: 100%;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .linter-score {
+      font-weight: 700; padding: 4px 12px; border-radius: 8px;
+      font-size: 13px; min-width: 50px; text-align: center;
+      background: rgba(34, 197, 94, 0.8); color: white;
+    }
+    .linter-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+    .linter-meta span {
+      padding: 3px 8px; border-radius: 6px; font-size: 11px;
+      border: 1px solid rgba(128,128,128,0.3);
+      background: transparent;
+    }
+    .linter-actions { margin-left: auto; }
+
+    /* Input area - anchored to bottom, grows upward (SAME AS THEMIS SEARCH) */
+    .input-area {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      min-height: 64px;
+      max-height: 150px;
+      padding: 8px 16px;
+      border-top: 1px solid rgba(128,128,128,0.2);
+      background-color: inherit;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: stretch;
+      z-index: 10;
+    }
+    .input-inner { width: 100%; }
+    .input-box {
+      display: flex; flex-direction: column; gap: 8px;
+      padding: 8px 12px; border-radius: 8px;
+      border: 1px solid rgba(128,128,128,0.3);
+      background: transparent;
+      max-height: 120px;
+    }
+    .input-box:focus-within { border-color: rgba(59, 130, 246, 0.6); }
+    .input-main { display: flex; align-items: flex-end; gap: 8px; width: 100%; flex-wrap: nowrap; }
+
+    .chat-btns { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+
+    textarea {
+      flex: 1; resize: none; border: none; outline: none;
+      background: transparent; font-size: 14px; line-height: 21px;
+      color: inherit; min-height: 21px; max-height: 120px;
+      font-family: inherit; overflow-y: hidden;
+      transition: height 0.1s ease;
+    }
+    textarea::placeholder { opacity: 0.5; color: inherit; }
+
+    .send-btn {
+      width: 32px; height: 32px; border-radius: 50%; border: none;
+      background: rgba(59, 130, 246, 0.9); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .send-btn svg { color: white; }
+    .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Context toggle button (S/A) */
+    .context-toggle {
+      width: 32px; height: 32px; border-radius: 6px;
+      font-weight: 700; font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid rgba(59, 130, 246, 0.8);
+      background: transparent;
+      color: inherit;
+    }
+    .context-toggle.analysis-mode {
+      background: rgba(59, 130, 246, 0.9);
+      color: white;
+    }
+
+    /* Settings button */
+    .settings-btn, .settings-btn-mini {
+      border-radius: 6px; border: 1px solid rgba(128,128,128,0.3);
+      background: transparent; color: inherit; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .settings-btn { width: 32px; height: 32px; }
+    .settings-btn-mini { width: 28px; height: 28px; }
+    .settings-btn:hover, .settings-btn-mini:hover { border-color: rgba(128,128,128,0.6); }
+
+    /* Settings panel */
+    .settings-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.3); z-index: 200;
+    }
+    .settings-overlay.visible { display: block; }
+    .settings-panel {
+      position: fixed; top: 0; right: -380px; width: 360px; height: 100%;
+      background: white; box-shadow: -4px 0 24px rgba(0,0,0,0.15);
+      z-index: 201; transition: right 0.3s ease;
+      display: flex; flex-direction: column;
+      color: #1f2937;
+    }
+    body.dark .settings-panel {
+      background: #1f2937;
+      color: #f3f4f6;
+    }
+    .settings-panel.visible { right: 0; }
+    .settings-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid rgba(128,128,128,0.2);
+    }
+    .settings-header h2 { font-size: 16px; font-weight: 600; }
+    .settings-close {
+      width: 32px; height: 32px; border: none; background: transparent;
+      cursor: pointer; color: inherit; font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .settings-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+    .settings-section { margin-bottom: 24px; }
+    .settings-section-title {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; color: rgba(128,128,128,0.8); margin-bottom: 12px;
+    }
+    .settings-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px; border-radius: 10px; margin-bottom: 8px;
+      border: 1px solid rgba(128,128,128,0.15);
+      background: transparent;
+    }
+    .settings-item-info { display: flex; align-items: center; gap: 12px; }
+    .settings-item-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600;
+      border: 1px solid rgba(128,128,128,0.2);
+    }
+    .settings-item-text { display: flex; flex-direction: column; }
+    .settings-item-name { font-size: 14px; font-weight: 500; }
+    .settings-item-desc { font-size: 12px; color: rgba(128,128,128,0.8); }
+    .toggle-switch {
+      width: 44px; height: 24px; border-radius: 12px;
+      position: relative; cursor: pointer; flex-shrink: 0;
+      border: 1px solid rgba(128,128,128,0.3);
+      background: rgba(128,128,128,0.1);
+    }
+    .toggle-switch.on { background: rgba(34, 197, 94, 0.8); border-color: transparent; }
+    .toggle-switch::after {
+      content: ''; position: absolute; width: 20px; height: 20px;
+      background: white; border-radius: 50%; top: 1px; left: 1px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle-switch.on::after { transform: translateX(20px); }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex; align-items: center; gap: 4px;
+      max-height: 0; overflow: hidden; opacity: 0;
+      transition: all 0.2s ease; margin-top: 0;
+    }
+    .toolbar.visible { max-height: 40px; opacity: 1; margin-top: 8px; }
+    .toolbar-btn {
+      width: 28px; height: 28px; border-radius: 6px; border: none;
+      background: transparent; color: inherit; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; opacity: 0.5;
+    }
+    .toolbar-btn:hover { opacity: 0.8; }
+    .toolbar-btn.active { opacity: 1; }
+    .toolbar-btn.hidden { display: none; }
+    .toolbar-sep { width: 1px; height: 20px; background: rgba(128,128,128,0.2); margin: 0 4px; }
+
+    /* Error */
+    .error-msg {
+      padding: 10px 14px; border-radius: 8px; margin-bottom: 16px;
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      background: rgba(239, 68, 68, 0.1); font-size: 13px; color: inherit;
+    }
+
+    /* Protocol logs */
+    .protocol-logs {
+      margin-bottom: 16px; border-radius: 8px; overflow: hidden;
+      border: 1px solid rgba(128,128,128,0.3);
+      background: transparent;
+    }
+    .protocol-logs-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; cursor: pointer;
+      border-bottom: 1px solid rgba(128,128,128,0.2);
+    }
+    .protocol-logs-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+    .protocol-logs-body { max-height: 0; overflow: hidden; }
+    .protocol-logs.expanded .protocol-logs-body { max-height: 600px; overflow-y: auto; }
+    .protocol-logs-content { padding: 12px 14px; }
+    .protocol-section {
+      margin-bottom: 12px; padding: 10px 12px; border-radius: 6px;
+      font-family: monospace; font-size: 11px;
+      border: 1px solid rgba(128,128,128,0.2);
+    }
+    .protocol-row { display: flex; gap: 8px; margin-bottom: 4px; line-height: 1.6; }
+    .protocol-label { opacity: 0.5; min-width: 100px; flex-shrink: 0; }
+    .protocol-value { word-break: break-all; }
+
+    /* Voice overlay */
+    .voice-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8); z-index: 100;
+      flex-direction: column; align-items: center; justify-content: center;
+    }
+    .voice-overlay.visible { display: flex; }
+    .voice-time { font-size: 24px; margin-bottom: 20px; }
+    .voice-stop {
+      width: 60px; height: 60px; border-radius: 50%; border: none;
+      background: rgba(239, 68, 68, 0.9); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: white;
+    }
+
+    /* Context menu */
+    .context-menu {
+      position: fixed; z-index: 300;
+      background-color: inherit; border: 1px solid rgba(128,128,128,0.3);
+      border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      min-width: 180px; padding: 4px 0;
+    }
+    .context-menu-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 14px; cursor: pointer; font-size: 13px;
+    }
+    .context-menu-item:hover { background: rgba(128,128,128,0.1); }
+    .context-menu-sep { height: 1px; background: rgba(128,128,128,0.2); margin: 4px 0; }
+
+    /* Logs modal */
+    .logs-modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 400;
+      background: rgba(0,0,0,0.5); align-items: center; justify-content: center;
+    }
+    .logs-modal-overlay.visible { display: flex; }
+    .logs-modal {
+      width: 90%; max-width: 700px; max-height: 80vh;
+      background-color: inherit; border-radius: 12px; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+
+    /* Drop overlay */
+    .drop-overlay {
+      display: none; position: fixed; inset: 0; z-index: 150;
+      background: rgba(0,0,0,0.6); align-items: center; justify-content: center;
+    }
+    .drop-overlay.visible { display: flex; }
+    .drop-overlay-content { text-align: center; }
+    .drop-overlay-icon { font-size: 48px; margin-bottom: 16px; }
+    .drop-overlay-text { font-size: 20px; font-weight: 600; }
+    .drop-overlay-hint { font-size: 14px; opacity: 0.6; margin-top: 8px; }
+
+    /* Skills popup */
+    .skills-popup {
+      display: none; position: absolute; bottom: 100%; left: 0; right: 0;
+      margin-bottom: 8px; padding: 12px; border-radius: 12px;
+      background-color: inherit; border: 1px solid rgba(128,128,128,0.3);
+      max-height: 300px; overflow-y: auto;
+    }
+    .skills-popup.visible { display: block; }
+    .skills-header { font-size: 12px; font-weight: 600; color: rgba(128,128,128,0.8); margin-bottom: 8px; }
+    .skill-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+    }
+    .skill-item:hover { background: rgba(128,128,128,0.1); }
+    .skill-name { font-size: 13px; font-weight: 500; }
+    .skill-desc { font-size: 11px; color: rgba(128,128,128,0.8); }
+    .skill-toggle {
+      font-size: 11px; padding: 2px 8px; border-radius: 4px;
+      border: 1px solid rgba(128,128,128,0.3);
+      background: transparent;
+    }
+
+    /* Attachments */
+    .attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .attachment {
+      display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+      border-radius: 8px; border: 1px solid rgba(128,128,128,0.3);
+      background: transparent;
+    }
+    .attachment-preview { width: 32px; height: 32px; border-radius: 4px; object-fit: cover; }
+    .attachment-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .attachment-info { flex: 1; min-width: 0; }
+    .attachment-name { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .attachment-size { font-size: 10px; opacity: 0.6; }
+    .attachment-remove {
+      width: 20px; height: 20px; border-radius: 50%; border: none;
+      background: transparent; cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .file-input { display: none; }
+
+    /* Linter preview */
+    .linter-preview { display: none; padding: 10px 16px; }
+    .linter-preview.visible { display: block; }
+    .linter-preview-inner { max-width: 800px; margin: 0 auto; }
+    .linter-preview-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .linter-preview-col {
+      padding: 10px 12px; border-radius: 8px; font-family: monospace;
+      font-size: 11px; line-height: 1.5; white-space: pre-wrap;
+      border: 1px solid rgba(128,128,128,0.2);
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .message-content { max-width: 85%; }
+    }
   </style>
 </head>
-<body class="bg-white dark:bg-gray-900">
-  <div id="root" class="h-screen"></div>
+<body>
+  <div class="container" id="app"></div>
 
-  <script type="module">
+  <script>
     // ============================================================
-    // LOCALAGENT PROVIDER (inline)
+    // CONFIG & STATE
+    // ============================================================
+    const API_URL = 'http://localhost:9998';
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // ============================================================
+    // THEMIS MODE DETECTION
+    // ============================================================
+    // Detect if running inside THEMIS (iframe or direct integration)
+    const isInIframe = window.parent !== window;
+    const isThemisPath = window.location.pathname.includes('/themis');
+    const isThemisParam = urlParams.get('mode') === 'themis';
+    const THEMIS_MODE = isInIframe || isThemisPath || isThemisParam;
+
+    // Apply THEMIS mode class to body for CSS targeting
+    if (THEMIS_MODE) {
+      document.body.classList.add('themis-mode');
+    }
+
+    // Endpoints based on mode
+    const ENDPOINTS = {
+      chat: `${API_URL}/api/chat`,  // Use working endpoint
+      status: THEMIS_MODE ? `${API_URL}/themis/api/health` : `${API_URL}/api/llm/status`,
+      history: `${API_URL}/themis/api/chat/history`,
+      chatError: `${API_URL}/themis/api/chat/error`,
+    };
+
+    console.log(`[CHAT] Mode: ${THEMIS_MODE ? 'THEMIS' : 'STANDALONE'}, Endpoint: ${ENDPOINTS.chat}`);
+
+    let state = {
+      messages: [],
+      isLoading: false,
+      error: null,
+      provider: null,
+      activeSkill: urlParams.get('skill') || null,
+      skills: [],
+      showSkills: false,
+      linter: { score: 0, tokens: 0, cost: 0, issues: [], suggestion: null, lang: 'EN', detectedSkill: null, original: '', fixed: '' },
+      isRecording: false,
+      recordingTime: 0,
+      attachedFiles: [], // { id, file, preview, type }
+      isDragging: false,
+      showToolbar: false,
+      showSettings: false,
+      protocolLogs: null, // { request, response, stack, expanded }
+      protocolExpanded: true, // Auto-expand on error
+      contextMenu: { visible: false, x: 0, y: 0, messageId: null },
+      logsModal: { visible: false, messageId: null },
+      progress: {
+        visible: false,
+        message: '',
+        percent: 0,
+        substatus: '',
+        protocolSteps: [], // Current protocol steps with status
+        currentStep: -1,
+        negotiation: { active: false, strategy: null, retryCount: 0, errorType: null }
+      },
+      toolConfig: {
+        system: true,
+        skills: true,
+        star: true,
+        search: true,
+        tags: true,
+        attach: true,
+        mic: true,
+        export: false,
+      },
+      // THEMIS Context (populated via postMessage from parent)
+      themis: {
+        mode: 'analysis', // 'analysis' or 'search'
+        caseId: urlParams.get('case_id') || null,
+        caseName: urlParams.get('case_name') || null,
+        framework: urlParams.get('framework') || null,
+        methodology: urlParams.get('methodology') || null,
+        jurisdiction: urlParams.get('jurisdiction') || null,
+        evidenceFiles: [],
+        selectedEvidence: [],
+      },
+      // Conversation management
+      conversations: [], // List of conversations: { id, title, createdAt, messageCount }
+      activeConversationId: null,
+      showConversationSelector: false,
+    };
+
+    // ============================================================
+    // THEMIS CONTEXT RECEIVER (postMessage from parent)
+    // ============================================================
+    window.addEventListener('message', (event) => {
+      // Security: In production, verify event.origin
+      if (event.data && event.data.type === 'themis-context') {
+        console.log('[CHAT] Received THEMIS context:', event.data);
+        state.themis = {
+          ...state.themis,
+          mode: event.data.mode || state.themis.mode || 'analysis',
+          caseId: event.data.case_id || state.themis.caseId,
+          caseName: event.data.case_name || state.themis.caseName,
+          framework: event.data.framework || state.themis.framework,
+          methodology: event.data.methodology || state.themis.methodology,
+          jurisdiction: event.data.jurisdiction || state.themis.jurisdiction,
+          evidenceFiles: event.data.evidence_files || state.themis.evidenceFiles,
+          selectedEvidence: event.data.selected_evidence || state.themis.selectedEvidence,
+        };
+        // Auto-activate skill if provided
+        if (event.data.active_skill && event.data.active_skill !== state.activeSkill) {
+          state.activeSkill = event.data.active_skill;
+          console.log(`[CHAT] Skill activated from THEMIS: ${state.activeSkill}`);
+        }
+        // Sync theme with THEMIS (dark/light)
+        if (event.data.theme) {
+          if (event.data.theme === 'dark') {
+            document.body.classList.add('dark');
+          } else {
+            document.body.classList.remove('dark');
+          }
+          console.log(`[CHAT] Theme synced: ${event.data.theme}`);
+        }
+        // Apply actual colors from parent (chameleon mode)
+        if (event.data.textColor) {
+          document.body.style.color = event.data.textColor;
+          console.log(`[CHAT] Text color applied: ${event.data.textColor}`);
+        }
+        if (event.data.bgColor) {
+          document.body.style.backgroundColor = event.data.bgColor;
+          console.log(`[CHAT] Background color applied: ${event.data.bgColor}`);
+        }
+        render();
+      }
+      // Handle evidence selection updates
+      if (event.data && event.data.type === 'themis-evidence-selected') {
+        state.themis.selectedEvidence = event.data.evidence_ids || [];
+        console.log('[CHAT] Evidence selection updated:', state.themis.selectedEvidence);
+      }
+      // Handle open settings from parent THEMIS
+      if (event.data && event.data.type === 'open-settings') {
+        console.log('[CHAT] Opening settings panel from THEMIS');
+        state.showSettings = true;
+        render();
+      }
+      // Handle chat message from parent THEMIS (unified input)
+      if (event.data && event.data.type === 'themis-send-message') {
+        const message = event.data.message;
+        if (message && message.trim()) {
+          console.log('[CHAT] Received message from THEMIS parent:', message.substring(0, 30));
+          savedInputValue = message.trim();
+          // Trigger send asynchronously
+          setTimeout(() => handleSendFromParent(message.trim()), 0);
+        }
+      }
+    });
+
+    // Notify parent that chat is ready
+    if (THEMIS_MODE && isInIframe) {
+      window.parent.postMessage({ type: 'chat-ready' }, '*');
+    }
+
+    let savedInputValue = ''; // Preserve input during re-renders
+    let sendInProgress = false; // Absolute guard against double-send
+    let lastSentMessage = ''; // Track last sent message content
+    let lastSentTime = 0; // Track when last message was sent
+
+    // Load tool config from localStorage
+    const savedConfig = localStorage.getItem('chat-tool-config');
+    if (savedConfig) {
+      try { state.toolConfig = { ...state.toolConfig, ...JSON.parse(savedConfig) }; } catch {}
+    }
+
+    function saveToolConfig() {
+      localStorage.setItem('chat-tool-config', JSON.stringify(state.toolConfig));
+    }
+
+    // ============================================================
+    // API FUNCTIONS
     // ============================================================
 
-    const LOCALAGENT_URL = 'http://localhost:9998';
+    async function apiComplete(prompt) {
+      const endpoint = ENDPOINTS.chat;
+      const timestamp = new Date().toISOString();
 
-    async function complete(request) {
+      // Build payload - use /api/chat format
+      const requestPayload = {
+        message: prompt,
+      };
+
+      console.log(`[CHAT] ${THEMIS_MODE ? 'THEMIS' : 'STANDALONE'} request:`, requestPayload);
+
       try {
-        const response = await fetch(`${LOCALAGENT_URL}/api/llm/complete`, {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestPayload),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          // Build protocol logs for error case
+          state.protocolLogs = {
+            request: {
+              endpoint,
+              method: 'POST',
+              payload: requestPayload,
+              timestamp,
+              mode: THEMIS_MODE ? 'THEMIS' : 'STANDALONE',
+            },
+            response: {
+              status: res.status,
+              statusText: res.statusText,
+              error: data.detail || data.error || 'Request failed',
+              provider: data.ai_source || data.provider || null,
+              providersAttempted: data.providers_attempted || [],
+              fallbackExhausted: data.fallback_exhausted || false,
+            },
+            stack: data.stack_trace || data.traceback || null,
+          };
+          state.protocolExpanded = true;
+          throw new Error(data.detail || data.error || 'Request failed');
+        }
+
+        // Clear protocol logs on success
+        state.protocolLogs = null;
+
+        // Normalize response format between modes
+        if (THEMIS_MODE) {
+          // THEMIS returns { response, ai_source, skill_used, protocol, ... }
+          return {
+            success: true,
+            response: data.response,
+            provider: data.ai_source,
+            skill_used: data.skill_used,
+            protocol_steps: data.protocol,
+            negotiation_attempts: data.negotiation_attempts,
+            negotiation_success: data.negotiation_success,
+          };
+        } else {
+          // Standalone returns { success, response, provider, ... }
+          return data;
+        }
+      } catch (err) {
+        // Network error or other
+        if (!state.protocolLogs) {
+          state.protocolLogs = {
+            request: {
+              endpoint,
+              method: 'POST',
+              payload: requestPayload,
+              timestamp,
+              mode: THEMIS_MODE ? 'THEMIS' : 'STANDALONE',
+            },
+            response: {
+              status: 0,
+              statusText: 'Network Error',
+              error: err.message,
+              provider: null,
+              providersAttempted: [],
+              fallbackExhausted: false,
+            },
+            stack: null,
+          };
+          state.protocolExpanded = true;
+        }
+        throw err;
+      }
+    }
+
+    async function apiStatus() {
+      try {
+        const res = await fetch(ENDPOINTS.status);
+        if (!res.ok) return null;
+        const data = await res.json();
+
+        // Normalize response between modes
+        if (THEMIS_MODE) {
+          // THEMIS health returns { status, version, backend, ... }
+          return {
+            llm: {
+              available: [data.backend || 'mlx'],
+              active: data.backend || 'mlx',
+            },
+            status: data.status,
+          };
+        }
+        return data;
+      } catch { return null; }
+    }
+
+    // Send console error to THEMIS negotiator for correction
+    async function apiSendError(errorMessage, messageId, codeContext = '') {
+      if (!THEMIS_MODE) return null;
+
+      try {
+        const res = await fetch(ENDPOINTS.chatError, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            prompt: request.prompt,
-            system: request.system || '',
-            context: request.context || '',
-            skill_name: request.skill_name,
-            provider: request.provider,
-            fallback: request.fallback ?? true,
+            case_id: state.themis.caseId,
+            error_message: errorMessage,
+            message_id: messageId,
+            code_context: codeContext,
+            skill_context: {
+              selected_skill: state.activeSkill,
+            },
           }),
         });
 
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-          return { success: false, response: '', provider: 'error', error: error.detail };
+        if (res.ok) {
+          const data = await res.json();
+          console.log('[CHAT] Error sent to THEMIS negotiator:', data);
+          return data;
+        }
+      } catch (err) {
+        console.error('[CHAT] Failed to send error to THEMIS:', err);
+      }
+      return null;
+    }
+
+    // Load chat history from THEMIS
+    async function apiLoadHistory() {
+      if (!THEMIS_MODE || !state.themis.caseId) return;
+
+      try {
+        const res = await fetch(`${ENDPOINTS.history}?case_id=${encodeURIComponent(state.themis.caseId)}`);
+        if (res.ok) {
+          const history = await res.json();
+          // Convert THEMIS history format to our message format
+          state.messages = history.map((msg, idx) => ({
+            id: `hist-${idx}`,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            provider: msg.source || msg.ai_source,
+            skill: msg.skill || msg.skill_used,
+          }));
+          console.log(`[CHAT] Loaded ${state.messages.length} messages from THEMIS history`);
+          render();
+        }
+      } catch (err) {
+        console.error('[CHAT] Failed to load history:', err);
+      }
+    }
+
+    async function apiSkills() {
+      try {
+        const res = await fetch(`${API_URL}/api/skills`);
+        return res.ok ? res.json() : [];
+      } catch { return []; }
+    }
+
+    async function apiActivateSkill(name) {
+      try {
+        await fetch(`${API_URL}/api/skills/activate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ skill_name: name }),
+        });
+      } catch {}
+    }
+
+    async function apiLint(text) {
+      try {
+        const res = await fetch(`${API_URL}/api/linter/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        return res.ok ? res.json() : null;
+      } catch { return null; }
+    }
+
+    async function apiWhisper(blob) {
+      const form = new FormData();
+      form.append('audio', blob, 'recording.webm');
+      const res = await fetch(`${API_URL}/api/whisper/transcribe`, { method: 'POST', body: form });
+      if (!res.ok) throw new Error('Transcription failed');
+      return res.json();
+    }
+
+    async function apiCompleteWithFiles(prompt, files) {
+      const endpoint = `${API_URL}/api/llm/complete`;
+      const timestamp = new Date().toISOString();
+
+      const form = new FormData();
+      form.append('prompt', prompt);
+      form.append('skill_name', state.activeSkill || '');
+      form.append('fallback', 'true');
+      files.forEach((f, i) => form.append(`file_${i}`, f.file, f.file.name));
+
+      const requestPayload = {
+        prompt,
+        skill_name: state.activeSkill || '',
+        fallback: true,
+        files: files.map(f => f.file.name),
+      };
+
+      try {
+        const res = await fetch(endpoint, { method: 'POST', body: form });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          state.protocolLogs = {
+            request: {
+              endpoint,
+              method: 'POST (multipart)',
+              payload: requestPayload,
+              timestamp,
+            },
+            response: {
+              status: res.status,
+              statusText: res.statusText,
+              error: data.detail || data.error || 'Request failed',
+              provider: data.provider || null,
+              providersAttempted: data.providers_attempted || [],
+              fallbackExhausted: data.fallback_exhausted || false,
+            },
+            stack: data.stack_trace || data.traceback || null,
+          };
+          state.protocolExpanded = true;
+          throw new Error(data.detail || data.error || 'Request failed');
         }
 
-        return response.json();
+        state.protocolLogs = null;
+        return data;
       } catch (err) {
-        return { success: false, response: '', provider: 'error', error: err.message };
+        if (!state.protocolLogs) {
+          state.protocolLogs = {
+            request: {
+              endpoint,
+              method: 'POST (multipart)',
+              payload: requestPayload,
+              timestamp,
+            },
+            response: {
+              status: 0,
+              statusText: 'Network Error',
+              error: err.message,
+              provider: null,
+              providersAttempted: [],
+              fallbackExhausted: false,
+            },
+            stack: null,
+          };
+          state.protocolExpanded = true;
+        }
+        throw err;
       }
     }
 
-    async function getStatus() {
-      try {
-        const response = await fetch(`${LOCALAGENT_URL}/api/llm/status`);
-        if (!response.ok) return null;
-        return response.json();
-      } catch {
-        return null;
+    const ACCEPTED_TYPES = {
+      'image/': { icon: 'IMG', color: '#10b981' },
+      'application/pdf': { icon: 'PDF', color: '#ef4444' },
+      'text/': { icon: 'TXT', color: '#6b7280' },
+      'application/msword': { icon: 'DOC', color: '#3b82f6' },
+      'application/vnd.openxmlformats-officedocument': { icon: 'DOC', color: '#3b82f6' },
+      'text/csv': { icon: 'CSV', color: '#10b981' },
+    };
+
+    function isAcceptedFile(file) {
+      return Object.keys(ACCEPTED_TYPES).some(t => file.type.startsWith(t));
+    }
+
+    function getFileIcon(file) {
+      for (const [type, info] of Object.entries(ACCEPTED_TYPES)) {
+        if (file.type.startsWith(type)) return info;
       }
+      return { icon: 'FILE', color: '#6b7280' };
     }
 
-    function formatProvider(provider) {
-      const names = { mlx: 'MLX (Local)', ollama: 'Ollama (Local)', claude: 'Claude', openai: 'OpenAI' };
-      return names[provider] || provider;
-    }
-
-    function isLocalProvider(provider) {
-      return ['mlx', 'ollama'].includes(provider);
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
     // ============================================================
-    // CHAT STATE
+    // UTILITIES
     // ============================================================
 
-    let messages = [];
-    let isLoading = false;
-    let error = null;
-    let activeProvider = null;
-    let skillName = null; // Set via URL param or config
+    function escapeHtml(text) {
+      // Handle objects (e.g., API response that wasn't unpacked)
+      if (text === null || text === undefined) return '';
+      if (typeof text === 'object') {
+        text = text.text || text.content || text.response || text.message || JSON.stringify(text);
+      }
+      const div = document.createElement('div');
+      div.textContent = String(text);
+      return div.innerHTML;
+    }
 
-    // Get skill from URL params
-    const urlParams = new URLSearchParams(window.location.search);
-    skillName = urlParams.get('skill') || null;
+    function formatProvider(p) {
+      const names = { mlx: 'MLX', ollama: 'Ollama', claude: 'Claude', openai: 'OpenAI' };
+      return names[p] || p;
+    }
+
+    function isLocalProvider(p) { return ['mlx', 'ollama'].includes(p); }
+
+    function estimateTokens(text) { return Math.ceil(text.length / 4); }
+    function estimateCost(tokens) { return (tokens * 0.00001).toFixed(4); }
+
+    // Skill detection patterns
+    const SKILL_PATTERNS = [
+      { skill: 'delay-expert', patterns: ['delay', 'eot', 'extension of time', 'critical path', 'float', 'schedule', 'programme'] },
+      { skill: 'quantum-expert', patterns: ['quantum', 'valuation', 'cost', 'damages', 'loss', 'expense', 'price'] },
+      { skill: 'claims-expert', patterns: ['claim', 'dispute', 'notice', 'fidic', 'nec', 'variation', 'instruction'] },
+      { skill: 'contract-analyst', patterns: ['contract', 'clause', 'provision', 'obligation', 'liability', 'warranty'] },
+      { skill: 'forensic-analyst', patterns: ['forensic', 'investigation', 'evidence', 'analysis', 'expert', 'report'] },
+    ];
+
+    function detectSkill(text) {
+      const lower = text.toLowerCase();
+      let bestMatch = null;
+      let maxScore = 0;
+
+      for (const { skill, patterns } of SKILL_PATTERNS) {
+        let score = 0;
+        for (const pattern of patterns) {
+          if (lower.includes(pattern)) score++;
+        }
+        if (score > maxScore) {
+          maxScore = score;
+          bestMatch = skill;
+        }
+      }
+      return bestMatch;
+    }
+
+    function detectLanguage(text) {
+      // Simple heuristic based on common words
+      const frenchWords = ['le', 'la', 'les', 'de', 'du', 'des', 'et', 'est', 'que', 'pour'];
+      const lower = text.toLowerCase();
+      let frCount = 0;
+      for (const w of frenchWords) {
+        if (new RegExp(`\\b${w}\\b`).test(lower)) frCount++;
+      }
+      return frCount >= 3 ? 'FR' : 'EN';
+    }
 
     // ============================================================
-    // RENDER FUNCTIONS
+    // PROTOCOL STEPS (mirrors protocol.py PROTOCOL_STEPS)
+    // ============================================================
+    // ============================================================
+    // PROTOCOL DEFINITIONS (mirrors protocol.py + adapters.py)
+    // ============================================================
+
+    // ADAPTER MODES
+    const ADAPTER_MODES = {
+      METIER: { id: 'METIER', name: 'MÉTIER', adapter: 'FileAdapter', description: 'File-based storage (THEMIS)' },
+      DEV: { id: 'DEV', name: 'DEV', adapter: 'GitAdapter', description: 'Git-based versioning (LocalAgent)' },
+    };
+
+    // Current adapter mode (can be changed via settings or URL param)
+    let currentAdapterMode = new URLSearchParams(window.location.search).get('mode')?.toUpperCase() === 'METIER'
+      ? ADAPTER_MODES.METIER
+      : ADAPTER_MODES.DEV;
+
+    // Generic TODO Protocol Steps (13 steps) - Adapter-based
+    const PROTOCOL_STEPS_TODO_GENERIC = [
+      { id: 'STEP_01', name: 'fetch_version', constraint: 'ENV012', label: 'Fetch Version' },
+      { id: 'STEP_02', name: 'calculate_next_version', constraint: 'ENV012', label: 'Calculate Next Version' },
+      { id: 'STEP_03', name: 'create_snapshot_before', constraint: 'ENV003', label: 'Create Snapshot (Before)' },
+      { id: 'STEP_04', name: 'build_context', constraint: 'ENV015', label: 'Build LLM Context' },
+      { id: 'STEP_05', name: 'call_llm', constraint: 'CTX001', label: 'Call LLM Provider' },
+      { id: 'STEP_06', name: 'validate_response', constraint: 'CTX003', label: 'Validate Response' },
+      { id: 'STEP_07', name: 'execute_tasks', constraint: 'CTX004', label: 'Execute Tasks' },
+      { id: 'STEP_08', name: 'create_snapshot_after', constraint: 'ENV014', label: 'Create Snapshot (After)' },
+      { id: 'STEP_09', name: 'commit', constraint: 'ENV004', label: 'Commit Changes' },
+      { id: 'STEP_10', name: 'push', constraint: 'ENV009', label: 'Push/Sync' },
+      { id: 'STEP_11', name: 'create_release', constraint: 'ENV012', label: 'Create Release' },
+      { id: 'STEP_12', name: 'verify_release', constraint: 'ENV013', label: 'Verify Release' },
+      { id: 'STEP_13', name: 'mark_done', constraint: null, label: 'Mark Done' },
+    ];
+
+    // DEV mode labels (Git-specific)
+    const PROTOCOL_LABELS_DEV = {
+      fetch_version: 'Fetch GitHub Version',
+      commit: 'Git Commit',
+      push: 'Git Push',
+      create_release: 'Create GitHub Release',
+    };
+
+    // MÉTIER mode labels (File-specific)
+    const PROTOCOL_LABELS_METIER = {
+      fetch_version: 'Read Version File',
+      commit: 'Save Changes',
+      push: 'Sync to Backup',
+      create_release: 'Archive Release',
+    };
+
+    // Function to get protocol steps with mode-specific labels
+    function getProtocolStepsTodo(mode = currentAdapterMode) {
+      const labels = mode.id === 'METIER' ? PROTOCOL_LABELS_METIER : PROTOCOL_LABELS_DEV;
+      return PROTOCOL_STEPS_TODO_GENERIC.map(step => ({
+        ...step,
+        label: labels[step.name] || step.label,
+      }));
+    }
+
+    // Legacy alias for backward compatibility
+    const PROTOCOL_STEPS_TODO = getProtocolStepsTodo();
+
+    // Chat Protocol Steps (simplified for chat UI - same for both modes)
+    const PROTOCOL_STEPS_CHAT = [
+      { id: 'CHAT_01', name: 'build_context', constraint: 'ENV015', label: 'Build Context' },
+      { id: 'CHAT_02', name: 'inject_skill', constraint: null, label: 'Inject Skill Context' },
+      { id: 'CHAT_03', name: 'select_provider', constraint: null, label: 'Select Provider' },
+      { id: 'CHAT_04', name: 'call_llm', constraint: 'CTX001', label: 'Call LLM' },
+      { id: 'CHAT_05', name: 'validate_response', constraint: 'CTX003', label: 'Validate Response' },
+      { id: 'CHAT_06', name: 'parse_output', constraint: 'CTX002', label: 'Parse Output' },
+    ];
+
+    // Default to chat protocol
+    const PROTOCOL_STEPS = PROTOCOL_STEPS_CHAT;
+
+    // ============================================================
+    // CONSTRAINTS (mirrors constraints.py)
+    // ============================================================
+
+    const ENV_CONSTRAINTS = {
+      ENV003: { rule: 'NEVER delete source without snapshot BEFORE', severity: 'CRITICAL' },
+      ENV004: { rule: 'ALWAYS increment version on commit', severity: 'CRITICAL' },
+      ENV009: { rule: 'GitHub is source of truth for history', severity: 'HIGH' },
+      ENV012: { rule: 'Version ONLY from GitHub - no guessing', severity: 'CRITICAL' },
+      ENV013: { rule: 'Verify asset uploaded after GitHub release', severity: 'HIGH' },
+      ENV014: { rule: 'Snapshot MUST exist before destructive action', severity: 'CRITICAL' },
+      ENV015: { rule: 'Version info injected in every Claude conversation', severity: 'HIGH' },
+    };
+
+    const CTX_CONSTRAINTS = {
+      CTX001: { rule: 'Response must be valid JSON only', severity: 'CRITICAL' },
+      CTX002: { rule: 'Strip ```json``` blocks from response', severity: 'HIGH' },
+      CTX003: { rule: 'Max 3 tasks per request', severity: 'HIGH' },
+      CTX004: { rule: 'Max 50 lines per task', severity: 'HIGH' },
+      CTX009: { rule: 'Negotiation max 3 retries per request', severity: 'HIGH' },
+    };
+
+    // ============================================================
+    // FALLBACK CHAIN (mirrors llm_providers.py)
+    // ============================================================
+
+    const FALLBACK_CHAIN = [
+      { name: 'mlx', type: 'local', priority: 0, label: 'MLX (Apple Silicon)' },
+      { name: 'ollama', type: 'local', priority: 1, label: 'Ollama (Local)' },
+      { name: 'claude', type: 'cloud', priority: 1, label: 'Claude (Anthropic)' },
+      { name: 'openai', type: 'cloud', priority: 2, label: 'OpenAI' },
+    ];
+
+    // ============================================================
+    // NEGOTIATION STRATEGIES (mirrors negotiator.py)
+    // ============================================================
+
+    const NEGOTIATION_STRATEGIES = {
+      // Response format errors
+      truncation: { action: 'reduce_complexity', feedback: 'Response truncated. Use fewer, simpler tasks. Max 2 tasks, max 20 lines each.', maxRetries: 3 },
+      parse_error: { action: 'simplify_json', feedback: 'JSON parse error. Return ONLY valid JSON. Start with { end with }. No markdown.', maxRetries: 3 },
+      empty_response: { action: 'retry_simple', feedback: 'Empty response received. Please provide tasks in JSON format.', maxRetries: 2 },
+      no_tasks: { action: 'clarify_format', feedback: 'No tasks found. Return: {"tasks": [{"id": "T001", "type": "...", ...}]}', maxRetries: 2 },
+      invalid_task: { action: 'fix_schema', feedback: 'Task missing required fields. Each task needs: id, type, description', maxRetries: 2 },
+      too_many_tasks: { action: 'reduce_tasks', feedback: 'Too many tasks. Maximum 3 tasks per request.', maxRetries: 2 },
+      missing_content: { action: 'add_content', feedback: 'Task missing file content. Include complete content.', maxRetries: 2 },
+      missing_filename: { action: 'add_filename', feedback: 'Task missing filename. Include file_path field.', maxRetries: 2 },
+
+      // Behavioral errors
+      dodge_detected: { action: 'insist', feedback: 'Do not refuse or ask for clarification. Execute the task as specified.', maxRetries: 2 },
+      task_mismatch: { action: 'fix_target_file', feedback: 'Task does not match instruction. Modify the exact file mentioned.', maxRetries: 3 },
+      skill_constraint_violation: { action: 'revise_with_constraints', feedback: 'Response does not meet skill requirements. See violations.', maxRetries: 2 },
+
+      // Code errors
+      runtime_error: { action: 'fix_code', feedback: 'Code produced a runtime error when executed.', maxRetries: 3 },
+      syntax_error: { action: 'fix_syntax', feedback: 'Code has syntax errors. Check brackets, quotes, indentation.', maxRetries: 3 },
+      reference_error: { action: 'fix_reference', feedback: 'Code references undefined variable/function.', maxRetries: 2 },
+      type_error: { action: 'fix_type', feedback: 'Type error in code. Check types and operations.', maxRetries: 2 },
+      render_error: { action: 'fix_render', feedback: 'UI failed to render. Check HTML/CSS/JS syntax.', maxRetries: 2 },
+
+      // Network errors
+      network_error: { action: 'handle_network', feedback: 'Network request failed.', maxRetries: 1 },
+      api_error: { action: 'retry_simple', feedback: 'API error. Retrying...', maxRetries: 2 },
+      timeout: { action: 'retry_simple', feedback: 'Request timed out.', maxRetries: 1 },
+    };
+
+    // ============================================================
+    // SKILL CONSTRAINT VALIDATORS (mirrors negotiator.py)
+    // ============================================================
+
+    const SKILL_CONSTRAINT_VALIDATORS = {
+      currency_stated: {
+        patterns: [/(?:USD|EUR|GBP|CHF|\$|€|£)\s*[\d,]+/i, /[\d,]+\s*(?:USD|EUR|GBP|dollars|euros)/i],
+        error: 'Currency must be clearly stated for all amounts',
+        severity: 'high'
+      },
+      vat_treatment: {
+        patterns: [/(?:VAT|tax|excluding|including|ex\.|inc\.)/i, /(?:net|gross)/i],
+        error: 'VAT/tax treatment must be specified',
+        severity: 'medium'
+      },
+      causation_established: {
+        patterns: [/caus(?:ed?|ation|al)/i, /result(?:ing|ed) (?:from|in)/i, /(?:due to|because of)/i],
+        error: 'Causation must be established for each head of claim',
+        severity: 'high'
+      },
+      methodology_specified: {
+        patterns: [/method(?:ology)?/i, /(?:using|applying|per) (?:AACE|RICS|SCL)/i, /(?:measured mile|Eichleay|Hudson)/i],
+        error: 'Methodology must be specified for calculations',
+        severity: 'high'
+      },
+      framework_reference: {
+        patterns: [/(?:AACE|RICS|SCL|FIDIC|NEC|JCT|ICC)/i, /(?:RP \d+|29R-03)/i],
+        error: 'Framework/standard reference should be included',
+        severity: 'low'
+      },
+      dates_specified: {
+        patterns: [/\d{4}-\d{2}-\d{2}/, /\d{1,2}\/\d{1,2}\/\d{4}/, /\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i],
+        error: 'Dates should be clearly specified',
+        severity: 'low'
+      },
+    };
+
+    // ============================================================
+    // DODGE PATTERNS (mirrors negotiator.py)
+    // ============================================================
+
+    const DODGE_PATTERNS = [
+      { pattern: /i (?:can't|cannot|won't|will not)/i, type: 'refuses' },
+      { pattern: /i'm (?:unable|not able)/i, type: 'refuses' },
+      { pattern: /could you (?:clarify|explain|provide)/i, type: 'asks_clarification' },
+      { pattern: /what (?:do you mean|exactly)/i, type: 'asks_clarification' },
+      { pattern: /i (?:don't have|lack) (?:access|information)/i, type: 'claims_limitation' },
+      { pattern: /please (?:provide|specify|clarify)/i, type: 'asks_clarification' },
+    ];
+
+    // Helper: Detect dodge in response
+    function detectDodge(response) {
+      const lower = response.toLowerCase();
+      for (const { pattern, type } of DODGE_PATTERNS) {
+        if (pattern.test(lower)) {
+          return { type, matched: lower.match(pattern)?.[0] };
+        }
+      }
+      return null;
+    }
+
+    // Helper: Validate against skill constraints
+    function validateSkillConstraints(response, activeSkill) {
+      if (!activeSkill) return { valid: true, violations: [], score: 100 };
+
+      const violations = [];
+      let passed = 0;
+      const validators = Object.entries(SKILL_CONSTRAINT_VALIDATORS);
+
+      for (const [name, validator] of validators) {
+        const found = validator.patterns.some(p => p.test(response));
+        if (found) {
+          passed++;
+        } else if (validator.severity === 'high') {
+          violations.push({ constraint: name, error: validator.error, severity: validator.severity });
+        }
+      }
+
+      const score = Math.round((passed / validators.length) * 100);
+      return { valid: violations.length === 0, violations, score };
+    }
+
+    // Helper: Get constraint info
+    function getConstraint(id) {
+      return ENV_CONSTRAINTS[id] || CTX_CONSTRAINTS[id] || null;
+    }
+
+    // Build protocol logs for a message
+    function buildMessageLogs(prompt, result, files = []) {
+      const timestamp = new Date().toISOString();
+
+      // Use protocol execution from backend if available (full TODO protocol)
+      if (result.protocol_execution) {
+        return {
+          protocolType: 'TODO',
+          execution: result.protocol_execution,
+          request: {
+            endpoint: `${API_URL}/api/llm/complete`,
+            method: files.length ? 'POST (multipart)' : 'POST',
+            payload: { prompt: prompt.substring(0, 200) + (prompt.length > 200 ? '...' : ''), skill_name: state.activeSkill },
+            timestamp,
+          },
+          negotiation: result.negotiation || result.protocol_execution.attempts || [],
+          skillContext: { injected: result.skill_injected || false, name: state.activeSkill },
+          fallbackChain: buildFallbackChainStatus(result),
+        };
+      }
+
+      // Chat protocol: Build from available data
+      const chatSteps = buildChatProtocolSteps(result);
+      const skillValidation = result.response ? validateSkillConstraints(result.response, state.activeSkill) : null;
+
+      return {
+        protocolType: 'CHAT',
+        request: {
+          endpoint: `${API_URL}/api/llm/complete`,
+          method: files.length ? 'POST (multipart)' : 'POST',
+          payload: {
+            prompt: prompt.substring(0, 200) + (prompt.length > 200 ? '...' : ''),
+            skill_name: state.activeSkill,
+            fallback: true,
+            files: files.map(f => f.file?.name || f),
+          },
+          timestamp,
+        },
+        response: {
+          status: 200,
+          statusText: 'OK',
+          provider: result.provider,
+          model: result.model || null,
+          tokens: result.tokens || { prompt: estimateTokens(prompt), completion: estimateTokens(result.response || '') },
+          latency: result.latency || null,
+          cached: result.cached || false,
+        },
+        protocolSteps: chatSteps,
+        negotiation: result.negotiation || buildNegotiationSteps(result),
+        skillContext: {
+          injected: result.skill_injected || false,
+          name: state.activeSkill,
+          tokens: result.skill_tokens || null,
+        },
+        skillValidation,
+        constraints: result.constraint_checks || [],
+        violations: result.violations || [],
+        fallbackChain: buildFallbackChainStatus(result),
+      };
+    }
+
+    // Build fallback chain status visualization
+    function buildFallbackChainStatus(result) {
+      const attempted = result.providers_attempted || result.providers_tried || [];
+      const active = result.provider;
+
+      return FALLBACK_CHAIN.map(p => ({
+        ...p,
+        status: p.name === active ? 'active' : attempted.includes(p.name) ? 'tried' : 'skipped',
+      }));
+    }
+
+    // Build chat protocol steps from result
+    function buildChatProtocolSteps(result) {
+      const steps = PROTOCOL_STEPS_CHAT.map(step => ({
+        ...step,
+        status: 'success', // Default all to success for completed request
+        data: {},
+      }));
+
+      // Add context to steps based on result
+      steps[0].data = { contextLength: result.context_length || 0 }; // build_context
+      steps[1].data = { skill: state.activeSkill, injected: result.skill_injected }; // inject_skill
+      steps[2].data = { provider: result.provider, fallback: true }; // select_provider
+      steps[3].data = { provider: result.provider, model: result.model }; // call_llm
+      steps[4].data = { valid: true }; // validate_response
+      steps[5].data = { responseLength: result.response?.length || 0 }; // parse_output
+
+      return steps;
+    }
+
+    // Build negotiation steps from result (fallback if not from API)
+    function buildNegotiationSteps(result) {
+      const steps = [];
+
+      // If backend returned attempts, use them directly
+      if (result.attempts && result.attempts.length > 0) {
+        return result.attempts.map((attempt, i) => {
+          const errorType = attempt.error_type;
+          const strategy = errorType ? NEGOTIATION_STRATEGIES[errorType] : null;
+          return {
+            step: i + 1,
+            action: attempt.error_type ? `Retry: ${errorType}` : 'Attempt',
+            status: attempt.success ? 'success' : attempt.error_type ? 'error' : 'retry',
+            detail: attempt.error || strategy?.feedback || 'Processing...',
+            timestamp: attempt.timestamp || new Date().toISOString(),
+            retryCount: attempt.retry || 0,
+            errorType,
+            strategy: strategy ? { action: strategy.action, maxRetries: strategy.maxRetries } : null,
+            constraintViolated: attempt.constraint || null,
+          };
+        });
+      }
+
+      // Build from providers_tried/providers_attempted
+      const attempted = result.providers_tried || result.providers_attempted || [];
+
+      // Show providers that were tried and failed
+      if (attempted.length > 0) {
+        attempted.forEach((p, i) => {
+          if (p !== result.provider) {
+            steps.push({
+              step: steps.length + 1,
+              action: `Try ${formatProvider(p)}`,
+              status: 'error',
+              detail: `Provider unavailable`,
+              timestamp: new Date(Date.now() - (attempted.length - i) * 100).toISOString(),
+              errorType: 'network_error',
+              provider: p,
+            });
+          }
+        });
+      } else {
+        // Infer fallback from active provider position in chain
+        const activeIndex = FALLBACK_CHAIN.findIndex(p => p.name === result.provider);
+        if (activeIndex > 0) {
+          for (let i = 0; i < activeIndex; i++) {
+            steps.push({
+              step: steps.length + 1,
+              action: `Try ${FALLBACK_CHAIN[i].label}`,
+              status: 'error',
+              detail: 'Provider unavailable',
+              timestamp: new Date(Date.now() - (activeIndex - i) * 100).toISOString(),
+              provider: FALLBACK_CHAIN[i].name,
+              providerType: FALLBACK_CHAIN[i].type,
+            });
+          }
+        }
+      }
+
+      // Add the successful provider connection step
+      const providerInfo = FALLBACK_CHAIN.find(p => p.name === result.provider);
+      steps.push({
+        step: steps.length + 1,
+        action: `Connect to ${providerInfo?.label || formatProvider(result.provider)}`,
+        status: 'success',
+        detail: `Model: ${result.model || 'default'}`,
+        timestamp: new Date().toISOString(),
+        provider: result.provider,
+        providerType: providerInfo?.type || 'unknown',
+      });
+
+      // Add skill injection step if applicable
+      if (result.skill_injected && state.activeSkill) {
+        steps.push({
+          step: steps.length + 1,
+          action: 'Inject skill context',
+          status: 'success',
+          detail: `Skill: ${state.activeSkill}`,
+          timestamp: new Date().toISOString(),
+          constraint: null, // No constraint for skill injection
+        });
+      }
+
+      // Add response validation step
+      steps.push({
+        step: steps.length + 1,
+        action: 'Validate response',
+        status: 'success',
+        detail: `${estimateTokens(result.response || '')} tokens`,
+        timestamp: new Date().toISOString(),
+        constraint: 'CTX001', // Response must be valid
+      });
+
+      return steps;
+    }
+
+    // ============================================================
+    // RENDER
     // ============================================================
 
     function render() {
-      const root = document.getElementById('root');
-      root.innerHTML = `
-        <div class="flex flex-col h-full bg-white dark:bg-gray-900">
-          <!-- Header -->
-          <header class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-            <h1 class="text-lg font-semibold text-gray-900 dark:text-white">LocalAgent Chat</h1>
-            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-              <span class="w-2 h-2 rounded-full ${
-                activeProvider
-                  ? isLocalProvider(activeProvider) ? 'bg-green-500' : 'bg-blue-500'
-                  : 'bg-gray-400'
-              }"></span>
-              <span>${activeProvider ? formatProvider(activeProvider) : 'Connecting...'}</span>
-              ${skillName ? `<span class="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded">+ ${skillName}</span>` : ''}
-            </div>
-          </header>
-
-          <!-- Messages -->
-          <div class="flex-1 overflow-y-auto px-4 py-4" id="messages-container">
-            <div class="max-w-3xl mx-auto space-y-4">
-              ${messages.length === 0 && !isLoading ? renderGreeting() : ''}
-              ${messages.map(renderMessage).join('')}
-              ${isLoading ? renderThinking() : ''}
-              ${error ? `<div class="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg text-sm">Error: ${error}</div>` : ''}
-              <div id="messages-end"></div>
-            </div>
-          </div>
-
-          <!-- Input -->
-          <div class="border-t border-gray-200 dark:border-gray-700 px-4 py-3">
-            <div class="max-w-3xl mx-auto">
-              <form id="chat-form" class="flex items-end gap-2 p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus-within:border-blue-500 transition-colors">
-                <textarea
-                  id="chat-input"
-                  placeholder="Send a message..."
-                  class="flex-1 resize-none bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-400 text-sm min-h-[44px] max-h-[200px] py-2 px-2"
-                  rows="1"
-                  ${isLoading ? 'disabled' : ''}
-                ></textarea>
-                <button
-                  type="submit"
-                  id="send-button"
-                  class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                    isLoading ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }"
-                  ${isLoading ? 'disabled' : ''}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/>
-                  </svg>
-                </button>
-              </form>
-            </div>
+      console.log('[CHAT] Rendering, messages:', state.messages.map(m => ({ role: m.role, content: m.content?.substring(0, 30) })));
+      const app = document.getElementById('app');
+      app.innerHTML = `
+        ${renderHeader()}
+        ${renderConversationSelector()}
+        <div class="messages" id="messages">
+          <div class="messages-inner">
+            ${state.messages.length === 0 && !state.isLoading ? renderGreeting() : ''}
+            ${state.messages.map(renderMessage).join('')}
+            ${state.isLoading ? renderSpinner() : ''}
+            ${state.isLoading ? renderProgressBar() : ''}
+            ${state.error ? `<div class="error-msg">Error: ${escapeHtml(state.error)}</div>` : ''}
+            ${renderProtocolLogs()}
+            <div id="messages-end"></div>
           </div>
         </div>
+        ${renderLinterBar()}
+        ${renderInputArea()}
+        ${renderVoiceOverlay()}
+        ${renderDropOverlay()}
+        ${renderSettingsPanel()}
+        ${renderContextMenu()}
+        ${renderLogsModal()}
       `;
 
-      // Attach event listeners
-      document.getElementById('chat-form').addEventListener('submit', handleSubmit);
-      document.getElementById('chat-input').addEventListener('keydown', handleKeyDown);
-      document.getElementById('chat-input').addEventListener('input', handleInput);
-
-      // Scroll to bottom
+      bindEvents();
       document.getElementById('messages-end')?.scrollIntoView({ behavior: 'smooth' });
+      if (!state.isLoading) document.getElementById('input')?.focus();
+    }
 
-      // Focus input
-      if (!isLoading) {
-        document.getElementById('chat-input')?.focus();
+    function renderConversationSelector() {
+      // Only show in THEMIS mode
+      if (!THEMIS_MODE) return '';
+
+      const activeConv = state.conversations.find(c => c.id === state.activeConversationId);
+      const displayTitle = activeConv?.title || 'New Conversation';
+
+      return `
+        <div class="conversation-selector">
+          <button class="conversation-toggle" id="conv-toggle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>${escapeHtml(displayTitle)}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          ${state.showConversationSelector ? `
+            <div class="conversation-dropdown" id="conv-dropdown">
+              ${state.conversations.length > 0 ? state.conversations.map(conv => `
+                <div class="conversation-item ${conv.id === state.activeConversationId ? 'active' : ''}" data-conv-id="${conv.id}">
+                  <span class="conversation-title">${escapeHtml(conv.title)}</span>
+                  <span class="conversation-meta">${conv.messageCount} msgs</span>
+                </div>
+              `).join('') : '<div class="conversation-item" style="opacity:0.5;cursor:default;">No conversations yet</div>'}
+              <div class="conversation-new" id="conv-new">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                New Conversation
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function renderHeader() {
+      // THEMIS MODE: No header - context already shown in parent THEMIS UI
+      if (THEMIS_MODE) {
+        return '';
       }
+
+      // Standalone mode: show full header
+      const statusClass = state.provider ? (isLocalProvider(state.provider) ? 'local' : 'cloud') : 'offline';
+      const statusText = state.provider ? formatProvider(state.provider) : 'Connecting...';
+      const title = 'LocalAgent Chat';
+
+      return `
+        <header class="header">
+          <span class="header-title">${title}</span>
+          <div class="header-actions">
+            <div class="header-status">
+              <span class="status-dot ${statusClass}"></span>
+              <span>${statusText}</span>
+              ${state.activeSkill ? `<span class="skill-badge">+ ${state.activeSkill}</span>` : ''}
+            </div>
+            <button class="settings-btn" id="settings-btn" title="Settings">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+            </button>
+          </div>
+        </header>
+      `;
     }
 
     function renderGreeting() {
+      // THEMIS MODE: Animated THEMIS welcome with inline SVG
+      if (THEMIS_MODE) {
+        return `
+          <div class="chat-welcome" id="chatWelcome">
+            <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <style>
+                  .balance-beam { animation: stabilize 2s ease-out 0.5s both; transform-origin: center; }
+                  .left-scale { animation: settle-left 2.5s ease-out 1s both; transform-origin: center; }
+                  .right-scale { animation: settle-right 2.5s ease-out 1.2s both; transform-origin: center; }
+                  .center-post { animation: rise 1.5s ease-out both; transform-origin: bottom; }
+                  .app-name { animation: fade-in 1s ease-out 3s both; opacity: 0; }
+                  .tagline { animation: fade-in 1s ease-out 3.5s both; opacity: 0; }
+                  @keyframes rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+                  @keyframes stabilize { 0% { transform: rotate(-15deg); opacity: 0; } 60% { transform: rotate(5deg); } 80% { transform: rotate(-2deg); } 100% { transform: rotate(0deg); opacity: 1; } }
+                  @keyframes settle-left { 0% { transform: translateY(-20px) rotate(-30deg); opacity: 0; } 50% { transform: translateY(5px) rotate(10deg); } 80% { transform: translateY(-2px) rotate(-5deg); } 100% { transform: translateY(0px) rotate(0deg); opacity: 1; } }
+                  @keyframes settle-right { 0% { transform: translateY(-15px) rotate(25deg); opacity: 0; } 50% { transform: translateY(8px) rotate(-8deg); } 80% { transform: translateY(-1px) rotate(3deg); } 100% { transform: translateY(0px) rotate(0deg); opacity: 1; } }
+                  @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0px); } }
+                </style>
+              </defs>
+              <rect width="400" height="400" fill="transparent"/>
+              <rect class="center-post" x="199" y="150" width="2" height="60" fill="currentColor"/>
+              <rect class="balance-beam" x="130" y="189" width="140" height="2" fill="currentColor"/>
+              <g class="left-scale">
+                <line x1="160" y1="191" x2="160" y2="220" stroke="currentColor" stroke-width="1"/>
+                <rect x="145" y="220" width="30" height="2" fill="currentColor" rx="1"/>
+              </g>
+              <g class="right-scale">
+                <line x1="240" y1="191" x2="240" y2="220" stroke="currentColor" stroke-width="1"/>
+                <rect x="225" y="220" width="30" height="2" fill="currentColor" rx="1"/>
+              </g>
+              <text class="app-name" x="200" y="280" text-anchor="middle" fill="currentColor" font-family="Inter, -apple-system, sans-serif" font-size="32" font-weight="100" letter-spacing="3px">THEMIS</text>
+              <text class="app-name" x="260" y="270" text-anchor="start" fill="currentColor" font-family="Inter, -apple-system, sans-serif" font-size="12" font-weight="100">®</text>
+              <text class="tagline" x="200" y="310" text-anchor="middle" fill="currentColor" opacity="0.6" font-family="Inter, -apple-system, sans-serif" font-size="14" font-weight="200" letter-spacing="1.5px">EQUITABLE RESOLUTION</text>
+              <text class="tagline" x="200" y="330" text-anchor="middle" fill="currentColor" opacity="0.4" font-family="Inter, -apple-system, sans-serif" font-size="10" font-weight="200" letter-spacing="0.5px">by Citadel ADR a registered UK company</text>
+            </svg>
+            <p>Ask questions about your evidence</p>
+          </div>
+        `;
+      }
+
+      // Standalone mode: Full greeting
       return `
-        <div class="text-center py-12">
-          <div class="text-4xl mb-4">
-            <svg class="mx-auto" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="greeting">
+          <div class="greeting-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"/>
             </svg>
           </div>
-          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">How can I help you today?</h2>
-          <p class="text-gray-500 dark:text-gray-400">Ask me anything. I'm connected to your LocalAgent.</p>
+          <h2>How can I help you today?</h2>
+          <p>Ask me anything. Connected to your LocalAgent.</p>
         </div>
       `;
     }
 
     function renderMessage(msg) {
-      const isUser = msg.role === 'user';
-      return `
-        <div class="flex w-full ${isUser ? 'justify-end' : 'justify-start gap-3'}">
-          ${!isUser ? `
-            <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"/>
-              </svg>
-            </div>
-          ` : ''}
-          <div>
-            <div class="max-w-[80%] px-4 py-2 rounded-2xl text-sm ${
-              isUser
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
-            }">
-              <div class="whitespace-pre-wrap break-words">${escapeHtml(msg.content)}</div>
-            </div>
-            ${!isUser && msg.provider ? `
-              <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                ${formatProvider(msg.provider)}${msg.skill_injected ? ' + Skill' : ''}
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      `;
-    }
+      const hasLogs = msg.protocolLogs || msg.role === 'assistant';
+      const contextAttr = hasLogs ? `data-msg-id="${msg.id}"` : '';
 
-    function renderThinking() {
+      if (msg.role === 'user') {
+        return `
+          <div class="message user" ${contextAttr}>
+            <div class="message-content">
+              <div class="message-bubble">${escapeHtml(msg.content)}</div>
+              ${msg.timestamp ? `<div class="message-meta">${new Date(msg.timestamp).toLocaleTimeString()}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }
       return `
-        <div class="flex w-full justify-start gap-3">
-          <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700 animate-pulse">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"/>
+        <div class="message assistant" ${contextAttr}>
+          <div class="message-avatar">
+            <svg class="assistant-icon" viewBox="0 0 100 100" width="26" height="26">
+              <rect x="49" y="30" width="2" height="30" fill="currentColor"/>
+              <rect x="20" y="59" width="60" height="2" fill="currentColor"/>
+              <g>
+                <line x1="35" y1="61" x2="35" y2="75" stroke="currentColor" stroke-width="1"/>
+                <rect x="25" y="75" width="20" height="2" fill="currentColor" rx="1"/>
+              </g>
+              <g>
+                <line x1="65" y1="61" x2="65" y2="75" stroke="currentColor" stroke-width="1"/>
+                <rect x="55" y="75" width="20" height="2" fill="currentColor" rx="1"/>
+              </g>
             </svg>
           </div>
-          <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-            <span>Thinking</span>
-            <span class="flex gap-1">
-              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce-dot"></span>
-              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce-dot"></span>
-              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce-dot"></span>
-            </span>
+          <div class="message-content">
+            <div class="message-bubble">${escapeHtml(msg.content)}</div>
+            <div class="message-meta">
+              ${msg.provider ? `${formatProvider(msg.provider)}${msg.skill_injected ? ' + Skill' : ''}` : ''}
+              ${msg.timestamp ? ` · ${new Date(msg.timestamp).toLocaleTimeString()}` : ''}
+              ${hasLogs ? ' · <span style="cursor:pointer;color:rgba(139, 92, 246, 0.8);" onclick="showMessageLogs(\''+msg.id+'\')">View logs</span>' : ''}
+            </div>
           </div>
         </div>
       `;
     }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+    function renderSpinner() {
+      // If progress bar is visible, don't show simple spinner
+      if (state.progress.visible) return '';
+
+      // THEMIS MODE: Use inline animated THEMIS balance scale spinner
+      if (THEMIS_MODE) {
+        return `
+          <div class="message assistant">
+            <div class="message-avatar">
+              <svg class="assistant-icon loading" viewBox="0 0 100 100" width="26" height="26">
+                <style>
+                  .spin-beam { animation: spin-stabilize 1.5s ease-in-out infinite; transform-origin: center; }
+                  .spin-left { animation: spin-settle-left 1.5s ease-in-out infinite; transform-origin: center; }
+                  .spin-right { animation: spin-settle-right 1.5s ease-in-out infinite; transform-origin: center; }
+                  @keyframes spin-stabilize { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+                  @keyframes spin-settle-left { 0%, 100% { transform: translateY(0px); } 25% { transform: translateY(-5px); } 75% { transform: translateY(5px); } }
+                  @keyframes spin-settle-right { 0%, 100% { transform: translateY(0px); } 25% { transform: translateY(5px); } 75% { transform: translateY(-5px); } }
+                </style>
+                <rect x="49" y="30" width="2" height="30" fill="currentColor"/>
+                <rect class="spin-beam" x="20" y="59" width="60" height="2" fill="currentColor"/>
+                <g class="spin-left">
+                  <line x1="35" y1="61" x2="35" y2="75" stroke="currentColor" stroke-width="1"/>
+                  <rect x="25" y="75" width="20" height="2" fill="currentColor" rx="1"/>
+                </g>
+                <g class="spin-right">
+                  <line x1="65" y1="61" x2="65" y2="75" stroke="currentColor" stroke-width="1"/>
+                  <rect x="55" y="75" width="20" height="2" fill="currentColor" rx="1"/>
+                </g>
+              </svg>
+            </div>
+            <div class="spinner-text">Thinking...</div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="message assistant">
+          <div class="message-avatar">
+            <svg class="spinner-icon" width="16" height="16" viewBox="0 0 24 24">
+              ${[0,45,90,135,180,225,270,315].map((angle, i) => `
+                <line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  transform="rotate(${angle} 12 12)" opacity="${1 - i * 0.1}"/>
+              `).join('')}
+            </svg>
+          </div>
+          <div class="spinner-text">Thinking...</div>
+        </div>
+      `;
+    }
+
+    function renderProgressBar() {
+      const { visible, message, percent, substatus, protocolSteps, currentStep, negotiation } = state.progress;
+
+      // Status icons for protocol steps
+      const stepIcons = { pending: '○', running: '◉', success: '✓', failed: '✗', skipped: '–' };
+
+      return `
+        <div class="progress-container ${visible ? 'visible' : ''}">
+          <div class="progress-header">
+            <div class="progress-spinner">
+              <svg width="24" height="24" viewBox="0 0 24 24">
+                ${[0,45,90,135,180,225,270,315].map((angle, i) => `
+                  <line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    transform="rotate(${angle} 12 12)" opacity="${1 - i * 0.1}"/>
+                `).join('')}
+              </svg>
+            </div>
+            <div class="progress-info">
+              <div class="progress-text">${escapeHtml(message || 'Processing...')}</div>
+              ${substatus ? `<div class="progress-substatus">${escapeHtml(substatus)}</div>` : ''}
+            </div>
+            <div class="progress-percent">${Math.round(percent)}%</div>
+          </div>
+
+          <div class="progress-bar-row">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${Math.min(100, Math.max(0, percent))}%"></div>
+            </div>
+          </div>
+
+          ${negotiation.active ? `
+            <div class="progress-negotiation">
+              <span class="progress-negotiation-icon">🔄</span>
+              <span class="progress-negotiation-text">
+                Negotiating: ${escapeHtml(NEGOTIATION_STRATEGIES[negotiation.errorType]?.feedback || negotiation.errorType)}
+              </span>
+              <span class="progress-negotiation-strategy">${escapeHtml(NEGOTIATION_STRATEGIES[negotiation.errorType]?.action || 'retry')}</span>
+              <span class="progress-negotiation-retry">Retry ${negotiation.retryCount}/${NEGOTIATION_STRATEGIES[negotiation.errorType]?.maxRetries || 3}</span>
+            </div>
+          ` : ''}
+
+          ${protocolSteps.length > 0 ? `
+            <div class="progress-steps">
+              ${protocolSteps.map((step, i) => `
+                <div class="progress-step ${step.status}">
+                  <span class="progress-step-icon">${stepIcons[step.status] || '○'}</span>
+                  <span class="progress-step-name">${escapeHtml(step.label || step.name)}</span>
+                  ${step.constraint ? `<span class="progress-step-constraint">${step.constraint}</span>` : ''}
+                  ${step.error ? `<span class="progress-step-error" title="${escapeHtml(step.error)}">❌</span>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function renderLinterBar() {
+      const { score, tokens, cost, issues, lang, detectedSkill, suggestion, original, fixed } = state.linter;
+      if (tokens === 0) return '<div class="linter-bar"></div><div class="linter-preview"></div>';
+
+      const scoreClass = score >= 80 ? 'good' : score >= 50 ? 'warn' : 'bad';
+      const hasPreview = suggestion && original && fixed && original !== fixed;
+
+      return `
+        <div class="linter-bar visible ${scoreClass}">
+          <div class="linter-inner">
+            <div class="linter-score">${score}</div>
+            <div class="linter-meta">
+              <span>🌍 ${lang}</span>
+              ${detectedSkill ? `<span class="skill">🎯 ${detectedSkill}</span>` : '<span>🎯 general</span>'}
+              <span>📊 ~${tokens}</span>
+              <span>💰 $${cost}</span>
+            </div>
+            <div class="linter-issues">
+              ${issues.map(i => `<span class="linter-issue ${i.severity || 'medium'}" title="${i.fix || ''}">${i.message || i}</span>`).join('')}
+            </div>
+            <div class="linter-actions">
+              ${suggestion ? `<button class="linter-btn primary" id="autofix-btn">✨ Auto-fix</button>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="linter-preview ${hasPreview ? 'visible' : ''}">
+          <div class="linter-preview-inner">
+            <div class="linter-preview-header">
+              <span>🔄 Rewrite Preview</span>
+              <span class="linter-preview-hint">Click Auto-fix to apply</span>
+            </div>
+            <div class="linter-preview-diff">
+              <div class="linter-preview-col original">
+                <div class="linter-preview-label">Original</div>
+                <div>${escapeHtml(original)}</div>
+              </div>
+              <div class="linter-preview-col fixed">
+                <div class="linter-preview-label">Auto-fixed</div>
+                <div>${escapeHtml(fixed)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderInputArea() {
+      // THEMIS MODE: Input is handled by parent THEMIS - don't render here
+      if (THEMIS_MODE) {
+        return ''; // No input area - parent THEMIS provides unified input
+      }
+
+      // STANDALONE MODE: Full input with toolbar
+      return `
+        <div class="input-area">
+          <div class="input-inner" style="position: relative;">
+            ${renderSkillsPopup()}
+            <input type="file" id="file-input" class="file-input" multiple
+              accept="image/*,.pdf,.txt,.doc,.docx,.csv" />
+            <div class="input-box ${state.isDragging ? 'dragover' : ''}" id="drop-zone">
+              <div class="input-main">
+                <textarea id="input" placeholder="Send a message..." rows="1" ${state.isLoading ? 'disabled' : ''}></textarea>
+                <button class="send-btn" id="send-btn" ${state.isLoading ? 'disabled' : ''}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="toolbar ${state.showToolbar ? 'visible' : ''}">
+                <button class="toolbar-btn ${state.toolConfig.system ? '' : 'hidden'}" id="btn-system" title="System prompt">S</button>
+                <button class="toolbar-btn ${state.activeSkill ? 'active' : ''} ${state.toolConfig.skills ? '' : 'hidden'}" id="btn-skills" title="Skills">DA</button>
+                <span class="toolbar-sep"></span>
+                <button class="toolbar-btn ${state.toolConfig.star ? '' : 'hidden'}" id="btn-star" title="Favorite">★</button>
+                <button class="toolbar-btn ${state.toolConfig.search ? '' : 'hidden'}" id="btn-search" title="Search">🔍</button>
+                <button class="toolbar-btn ${state.toolConfig.tags ? '' : 'hidden'}" id="btn-tags" title="Tags">#</button>
+                <button class="toolbar-btn ${state.attachedFiles.length ? 'active' : ''} ${state.toolConfig.attach ? '' : 'hidden'}" id="btn-add" title="Attach files">+</button>
+                <span class="toolbar-sep"></span>
+                <button class="toolbar-btn ${state.isRecording ? 'recording' : ''} ${state.toolConfig.mic ? '' : 'hidden'}" id="btn-mic" title="Voice input">🎤</button>
+                <button class="toolbar-btn ${state.toolConfig.export ? '' : 'hidden'}" id="btn-export" title="Export">↓</button>
+              </div>
+              ${renderAttachments()}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAttachments() {
+      if (state.attachedFiles.length === 0) return '';
+      return `
+        <div class="attachments">
+          ${state.attachedFiles.map(f => `
+            <div class="attachment" data-id="${f.id}">
+              ${f.preview
+                ? `<img src="${f.preview}" class="attachment-preview" alt="${escapeHtml(f.file.name)}" />`
+                : `<div class="attachment-icon" style="color:${getFileIcon(f.file).color}">${getFileIcon(f.file).icon}</div>`
+              }
+              <div class="attachment-info">
+                <div class="attachment-name">${escapeHtml(f.file.name)}</div>
+                <div class="attachment-size">${formatFileSize(f.file.size)}</div>
+              </div>
+              <button class="attachment-remove" data-id="${f.id}" title="Remove">×</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderSkillsPopup() {
+      if (!state.showSkills) return '<div class="skills-popup"></div>';
+      return `
+        <div class="skills-popup visible">
+          <div class="skills-header">Available Skills</div>
+          ${state.skills.length === 0 ? '<div style="color:rgba(128, 128, 128, 0.6);font-size:13px;">No skills available</div>' : ''}
+          ${state.skills.map(s => `
+            <div class="skill-item ${state.activeSkill === s.name ? 'active' : ''}" data-skill="${s.name}">
+              <div>
+                <div class="skill-name">${s.name}</div>
+                <div class="skill-desc">${s.description || ''}</div>
+              </div>
+              <button class="skill-toggle">${state.activeSkill === s.name ? 'Active' : 'Use'}</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderVoiceOverlay() {
+      if (!state.isRecording) return '<div class="voice-overlay"></div>';
+      const mins = Math.floor(state.recordingTime / 60);
+      const secs = state.recordingTime % 60;
+      return `
+        <div class="voice-overlay visible">
+          <div class="voice-waveform"><canvas id="waveform"></canvas></div>
+          <div class="voice-time">${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}</div>
+          <button class="voice-stop" id="voice-stop">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderDropOverlay() {
+      return `
+        <div class="drop-overlay ${state.isDragging ? 'visible' : ''}" id="drop-overlay">
+          <div class="drop-overlay-content">
+            <div class="drop-overlay-icon">📎</div>
+            <div class="drop-overlay-text">Drop files here</div>
+            <div class="drop-overlay-hint">Images, PDF, TXT, DOC, CSV</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderProtocolLogs() {
+      if (!state.protocolLogs) return '';
+
+      const { request, response, stack } = state.protocolLogs;
+      const expanded = state.protocolExpanded ? 'expanded' : '';
+
+      // Build provider chain visualization
+      const providerChain = ['mlx', 'ollama', 'claude', 'openai'];
+      const attempted = response.providersAttempted || [];
+
+      return `
+        <div class="protocol-logs ${expanded}">
+          <div class="protocol-logs-header" id="protocol-toggle">
+            <div class="protocol-logs-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5l8 7-8 7z"/>
+              </svg>
+              <span>Protocol Communication Logs</span>
+            </div>
+            <div class="protocol-logs-actions">
+              <button class="protocol-copy-btn" id="copy-logs-btn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                </svg>
+                Copy Logs
+              </button>
+            </div>
+          </div>
+          <div class="protocol-logs-body">
+            <div class="protocol-logs-content">
+              <!-- REQUEST Section -->
+              <div class="protocol-section request">
+                <div class="protocol-section-title">📤 Request</div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Endpoint:</span>
+                  <span class="protocol-value">${escapeHtml(request.endpoint)}</span>
+                </div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Method:</span>
+                  <span class="protocol-value">${escapeHtml(request.method)}</span>
+                </div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Timestamp:</span>
+                  <span class="protocol-value">${escapeHtml(request.timestamp)}</span>
+                </div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Payload:</span>
+                </div>
+                <div class="protocol-payload">${escapeHtml(JSON.stringify(request.payload, null, 2))}</div>
+              </div>
+
+              <!-- RESPONSE Section -->
+              <div class="protocol-section response">
+                <div class="protocol-section-title">📥 Response</div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Status:</span>
+                  <span class="protocol-value ${response.status >= 400 ? 'error' : 'success'}">${response.status} ${escapeHtml(response.statusText || '')}</span>
+                </div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Error:</span>
+                  <span class="protocol-value error">${escapeHtml(response.error || 'None')}</span>
+                </div>
+                ${response.provider ? `
+                <div class="protocol-row">
+                  <span class="protocol-label">Provider:</span>
+                  <span class="protocol-value">${escapeHtml(response.provider)}</span>
+                </div>
+                ` : ''}
+                <div class="protocol-row">
+                  <span class="protocol-label">Fallback Chain:</span>
+                  <span class="protocol-value ${response.fallbackExhausted ? 'warning' : ''}">${response.fallbackExhausted ? 'Exhausted' : 'Active'}</span>
+                </div>
+                <div class="protocol-chain">
+                  ${providerChain.map(p => {
+                    const isTried = attempted.includes(p);
+                    const isActive = p === response.provider;
+                    return `<span class="protocol-chain-item ${isTried ? 'tried' : ''} ${isActive ? 'active' : ''}">${formatProvider(p)}</span>`;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- STACK TRACE Section (if available) -->
+              ${stack ? `
+              <div class="protocol-section error">
+                <div class="protocol-section-title">🔴 Stack Trace</div>
+                <div class="protocol-stack">${escapeHtml(stack)}</div>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderContextMenu() {
+      if (!state.contextMenu.visible) return '';
+      const msg = state.messages.find(m => m.id === state.contextMenu.messageId);
+      const hasLogs = msg?.protocolLogs;
+
+      return `
+        <div class="context-menu" style="left: ${state.contextMenu.x}px; top: ${state.contextMenu.y}px;" id="context-menu">
+          <div class="context-menu-item ${hasLogs ? '' : 'disabled'}" id="ctx-view-logs">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>
+            </svg>
+            View Protocol Logs
+          </div>
+          <div class="context-menu-item" id="ctx-copy-message">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+            </svg>
+            Copy Message
+          </div>
+          <div class="context-menu-sep"></div>
+          <div class="context-menu-item" id="ctx-copy-logs" ${hasLogs ? '' : 'style="display:none;"'}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+            </svg>
+            Copy Logs to Clipboard
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLogsModal() {
+      if (!state.logsModal.visible) return '<div class="logs-modal-overlay"></div>';
+
+      const msg = state.messages.find(m => m.id === state.logsModal.messageId);
+      if (!msg || !msg.protocolLogs) return '<div class="logs-modal-overlay"></div>';
+
+      const logs = msg.protocolLogs;
+      const { request, response, negotiation, skillContext } = logs;
+
+      return `
+        <div class="logs-modal-overlay visible" id="logs-modal-overlay">
+          <div class="logs-modal">
+            <div class="logs-modal-header">
+              <div class="logs-modal-title">
+                <span>Protocol & Negotiation Logs</span>
+                <span class="logs-modal-title-badge">${response.provider ? formatProvider(response.provider) : 'Unknown'}</span>
+              </div>
+              <button class="logs-modal-close" id="logs-modal-close">×</button>
+            </div>
+            <div class="logs-modal-body">
+              <!-- REQUEST Section -->
+              <div class="protocol-section request">
+                <div class="protocol-section-title">📤 Request</div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Endpoint:</span>
+                  <span class="protocol-value">${escapeHtml(request.endpoint)}</span>
+                </div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Method:</span>
+                  <span class="protocol-value">${escapeHtml(request.method)}</span>
+                </div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Timestamp:</span>
+                  <span class="protocol-value">${escapeHtml(request.timestamp)}</span>
+                </div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Payload:</span>
+                </div>
+                <div class="protocol-payload">${escapeHtml(JSON.stringify(request.payload, null, 2))}</div>
+              </div>
+
+              <!-- PROTOCOL EXECUTION Section (if available from backend) -->
+              ${logs.execution ? `
+              <div class="protocol-section negotiation">
+                <div class="protocol-section-title">📋 Protocol Execution: ${escapeHtml(logs.execution.execution_id || '')}</div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Status:</span>
+                  <span class="protocol-value ${logs.execution.status === 'success' ? 'success' : logs.execution.status === 'failed' ? 'error' : ''}">${escapeHtml(logs.execution.status || 'unknown')}</span>
+                </div>
+                ${logs.execution.github_version_before ? `
+                <div class="protocol-row">
+                  <span class="protocol-label">Version:</span>
+                  <span class="protocol-value">${escapeHtml(logs.execution.github_version_before)} → ${escapeHtml(logs.execution.github_version_after || logs.execution.calculated_next_version || '?')}</span>
+                </div>
+                ` : ''}
+                ${logs.execution.steps ? `
+                <div style="margin-top: 12px;">
+                  <div style="font-size: 11px; font-weight: 600; margin-bottom: 8px; color: rgba(128, 128, 128, 0.7);">Protocol Steps:</div>
+                  ${logs.execution.steps.map((step, i) => `
+                    <div class="negotiation-step ${step.status}">
+                      <div class="negotiation-step-num">${i + 1}</div>
+                      <div class="negotiation-step-content">
+                        <div class="negotiation-step-action">
+                          ${escapeHtml(step.name)}
+                          ${step.constraint_checks?.length ? `<span style="font-size:10px;color:rgba(128, 128, 128, 0.6)">[${step.constraint_checks[0].split(':')[0]}]</span>` : ''}
+                        </div>
+                        <div class="negotiation-step-detail">
+                          ${step.error ? `❌ ${escapeHtml(step.error)}` : step.data ? Object.keys(step.data).slice(0,2).map(k => `${k}: ${JSON.stringify(step.data[k]).substring(0,30)}`).join(', ') : ''}
+                        </div>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+                ` : ''}
+                ${logs.execution.violations?.length ? `
+                <div style="margin-top: 12px; padding: 8px; background: rgba(239,68,68,0.1); border-radius: 6px;">
+                  <div style="font-size: 11px; font-weight: 600; color: rgba(239, 68, 68, 0.8); margin-bottom: 4px;">Constraint Violations:</div>
+                  ${logs.execution.violations.map(v => `<div style="font-size: 11px; color: rgba(239, 68, 68, 0.8);">• ${escapeHtml(v)}</div>`).join('')}
+                </div>
+                ` : ''}
+              </div>
+              ` : ''}
+
+              <!-- NEGOTIATION Section -->
+              ${negotiation && negotiation.length > 0 ? `
+              <div class="protocol-section negotiation">
+                <div class="protocol-section-title">🔄 Negotiation Steps (${negotiation.length} attempts)</div>
+                ${negotiation.map(step => `
+                  <div class="negotiation-step ${step.status}">
+                    <div class="negotiation-step-num">${step.step}</div>
+                    <div class="negotiation-step-content">
+                      <div class="negotiation-step-action">
+                        ${escapeHtml(step.action)}
+                        ${step.retryCount ? `<span style="font-size:10px;color:rgba(128, 128, 128, 0.6)">(retry ${step.retryCount})</span>` : ''}
+                      </div>
+                      <div class="negotiation-step-detail">
+                        ${escapeHtml(step.detail)}
+                        ${step.strategy ? `<br><span style="font-size:10px;color:rgba(139, 92, 246, 0.8)">Strategy: ${step.strategy.action}</span>` : ''}
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+              ` : ''}
+
+              <!-- RESPONSE Section -->
+              <div class="protocol-section response">
+                <div class="protocol-section-title">📥 Response</div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Status:</span>
+                  <span class="protocol-value success">${response.status} ${escapeHtml(response.statusText || '')}</span>
+                </div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Provider:</span>
+                  <span class="protocol-value">${response.provider ? formatProvider(response.provider) : 'N/A'}</span>
+                </div>
+                ${response.model ? `
+                <div class="protocol-row">
+                  <span class="protocol-label">Model:</span>
+                  <span class="protocol-value">${escapeHtml(response.model)}</span>
+                </div>
+                ` : ''}
+                ${response.tokens ? `
+                <div class="protocol-row">
+                  <span class="protocol-label">Tokens:</span>
+                  <span class="protocol-value">Prompt: ${response.tokens.prompt || '~'} | Completion: ${response.tokens.completion || '~'}</span>
+                </div>
+                ` : ''}
+                ${response.latency ? `
+                <div class="protocol-row">
+                  <span class="protocol-label">Latency:</span>
+                  <span class="protocol-value">${response.latency}ms</span>
+                </div>
+                ` : ''}
+                <div class="protocol-row">
+                  <span class="protocol-label">Cached:</span>
+                  <span class="protocol-value">${response.cached ? 'Yes' : 'No'}</span>
+                </div>
+              </div>
+
+              <!-- SKILL CONTEXT Section -->
+              ${skillContext && skillContext.injected ? `
+              <div class="protocol-section negotiation">
+                <div class="protocol-section-title">🎯 Skill Context</div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Skill:</span>
+                  <span class="protocol-value">${escapeHtml(skillContext.name || 'Unknown')}</span>
+                </div>
+                <div class="protocol-row">
+                  <span class="protocol-label">Injected:</span>
+                  <span class="protocol-value success">Yes</span>
+                </div>
+                ${skillContext.tokens ? `
+                <div class="protocol-row">
+                  <span class="protocol-label">Context Tokens:</span>
+                  <span class="protocol-value">${skillContext.tokens}</span>
+                </div>
+                ` : ''}
+              </div>
+              ` : ''}
+            </div>
+            <div class="logs-modal-actions">
+              <button class="logs-modal-btn" id="logs-modal-copy">Copy Logs</button>
+              <button class="logs-modal-btn primary" id="logs-modal-close-btn">Close</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSettingsPanel() {
+      // THEMIS MODE: No settings panel - settings managed by parent THEMIS UI
+      if (THEMIS_MODE) {
+        return '';
+      }
+
+      const tools = [
+        { id: 'system', icon: 'S', name: 'System Prompt', desc: 'Custom instructions', color: '' },
+        { id: 'skills', icon: 'DA', name: 'Assistants', desc: 'AI personas & skills', color: 'purple' },
+        { id: 'star', icon: '★', name: 'Saved Prompts', desc: 'Quick templates', color: 'orange' },
+        { id: 'search', icon: '🔍', name: 'Search', desc: 'Search history', color: '' },
+        { id: 'tags', icon: '#', name: 'Tags', desc: 'Categorization', color: 'purple' },
+        { id: 'attach', icon: '+', name: 'Attach Files', desc: 'Upload documents', color: '' },
+        { id: 'mic', icon: '🎤', name: 'Voice Input', desc: 'Whisper transcription', color: 'green' },
+        { id: 'export', icon: '↓', name: 'Export', desc: 'Download chat', color: '' },
+      ];
+      return `
+        <div class="settings-overlay ${state.showSettings ? 'visible' : ''}" id="settings-overlay"></div>
+        <div class="settings-panel ${state.showSettings ? 'visible' : ''}">
+          <div class="settings-header">
+            <h2>Chat Settings</h2>
+            <button class="settings-close" id="settings-close">×</button>
+          </div>
+          <div class="settings-body">
+            <!-- Adapter Mode Section -->
+            <div class="settings-section">
+              <div class="settings-section-title">Protocol Mode</div>
+              <p style="font-size:12px;color:rgba(128, 128, 128, 0.7);margin-bottom:12px">Select storage adapter for protocol execution</p>
+              <div class="settings-item">
+                <div class="settings-item-info">
+                  <div class="settings-item-icon green">F</div>
+                  <div class="settings-item-text">
+                    <span class="settings-item-name">MÉTIER (FileAdapter)</span>
+                    <span class="settings-item-desc">File-based storage for THEMIS</span>
+                  </div>
+                </div>
+                <input type="radio" name="adapter-mode" value="METIER" ${currentAdapterMode.id === 'METIER' ? 'checked' : ''} class="adapter-mode-radio" style="width:18px;height:18px;cursor:pointer">
+              </div>
+              <div class="settings-item">
+                <div class="settings-item-info">
+                  <div class="settings-item-icon blue">G</div>
+                  <div class="settings-item-text">
+                    <span class="settings-item-name">DEV (GitAdapter)</span>
+                    <span class="settings-item-desc">Git-based versioning for LocalAgent</span>
+                  </div>
+                </div>
+                <input type="radio" name="adapter-mode" value="DEV" ${currentAdapterMode.id === 'DEV' ? 'checked' : ''} class="adapter-mode-radio" style="width:18px;height:18px;cursor:pointer">
+              </div>
+            </div>
+
+            <!-- Toolbar Tools Section -->
+            <div class="settings-section">
+              <div class="settings-section-title">Toolbar Tools</div>
+              <p style="font-size:12px;color:rgba(128, 128, 128, 0.7);margin-bottom:12px">Choose which tools appear in the toolbar</p>
+              ${tools.map(t => `
+                <div class="settings-item">
+                  <div class="settings-item-info">
+                    <div class="settings-item-icon ${t.color}">${t.icon}</div>
+                    <div class="settings-item-text">
+                      <span class="settings-item-name">${t.name}</span>
+                      <span class="settings-item-desc">${t.desc}</span>
+                    </div>
+                  </div>
+                  <div class="toggle-switch ${state.toolConfig[t.id] ? 'on' : ''}" data-tool="${t.id}"></div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     // ============================================================
     // EVENT HANDLERS
     // ============================================================
 
-    async function handleSubmit(e) {
-      e.preventDefault();
-      const input = document.getElementById('chat-input');
-      const content = input.value.trim();
-      if (!content || isLoading) return;
+    function bindEvents() {
+      const input = document.getElementById('input');
+      const fileInput = document.getElementById('file-input');
 
-      // Add user message
-      messages.push({
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: content,
-        createdAt: new Date(),
+      // Use onclick/oninput instead of addEventListener to REPLACE handlers (not add duplicates)
+      if (input) {
+        input.oninput = handleInputChange;
+        input.onkeydown = e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+          }
+        };
+      }
+
+      const sendBtn = document.getElementById('send-btn');
+      if (sendBtn) sendBtn.onclick = handleSend;
+
+      const skillsBtn = document.getElementById('btn-skills');
+      if (skillsBtn) skillsBtn.onclick = toggleSkills;
+
+      const micBtn = document.getElementById('btn-mic');
+      if (micBtn) micBtn.onclick = toggleRecording;
+
+      const voiceStopBtn = document.getElementById('voice-stop');
+      if (voiceStopBtn) voiceStopBtn.onclick = stopRecording;
+
+      const autofixBtn = document.getElementById('autofix-btn');
+      if (autofixBtn) autofixBtn.onclick = applyAutofix;
+
+      // Conversation selector (Rule 3) - use onclick to replace not add
+      const convToggle = document.getElementById('conv-toggle');
+      if (convToggle) convToggle.onclick = (e) => {
+        e.stopPropagation();
+        state.showConversationSelector = !state.showConversationSelector;
+        render();
+        restoreInputState();
+      };
+
+      const convNew = document.getElementById('conv-new');
+      if (convNew) convNew.onclick = () => startNewConversation();
+
+      document.querySelectorAll('.conversation-item[data-conv-id]').forEach(el => {
+        el.onclick = () => {
+          const convId = el.dataset.convId;
+          if (convId) switchConversation(convId);
+        };
       });
 
-      input.value = '';
-      isLoading = true;
-      error = null;
-      render();
+      // Close dropdown when clicking outside (use { once: true } is ok here since it self-removes)
+      if (state.showConversationSelector) {
+        document.addEventListener('click', function closeDropdown(e) {
+          if (!e.target.closest('.conversation-selector')) {
+            state.showConversationSelector = false;
+            render();
+            restoreInputState();
+            document.removeEventListener('click', closeDropdown);
+          }
+        }, { once: true });
+      }
 
-      // Send to LocalAgent
-      const result = await complete({
-        prompt: content,
-        skill_name: skillName,
-        fallback: true,
+      // THEMIS Mode toggle (A/S button)
+      const modeToggle = document.getElementById('btn-mode-toggle');
+      if (modeToggle) modeToggle.onclick = () => {
+        if (THEMIS_MODE && window.parent !== window) {
+          const newMode = state.themis.mode === 'analysis' ? 'search' : 'analysis';
+          window.parent.postMessage({ type: 'toggle-mode', mode: newMode }, '*');
+          console.log('[CHAT] Sent mode toggle request to parent:', newMode);
+        }
+      };
+
+      // THEMIS Tag filter button - notify parent
+      const tagsBtn = document.getElementById('btn-tags');
+      if (tagsBtn) tagsBtn.onclick = (e) => {
+        console.log('[CHAT] Tags button clicked');
+        e.stopPropagation();
+        if (THEMIS_MODE && window.parent !== window) {
+          window.parent.postMessage({ type: 'toggle-tag-filter' }, '*');
+          console.log('[CHAT] Sent tag filter toggle to parent');
+        }
+      };
+
+      // THEMIS Search history button - notify parent
+      const historyBtn = document.getElementById('btn-history');
+      if (historyBtn) historyBtn.onclick = (e) => {
+        console.log('[CHAT] History button clicked');
+        e.stopPropagation();
+        if (THEMIS_MODE && window.parent !== window) {
+          window.parent.postMessage({ type: 'toggle-search-history' }, '*');
+          console.log('[CHAT] Sent search history toggle to parent');
+        }
+      };
+
+      // File attachment
+      const addBtn = document.getElementById('btn-add');
+      if (addBtn) addBtn.onclick = () => fileInput?.click();
+      if (fileInput) fileInput.onchange = handleFileSelect;
+
+      // Settings (both header and THEMIS input area buttons)
+      const settingsBtn = document.getElementById('settings-btn');
+      if (settingsBtn) settingsBtn.onclick = openSettings;
+
+      const themisSettingsBtn = document.getElementById('themis-settings-btn');
+      if (themisSettingsBtn) themisSettingsBtn.onclick = openSettings;
+
+      const settingsClose = document.getElementById('settings-close');
+      if (settingsClose) settingsClose.onclick = closeSettings;
+
+      const settingsOverlay = document.getElementById('settings-overlay');
+      if (settingsOverlay) settingsOverlay.onclick = closeSettings;
+
+      // Adapter mode radio buttons - use onchange
+      document.querySelectorAll('.adapter-mode-radio').forEach(radio => {
+        radio.onchange = (e) => {
+          const mode = e.target.value;
+          if (mode === 'METIER' || mode === 'DEV') {
+            currentAdapterMode = ADAPTER_MODES[mode];
+            console.log(`Adapter mode changed to: ${currentAdapterMode.name} (${currentAdapterMode.adapter})`);
+            const url = new URL(window.location);
+            url.searchParams.set('mode', mode);
+            window.history.replaceState({}, '', url);
+            render();
+            restoreInputState();
+          }
+        };
       });
 
-      isLoading = false;
+      // Toggle switches - use onclick
+      document.querySelectorAll('.toggle-switch').forEach(toggle => {
+        toggle.onclick = () => {
+          const tool = toggle.dataset.tool;
+          state.toolConfig[tool] = !state.toolConfig[tool];
+          saveToolConfig();
+          render();
+          restoreInputState();
+        };
+      });
 
-      if (result.success) {
-        messages.push({
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: result.response,
-          createdAt: new Date(),
-          provider: result.provider,
-          skill_injected: result.skill_injected,
-        });
-        activeProvider = result.provider;
+      // Remove attachment - use onclick
+      document.querySelectorAll('.attachment-remove').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          removeAttachment(btn.dataset.id);
+        };
+      });
+
+      document.querySelectorAll('.skill-item').forEach(el => {
+        el.onclick = () => selectSkill(el.dataset.skill);
+      });
+
+      // Protocol logs toggle and copy - use onclick
+      const protocolToggle = document.getElementById('protocol-toggle');
+      if (protocolToggle) protocolToggle.onclick = (e) => {
+        if (e.target.closest('.protocol-copy-btn')) return;
+        state.protocolExpanded = !state.protocolExpanded;
+        render();
+        restoreInputState();
+      };
+
+      const copyLogsBtn = document.getElementById('copy-logs-btn');
+      if (copyLogsBtn) copyLogsBtn.onclick = (e) => {
+        e.stopPropagation();
+        copyProtocolLogs();
+      };
+
+      // Context menu items - use onclick
+      const ctxViewLogs = document.getElementById('ctx-view-logs');
+      if (ctxViewLogs) ctxViewLogs.onclick = () => {
+        if (state.contextMenu.messageId) {
+          showMessageLogs(state.contextMenu.messageId);
+        }
+        hideContextMenu();
+      };
+
+      const ctxCopyMessage = document.getElementById('ctx-copy-message');
+      if (ctxCopyMessage) ctxCopyMessage.onclick = () => {
+        const msg = state.messages.find(m => m.id === state.contextMenu.messageId);
+        if (msg) {
+          navigator.clipboard.writeText(msg.content);
+        }
+        hideContextMenu();
+      };
+
+      const ctxCopyLogs = document.getElementById('ctx-copy-logs');
+      if (ctxCopyLogs) ctxCopyLogs.onclick = () => {
+        const msg = state.messages.find(m => m.id === state.contextMenu.messageId);
+        if (msg?.protocolLogs) {
+          copyMessageLogs(msg);
+        }
+        hideContextMenu();
+      };
+
+      // Logs modal - use onclick
+      const logsModalOverlay = document.getElementById('logs-modal-overlay');
+      if (logsModalOverlay) logsModalOverlay.onclick = (e) => {
+        if (e.target.id === 'logs-modal-overlay') closeLogsModal();
+      };
+
+      const logsModalClose = document.getElementById('logs-modal-close');
+      if (logsModalClose) logsModalClose.onclick = closeLogsModal;
+
+      const logsModalCloseBtn = document.getElementById('logs-modal-close-btn');
+      if (logsModalCloseBtn) logsModalCloseBtn.onclick = closeLogsModal;
+
+      const logsModalCopy = document.getElementById('logs-modal-copy');
+      if (logsModalCopy) logsModalCopy.onclick = () => {
+        const msg = state.messages.find(m => m.id === state.logsModal.messageId);
+        if (msg) copyMessageLogs(msg);
+      };
+
+      // Right-click on messages - use oncontextmenu
+      document.querySelectorAll('.message[data-msg-id]').forEach(el => {
+        el.oncontextmenu = (e) => {
+          e.preventDefault();
+          showContextMenu(e.clientX, e.clientY, el.dataset.msgId);
+        };
+      });
+
+      // Hide context menu on click outside - using capture phase with a flag to prevent accumulation
+      if (!window._contextMenuListenerAttached) {
+        window._contextMenuListenerAttached = true;
+        document.addEventListener('click', hideContextMenu, true);
+      }
+    }
+
+    async function handleInputChange(e) {
+      const text = e.target.value;
+      savedInputValue = text; // Save for restoration after re-render
+
+      // Show/hide toolbar based on input
+      state.showToolbar = text.length > 0;
+
+      // Auto-expand textarea: reset then expand based on content
+      e.target.style.height = 'auto';
+      const newHeight = Math.min(Math.max(e.target.scrollHeight, 21), 120);
+      e.target.style.height = newHeight + 'px';
+      e.target.style.overflowY = newHeight >= 120 ? 'auto' : 'hidden';
+
+      // Update linter (skip in THEMIS mode - no linter endpoint)
+      if (text.trim() && !THEMIS_MODE) {
+        const tokens = estimateTokens(text);
+        const lintResult = await apiLint(text);
+        const detectedSkill = detectSkill(text);
+        const lang = detectLanguage(text);
+
+        // Generate auto-fix suggestion if none from API
+        let suggestion = lintResult?.suggestion || null;
+        let fixed = lintResult?.optimized || '';
+
+        // If no API suggestion, generate local improvement
+        if (!suggestion && text.length > 10) {
+          // Simple improvements: add context request
+          if (!text.includes('?') && !text.toLowerCase().startsWith('please')) {
+            fixed = `Please ${text.charAt(0).toLowerCase()}${text.slice(1)}. Provide detailed analysis.`;
+            suggestion = fixed;
+          }
+        }
+
+        state.linter = {
+          score: lintResult?.score ?? Math.max(100 - Math.floor(tokens / 20), 50),
+          tokens,
+          cost: estimateCost(tokens),
+          issues: lintResult?.issues || [],
+          suggestion,
+          lang,
+          detectedSkill,
+          original: text,
+          fixed: fixed || text,
+        };
+
+        // Auto-activate detected skill
+        if (detectedSkill && !state.activeSkill) {
+          state.activeSkill = detectedSkill;
+        }
       } else {
-        error = result.error || 'Unknown error';
+        state.linter = { score: 0, tokens: 0, cost: 0, issues: [], suggestion: null, lang: 'EN', detectedSkill: null, original: '', fixed: '' };
+      }
+      // DON'T re-render on every keystroke - it breaks streaming
+      // Just update toolbar/buttons visibility directly via DOM
+      const toolbar = document.querySelector('.toolbar');
+      if (toolbar) {
+        if (text.length > 0) {
+          toolbar.classList.add('visible');
+        } else {
+          toolbar.classList.remove('visible');
+        }
       }
 
+    }
+
+    async function handleSend() {
+      const now = Date.now();
+      const input = document.getElementById('input');
+      const content = input?.value.trim();
+
+      console.log('[CHAT] handleSend called, content:', content?.substring(0, 20), 'sendInProgress:', sendInProgress, 'isLoading:', state.isLoading);
+
+      // Guard 1: Check if send already in progress
+      if (sendInProgress) {
+        console.log('[CHAT] BLOCKED: Send already in progress');
+        return;
+      }
+
+      // Guard 2: Check if same message sent within 3 seconds (duplicate protection)
+      if (content === lastSentMessage && (now - lastSentTime) < 3000) {
+        console.log('[CHAT] BLOCKED: Duplicate message within 3 seconds');
+        input.value = '';
+        return;
+      }
+
+      // Guard 3: Check for loading state
+      if (!content || state.isLoading) {
+        console.log('[CHAT] BLOCKED: No content or already loading');
+        return;
+      }
+
+      // Set all guards immediately
+      sendInProgress = true;
+      state.isLoading = true;
+      lastSentMessage = content;
+      lastSentTime = now;
+
+      console.log('[CHAT] SENDING:', content.substring(0, 30));
+
+      // Clear input immediately
+      input.value = '';
+      savedInputValue = '';
+
+      // Hide welcome screen when sending first message
+      const welcomeEl = document.getElementById('chatWelcome');
+      if (welcomeEl) welcomeEl.style.display = 'none';
+
+      // Auto-create conversation entry on first message (Rule 3)
+      if (state.messages.length === 0 && !state.activeConversationId) {
+        state.activeConversationId = crypto.randomUUID();
+        const title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
+        state.conversations.push({
+          id: state.activeConversationId,
+          title,
+          createdAt: new Date().toISOString(),
+          messageCount: 0,
+          messages: [],
+        });
+      }
+
+      // Build user message with file info
+      const fileNames = state.attachedFiles.map(f => f.file.name);
+      const userContent = fileNames.length
+        ? `${content}\n\n[Attached: ${fileNames.join(', ')}]`
+        : content;
+
+      const userMsgId = crypto.randomUUID();
+      state.messages.push({ id: userMsgId, role: 'user', content: userContent, files: [...state.attachedFiles], timestamp: new Date().toISOString() });
+      const filesToSend = [...state.attachedFiles];
+      state.attachedFiles = [];
+      state.showToolbar = false;
+      state.error = null;
+      state.protocolLogs = null; // Clear previous logs
+      state.linter = { score: 0, tokens: 0, cost: 0, issues: [], suggestion: null, lang: 'EN', detectedSkill: null, original: '', fixed: '' };
+      render();
+
+      // Show progress bar
+      const progressMessage = filesToSend.length
+        ? `Analyzing ${filesToSend.length} document${filesToSend.length > 1 ? 's' : ''}...`
+        : state.activeSkill
+          ? `Processing with ${state.activeSkill}...`
+          : 'Generating response...';
+      const stopProgress = simulateProgress(progressMessage, filesToSend.length ? 10000 : 5000);
+
+      try {
+        // Use FormData if files attached, otherwise JSON
+        const result = filesToSend.length
+          ? await apiCompleteWithFiles(content, filesToSend)
+          : await apiComplete(content);
+
+        // Complete progress
+        updateProgress(100, 'Complete');
+
+        if (result.success) {
+          const assistantMsgId = crypto.randomUUID();
+          // Extract text content from response (handle object responses)
+          let responseText = result.response;
+          if (typeof responseText === 'object' && responseText !== null) {
+            responseText = responseText.text || responseText.content || responseText.message || JSON.stringify(responseText);
+          }
+          state.messages.push({
+            id: assistantMsgId,
+            role: 'assistant',
+            content: responseText,
+            provider: result.provider,
+            skill_injected: result.skill_injected,
+            timestamp: new Date().toISOString(),
+            protocolLogs: buildMessageLogs(content, result, filesToSend),
+          });
+          state.provider = result.provider;
+        } else {
+          state.error = result.error || 'Unknown error';
+        }
+      } catch (err) {
+        state.error = err.message;
+      } finally {
+        stopProgress();
+        hideProgress();
+      }
+
+      state.isLoading = false;
+      sendInProgress = false;
       render();
     }
 
-    function handleKeyDown(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        document.getElementById('chat-form').requestSubmit();
+    // Handle message sent from THEMIS parent (unified input architecture)
+    async function handleSendFromParent(content) {
+      const now = Date.now();
+
+      console.log('[CHAT] handleSendFromParent called, content:', content?.substring(0, 20), 'sendInProgress:', sendInProgress, 'isLoading:', state.isLoading);
+
+      // Guard 1: Check if send already in progress
+      if (sendInProgress) {
+        console.log('[CHAT] BLOCKED: Send already in progress');
+        return;
+      }
+
+      // Guard 2: Check if same message sent within 3 seconds (duplicate protection)
+      if (content === lastSentMessage && (now - lastSentTime) < 3000) {
+        console.log('[CHAT] BLOCKED: Duplicate message within 3 seconds');
+        return;
+      }
+
+      // Guard 3: Check for loading state
+      if (!content || state.isLoading) {
+        console.log('[CHAT] BLOCKED: No content or already loading');
+        return;
+      }
+
+      // Set all guards immediately
+      sendInProgress = true;
+      state.isLoading = true;
+      lastSentMessage = content;
+      lastSentTime = now;
+
+      console.log('[CHAT] SENDING FROM PARENT:', content.substring(0, 30));
+
+      // Hide welcome screen when sending first message
+      const welcomeEl = document.getElementById('chatWelcome');
+      if (welcomeEl) welcomeEl.style.display = 'none';
+
+      // Auto-create conversation entry on first message
+      if (state.messages.length === 0 && !state.activeConversationId) {
+        state.activeConversationId = crypto.randomUUID();
+        const title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
+        state.conversations.push({
+          id: state.activeConversationId,
+          title,
+          createdAt: new Date().toISOString(),
+          messageCount: 0,
+          messages: [],
+        });
+      }
+
+      const userMsgId = crypto.randomUUID();
+      state.messages.push({ id: userMsgId, role: 'user', content: content, files: [], timestamp: new Date().toISOString() });
+      state.error = null;
+      state.protocolLogs = null;
+      state.linter = { score: 0, tokens: 0, cost: 0, issues: [], suggestion: null, lang: 'EN', detectedSkill: null, original: '', fixed: '' };
+      render();
+
+      // Show progress bar
+      const progressMessage = state.activeSkill
+        ? `Processing with ${state.activeSkill}...`
+        : 'Generating response...';
+      const stopProgress = simulateProgress(progressMessage, 5000);
+
+      try {
+        const result = await apiComplete(content);
+
+        // Complete progress
+        updateProgress(100, 'Complete');
+
+        if (result.success) {
+          const assistantMsgId = crypto.randomUUID();
+          let responseText = result.response;
+          if (typeof responseText === 'object' && responseText !== null) {
+            responseText = responseText.text || responseText.content || responseText.message || JSON.stringify(responseText);
+          }
+          state.messages.push({
+            id: assistantMsgId,
+            role: 'assistant',
+            content: responseText,
+            provider: result.provider,
+            skill_injected: result.skill_injected,
+            timestamp: new Date().toISOString(),
+            protocolLogs: buildMessageLogs(content, result, []),
+          });
+          state.provider = result.provider;
+        } else {
+          state.error = result.error || 'Unknown error';
+        }
+      } catch (err) {
+        state.error = err.message;
+      } finally {
+        stopProgress();
+        hideProgress();
+      }
+
+      state.isLoading = false;
+      sendInProgress = false;
+      render();
+
+      // Notify parent that message was processed
+      if (THEMIS_MODE && window.parent !== window) {
+        window.parent.postMessage({ type: 'chat-message-processed', success: !state.error }, '*');
       }
     }
 
-    function handleInput(e) {
-      const textarea = e.target;
-      textarea.style.height = '44px';
-      textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+    function toggleSkills() {
+      state.showSkills = !state.showSkills;
+      render();
+    }
+
+    // Conversation Management (Rule 3)
+    function startNewConversation() {
+      // Save current conversation if it has messages
+      if (state.messages.length > 0 && state.activeConversationId) {
+        const existingIdx = state.conversations.findIndex(c => c.id === state.activeConversationId);
+        if (existingIdx >= 0) {
+          state.conversations[existingIdx].messages = [...state.messages];
+          state.conversations[existingIdx].messageCount = state.messages.length;
+        }
+      } else if (state.messages.length > 0) {
+        // Save current messages as a new conversation
+        const firstMsg = state.messages[0]?.content || 'Untitled';
+        const title = firstMsg.substring(0, 30) + (firstMsg.length > 30 ? '...' : '');
+        state.conversations.push({
+          id: crypto.randomUUID(),
+          title,
+          createdAt: new Date().toISOString(),
+          messageCount: state.messages.length,
+          messages: [...state.messages],
+        });
+      }
+
+      // Create new empty conversation
+      const newId = crypto.randomUUID();
+      state.activeConversationId = newId;
+      state.messages = [];
+      state.showConversationSelector = false;
+      state.error = null;
+      render();
+      restoreInputState();
+      console.log('[CHAT] Started new conversation:', newId);
+    }
+
+    function switchConversation(convId) {
+      // Save current conversation first
+      if (state.messages.length > 0 && state.activeConversationId) {
+        const existingIdx = state.conversations.findIndex(c => c.id === state.activeConversationId);
+        if (existingIdx >= 0) {
+          state.conversations[existingIdx].messages = [...state.messages];
+          state.conversations[existingIdx].messageCount = state.messages.length;
+        } else {
+          const firstMsg = state.messages[0]?.content || 'Untitled';
+          const title = firstMsg.substring(0, 30) + (firstMsg.length > 30 ? '...' : '');
+          state.conversations.push({
+            id: state.activeConversationId,
+            title,
+            createdAt: new Date().toISOString(),
+            messageCount: state.messages.length,
+            messages: [...state.messages],
+          });
+        }
+      }
+
+      // Load selected conversation
+      const conv = state.conversations.find(c => c.id === convId);
+      if (conv) {
+        state.activeConversationId = convId;
+        state.messages = conv.messages ? [...conv.messages] : [];
+        state.showConversationSelector = false;
+        state.error = null;
+        render();
+        restoreInputState();
+        console.log('[CHAT] Switched to conversation:', convId);
+      }
+    }
+
+    async function selectSkill(name) {
+      if (state.activeSkill === name) {
+        state.activeSkill = null;
+      } else {
+        state.activeSkill = name;
+        await apiActivateSkill(name);
+      }
+      state.showSkills = false;
+      render();
+    }
+
+    function applyAutofix() {
+      const fixed = state.linter.fixed || state.linter.suggestion;
+      if (fixed) {
+        const input = document.getElementById('input');
+        input.value = fixed;
+        savedInputValue = fixed;
+        // Re-analyze with new text
+        handleInputChange({ target: input });
+      }
+    }
+
+    async function copyProtocolLogs() {
+      if (!state.protocolLogs) return;
+
+      const { request, response, stack } = state.protocolLogs;
+      const logText = `
+═══════════════════════════════════════════════════════════════
+                    PROTOCOL COMMUNICATION LOGS
+═══════════════════════════════════════════════════════════════
+
+📤 REQUEST
+───────────────────────────────────────────────────────────────
+Endpoint:  ${request.endpoint}
+Method:    ${request.method}
+Timestamp: ${request.timestamp}
+
+Payload:
+${JSON.stringify(request.payload, null, 2)}
+
+📥 RESPONSE
+───────────────────────────────────────────────────────────────
+Status:    ${response.status} ${response.statusText || ''}
+Error:     ${response.error || 'None'}
+Provider:  ${response.provider || 'N/A'}
+Fallback:  ${response.fallbackExhausted ? 'EXHAUSTED' : 'Active'}
+Attempted: ${response.providersAttempted?.join(' → ') || 'None'}
+
+${stack ? `🔴 STACK TRACE
+───────────────────────────────────────────────────────────────
+${stack}
+` : ''}
+═══════════════════════════════════════════════════════════════
+Generated: ${new Date().toISOString()}
+═══════════════════════════════════════════════════════════════
+`.trim();
+
+      try {
+        await navigator.clipboard.writeText(logText);
+        const btn = document.getElementById('copy-logs-btn');
+        if (btn) {
+          btn.classList.add('copied');
+          btn.innerHTML = `
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Copied!
+          `;
+          setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.innerHTML = `
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+              </svg>
+              Copy Logs
+            `;
+          }, 2000);
+        }
+      } catch (err) {
+        console.error('Failed to copy logs:', err);
+      }
+    }
+
+    // ============================================================
+    // SETTINGS
+    // ============================================================
+
+    function openSettings() {
+      console.log('[CHAT] Opening settings panel');
+      state.showSettings = true;
+      render();
+      restoreInputState();
+    }
+
+    function closeSettings() {
+      state.showSettings = false;
+      render();
+      restoreInputState();
+    }
+
+    // ============================================================
+    // CONTEXT MENU & LOGS MODAL
+    // ============================================================
+
+    function showContextMenu(x, y, messageId) {
+      // Adjust position to stay within viewport
+      const menuWidth = 200;
+      const menuHeight = 150;
+      if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
+      if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+
+      state.contextMenu = { visible: true, x, y, messageId };
+      render();
+      restoreInputState();
+    }
+
+    function hideContextMenu() {
+      if (state.contextMenu.visible) {
+        state.contextMenu = { visible: false, x: 0, y: 0, messageId: null };
+        render();
+        restoreInputState();
+      }
+    }
+
+    // Global functions for external access
+    window.showMessageLogs = function(messageId) {
+      state.logsModal = { visible: true, messageId };
+      state.contextMenu = { visible: false, x: 0, y: 0, messageId: null };
+      render();
+    };
+
+    // Expose progress functions globally
+    window.chatProgress = {
+      // Progress bar control
+      show: showProgress,
+      update: updateProgress,
+      hide: hideProgress,
+      simulate: simulateProgress,
+
+      // Protocol-aware functions
+      initProtocol: initProtocolSteps,
+      updateStep: updateProtocolStep,
+      showNegotiation: showNegotiation,
+      hideNegotiation: hideNegotiation,
+      simulateRetry: simulateNegotiationRetry,
+
+      // Adapter mode (from adapters.py)
+      ADAPTER_MODES,
+      getCurrentAdapterMode: () => currentAdapterMode,
+      setAdapterMode: (mode) => {
+        if (mode === 'METIER' || mode === 'DEV') {
+          currentAdapterMode = ADAPTER_MODES[mode];
+          console.log(`Adapter mode set to: ${currentAdapterMode.name} (${currentAdapterMode.adapter})`);
+          return true;
+        }
+        return false;
+      },
+
+      // Protocol definitions (from protocol.py + adapters.py)
+      PROTOCOL_STEPS_TODO_GENERIC,
+      PROTOCOL_LABELS_DEV,
+      PROTOCOL_LABELS_METIER,
+      getProtocolStepsTodo,
+      PROTOCOL_STEPS_TODO,
+      PROTOCOL_STEPS_CHAT,
+      PROTOCOL_STEPS,
+
+      // Constraints (from constraints.py)
+      ENV_CONSTRAINTS,
+      CTX_CONSTRAINTS,
+      getConstraint,
+
+      // Fallback chain (from llm_providers.py)
+      FALLBACK_CHAIN,
+
+      // Negotiation (from negotiator.py)
+      NEGOTIATION_STRATEGIES,
+      DODGE_PATTERNS,
+      detectDodge,
+
+      // Skill validators (from negotiator.py)
+      SKILL_CONSTRAINT_VALIDATORS,
+      validateSkillConstraints,
+    };
+
+    function closeLogsModal() {
+      state.logsModal = { visible: false, messageId: null };
+      render();
+      restoreInputState();
+    }
+
+    // ============================================================
+    // PROGRESS BAR
+    // ============================================================
+
+    function showProgress(message, percent = 0, substatus = '') {
+      state.progress = {
+        visible: true,
+        message,
+        percent,
+        substatus,
+        protocolSteps: [],
+        currentStep: -1,
+        negotiation: { active: false, strategy: null, retryCount: 0, errorType: null }
+      };
+      render();
+    }
+
+    function updateProgress(percent, substatus = null) {
+      state.progress.percent = percent;
+      if (substatus !== null) state.progress.substatus = substatus;
+      // Update only progress element for performance
+      const fill = document.querySelector('.progress-fill');
+      const percentEl = document.querySelector('.progress-percent');
+      const substatusEl = document.querySelector('.progress-substatus');
+      if (fill) fill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+      if (percentEl) percentEl.textContent = `${Math.round(percent)}%`;
+      if (substatusEl && substatus !== null) substatusEl.textContent = substatus;
+    }
+
+    function hideProgress() {
+      state.progress = {
+        visible: false,
+        message: '',
+        percent: 0,
+        substatus: '',
+        protocolSteps: [],
+        currentStep: -1,
+        negotiation: { active: false, strategy: null, retryCount: 0, errorType: null }
+      };
+      render();
+    }
+
+    // Initialize protocol steps for display
+    function initProtocolSteps() {
+      state.progress.protocolSteps = PROTOCOL_STEPS.map(step => ({
+        ...step,
+        status: 'pending',
+        error: null
+      }));
+      render();
+    }
+
+    // Update a specific protocol step
+    function updateProtocolStep(stepIndex, status, error = null) {
+      if (state.progress.protocolSteps[stepIndex]) {
+        state.progress.protocolSteps[stepIndex].status = status;
+        state.progress.protocolSteps[stepIndex].error = error;
+        state.progress.currentStep = stepIndex;
+
+        // Update percent based on completed steps
+        const completed = state.progress.protocolSteps.filter(s => s.status === 'success').length;
+        const total = state.progress.protocolSteps.length;
+        state.progress.percent = Math.round((completed / total) * 100);
+
+        // Update substatus with current step
+        const step = state.progress.protocolSteps[stepIndex];
+        state.progress.substatus = `${step.label}${step.constraint ? ` [${step.constraint}]` : ''}`;
+
+        render();
+      }
+    }
+
+    // Show negotiation in progress
+    function showNegotiation(errorType, retryCount) {
+      state.progress.negotiation = {
+        active: true,
+        strategy: NEGOTIATION_STRATEGIES[errorType]?.action || 'retry',
+        retryCount,
+        errorType
+      };
+      state.progress.message = `Negotiating: ${NEGOTIATION_STRATEGIES[errorType]?.feedback || errorType}`;
+      render();
+    }
+
+    // Hide negotiation indicator
+    function hideNegotiation() {
+      state.progress.negotiation = { active: false, strategy: null, retryCount: 0, errorType: null };
+      render();
+    }
+
+    // Simulate progress with protocol steps for LLM calls
+    function simulateProgress(message, estimatedDuration = 5000) {
+      showProgress(message, 0);
+
+      // For LLM chat, simulate a simplified protocol
+      const chatSteps = [
+        { id: 'STEP_01', name: 'build_context', label: 'Build Context', constraint: 'ENV015', status: 'pending' },
+        { id: 'STEP_02', name: 'inject_skill', label: 'Inject Skill', constraint: null, status: 'pending' },
+        { id: 'STEP_03', name: 'call_llm', label: 'Call LLM Provider', constraint: 'CTX001', status: 'pending' },
+        { id: 'STEP_04', name: 'validate_response', label: 'Validate Response', constraint: 'CTX003', status: 'pending' },
+        { id: 'STEP_05', name: 'parse_output', label: 'Parse Output', constraint: 'CTX002', status: 'pending' },
+      ];
+      state.progress.protocolSteps = chatSteps;
+      render();
+
+      let startTime = Date.now();
+      let currentStepIdx = 0;
+      const stepDuration = estimatedDuration / chatSteps.length;
+
+      let progressInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const expectedStep = Math.floor(elapsed / stepDuration);
+
+        // Update steps that should be completed
+        while (currentStepIdx < expectedStep && currentStepIdx < chatSteps.length) {
+          state.progress.protocolSteps[currentStepIdx].status = 'success';
+          currentStepIdx++;
+        }
+
+        // Mark current step as running
+        if (currentStepIdx < chatSteps.length) {
+          state.progress.protocolSteps[currentStepIdx].status = 'running';
+          state.progress.currentStep = currentStepIdx;
+          state.progress.substatus = chatSteps[currentStepIdx].label + (chatSteps[currentStepIdx].constraint ? ` [${chatSteps[currentStepIdx].constraint}]` : '');
+        }
+
+        // Ease-out progress
+        const progress = Math.min(95, (1 - Math.exp(-elapsed / (estimatedDuration * 0.5))) * 100);
+        state.progress.percent = progress;
+
+        // Update DOM directly for performance
+        const fill = document.querySelector('.progress-fill');
+        const percentEl = document.querySelector('.progress-percent');
+        if (fill) fill.style.width = `${progress}%`;
+        if (percentEl) percentEl.textContent = `${Math.round(progress)}%`;
+
+        // Re-render steps periodically
+        if (elapsed % 500 < 100) render();
+
+        if (!state.isLoading || !state.progress.visible) {
+          clearInterval(progressInterval);
+        }
+      }, 100);
+
+      return () => clearInterval(progressInterval);
+    }
+
+    // Simulate negotiation retry
+    function simulateNegotiationRetry(errorType, retryCount, duration = 2000) {
+      showNegotiation(errorType, retryCount);
+
+      return new Promise(resolve => {
+        setTimeout(() => {
+          hideNegotiation();
+          resolve();
+        }, duration);
+      });
+    }
+
+    async function copyMessageLogs(msg) {
+      if (!msg?.protocolLogs) return;
+
+      const { request, response, negotiation, skillContext } = msg.protocolLogs;
+      const negotiationText = negotiation ? negotiation.map(s =>
+        `  ${s.step}. [${s.status.toUpperCase()}] ${s.action}\n     └─ ${s.detail}`
+      ).join('\n') : 'N/A';
+
+      const logText = `
+═══════════════════════════════════════════════════════════════
+              MESSAGE PROTOCOL & NEGOTIATION LOGS
+═══════════════════════════════════════════════════════════════
+
+📤 REQUEST
+───────────────────────────────────────────────────────────────
+Endpoint:  ${request.endpoint}
+Method:    ${request.method}
+Timestamp: ${request.timestamp}
+
+Payload:
+${JSON.stringify(request.payload, null, 2)}
+
+🔄 NEGOTIATION
+───────────────────────────────────────────────────────────────
+${negotiationText}
+
+📥 RESPONSE
+───────────────────────────────────────────────────────────────
+Status:    ${response.status} ${response.statusText || ''}
+Provider:  ${response.provider ? formatProvider(response.provider) : 'N/A'}
+Model:     ${response.model || 'N/A'}
+Tokens:    Prompt: ${response.tokens?.prompt || '~'} | Completion: ${response.tokens?.completion || '~'}
+Latency:   ${response.latency || 'N/A'}ms
+Cached:    ${response.cached ? 'Yes' : 'No'}
+
+${skillContext?.injected ? `🎯 SKILL CONTEXT
+───────────────────────────────────────────────────────────────
+Skill:     ${skillContext.name}
+Injected:  Yes
+Tokens:    ${skillContext.tokens || 'N/A'}
+` : ''}
+═══════════════════════════════════════════════════════════════
+Generated: ${new Date().toISOString()}
+═══════════════════════════════════════════════════════════════
+`.trim();
+
+      try {
+        await navigator.clipboard.writeText(logText);
+
+        // Visual feedback
+        const btn = document.getElementById('logs-modal-copy');
+        if (btn) {
+          const original = btn.textContent;
+          btn.textContent = 'Copied!';
+          btn.style.background = 'rgba(34, 197, 94, 0.8)';
+          btn.style.color = 'white';
+          setTimeout(() => {
+            btn.textContent = original;
+            btn.style.background = '';
+            btn.style.color = '';
+          }, 2000);
+        }
+      } catch (err) {
+        console.error('Failed to copy logs:', err);
+      }
+    }
+
+    // ============================================================
+    // FILE ATTACHMENTS
+    // ============================================================
+
+    function handleFileSelect(e) {
+      const files = Array.from(e.target.files || []);
+      addFiles(files);
+      e.target.value = ''; // Reset input
+    }
+
+    function restoreInputState() {
+      const input = document.getElementById('input');
+      if (input && savedInputValue) {
+        input.value = savedInputValue;
+        input.focus();
+      }
+    }
+
+    async function addFiles(files) {
+      const validFiles = files.filter(isAcceptedFile);
+      if (validFiles.length === 0) return;
+
+      // Show progress for multiple files
+      if (validFiles.length > 1) {
+        showProgress(`Processing ${validFiles.length} files...`, 0);
+      }
+
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
+        const id = crypto.randomUUID();
+        let preview = null;
+
+        // Update progress
+        if (validFiles.length > 1) {
+          updateProgress(((i + 0.5) / validFiles.length) * 100, `Processing: ${file.name}`);
+        }
+
+        // Generate preview for images
+        if (file.type.startsWith('image/')) {
+          preview = await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.readAsDataURL(file);
+          });
+        }
+
+        state.attachedFiles.push({ id, file, preview });
+      }
+
+      if (validFiles.length > 1) {
+        hideProgress();
+      }
+
+      render();
+      restoreInputState();
+    }
+
+    function removeAttachment(id) {
+      savedInputValue = document.getElementById('input')?.value || '';
+      state.attachedFiles = state.attachedFiles.filter(f => f.id !== id);
+      render();
+      restoreInputState();
+    }
+
+    // ============================================================
+    // VOICE RECORDING
+    // ============================================================
+
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordingInterval = null;
+    let audioContext = null;
+    let analyser = null;
+
+    async function toggleRecording() {
+      if (state.isRecording) {
+        stopRecording();
+      } else {
+        await startRecording();
+      }
+    }
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        audioContext = new AudioContext();
+        analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 256;
+
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = handleRecordingStop;
+        mediaRecorder.start();
+
+        state.isRecording = true;
+        state.recordingTime = 0;
+        recordingInterval = setInterval(() => {
+          state.recordingTime++;
+          render();
+          drawWaveform();
+        }, 1000);
+
+        render();
+        drawWaveform();
+      } catch (err) {
+        state.error = 'Microphone access denied';
+        render();
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+      }
+      if (recordingInterval) clearInterval(recordingInterval);
+      if (audioContext) audioContext.close();
+      state.isRecording = false;
+      render();
+    }
+
+    async function handleRecordingStop() {
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      try {
+        const result = await apiWhisper(blob);
+        if (result.text) {
+          document.getElementById('input').value = result.text;
+          handleInputChange({ target: document.getElementById('input') });
+        }
+      } catch (err) {
+        state.error = 'Transcription failed';
+        render();
+      }
+    }
+
+    function drawWaveform() {
+      const canvas = document.getElementById('waveform');
+      if (!canvas || !analyser) return;
+      const ctx = canvas.getContext('2d');
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(data);
+
+      canvas.width = canvas.offsetWidth * 2;
+      canvas.height = canvas.offsetHeight * 2;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#3b82f6';
+
+      const barWidth = canvas.width / data.length * 2;
+      data.forEach((v, i) => {
+        const h = (v / 255) * canvas.height;
+        ctx.fillRect(i * barWidth, canvas.height - h, barWidth - 1, h);
+      });
     }
 
     // ============================================================
@@ -305,23 +3546,103 @@
     // ============================================================
 
     async function init() {
-      // Check backend status
-      const status = await getStatus();
-      if (status?.llm?.active) {
-        activeProvider = status.llm.active;
-      } else if (status?.llm?.available?.length > 0) {
-        activeProvider = status.llm.available[0];
+      // Dark mode
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark');
       }
 
-      // Check for dark mode
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.classList.add('dark');
+      // Global drag & drop (bind once)
+      let dragCounter = 0;
+      document.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dragCounter++;
+        if (dragCounter === 1) {
+          state.isDragging = true;
+          render();
+          restoreInputState();
+        }
+      });
+      document.addEventListener('dragover', (e) => {
+        e.preventDefault();
+      });
+      document.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter === 0) {
+          state.isDragging = false;
+          render();
+          restoreInputState();
+        }
+      });
+      document.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dragCounter = 0;
+        state.isDragging = false;
+        const files = Array.from(e.dataTransfer?.files || []);
+        addFiles(files);
+      });
+
+      // Get status
+      const status = await apiStatus();
+      if (status?.llm?.active) {
+        state.provider = status.llm.active;
+      } else if (status?.llm?.available?.length) {
+        state.provider = status.llm.available[0];
+      }
+
+      // Get skills
+      state.skills = await apiSkills();
+
+      // THEMIS: Start with fresh conversation (don't load history by default)
+      // History can be loaded via conversation selector if needed
+      if (THEMIS_MODE) {
+        state.messages = [];
+        state.activeConversationId = null;
+        state.conversations = [];
       }
 
       render();
+
+      // Rule 2: Focus textarea on page load
+      setTimeout(() => {
+        const input = document.getElementById('input');
+        if (input) input.focus();
+      }, 100);
+
+      // THEMIS: Request context from parent if in iframe
+      if (THEMIS_MODE && isInIframe) {
+        window.parent.postMessage({ type: 'chat-request-context' }, '*');
+      }
     }
 
     init();
+
+    // Expose THEMIS integration API for parent
+    window.themisChat = {
+      // Set context programmatically
+      setContext: (ctx) => {
+        state.themis = { ...state.themis, ...ctx };
+        if (ctx.active_skill) state.activeSkill = ctx.active_skill;
+        render();
+      },
+      // Get current state
+      getState: () => ({ ...state }),
+      // Send a message programmatically (used by THEMIS parent)
+      sendMessage: async (message) => {
+        if (THEMIS_MODE) {
+          await handleSendFromParent(message);
+        } else {
+          savedInputValue = message;
+          await handleSend();
+        }
+      },
+      // Set selected evidence
+      setSelectedEvidence: (evidenceIds) => {
+        state.themis.selectedEvidence = evidenceIds;
+      },
+      // Check if THEMIS mode
+      isThemisMode: () => THEMIS_MODE,
+    };
   </script>
 </body>
 </html>
