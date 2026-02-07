@@ -5732,14 +5732,15 @@ body.dark-theme .dropdown-action-icon {
    ============================================================================= */
 .linter-bar {
     display: none;
-    padding: 10px 14px;
+    padding: 8px 12px;
     margin: 0 var(--space-md);
     border-radius: 10px;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     font-size: 12px;
     background: var(--white);
     border: 1px solid var(--gray-200);
+    flex-wrap: wrap;
 }
 .linter-bar.visible { display: flex; }
 .linter-bar.good { background: rgba(34,197,94,0.1); border-color: var(--green-500); }
@@ -5807,6 +5808,46 @@ body.dark-theme .dropdown-action-icon {
 .linter-fix-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(99,102,241,0.4);
+}
+.linter-optimize-btn {
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all .15s;
+    white-space: nowrap;
+}
+.linter-optimize-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245,158,11,0.4);
+}
+.linter-tier-group {
+    display: flex;
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.linter-tier-btn {
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 500;
+    border: none;
+    background: var(--white);
+    color: var(--gray-500);
+    cursor: pointer;
+    border-right: 1px solid var(--gray-200);
+    transition: all .1s;
+}
+.linter-tier-btn:last-child { border-right: none; }
+.linter-tier-btn:hover { background: var(--gray-50); }
+.linter-tier-btn.active {
+    background: var(--blue-600);
+    color: #fff;
 }
 
 .linter-preview {
@@ -12939,6 +12980,7 @@ Examples:
     const [selectedSkill, setSelectedSkill] = useState(null);
     const [selectedRewrite, setSelectedRewrite] = useState(null);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [optimizeTier, setOptimizeTier] = useState("intermediate");
     const linterTimeoutRef = React.useRef(null);
     
     // Debounced linting on input change
@@ -13870,36 +13912,44 @@ const handleSend = async () => {
               children: issue.message
             }))
           }),
-          // Apply rewrite button
-          linterResult.hasRewrites && linterResult.topRewrite && h("button", {
-            className: "linter-fix-btn",
+          // Tier selector — segmented buttons
+          h("div", { className: "linter-tier-group", children: [
+            h("button", { className: `linter-tier-btn ${optimizeTier === "beginner" ? "active" : ""}`, onClick: () => setOptimizeTier("beginner"), children: "Basic" }),
+            h("button", { className: `linter-tier-btn ${optimizeTier === "intermediate" ? "active" : ""}`, onClick: () => setOptimizeTier("intermediate"), children: "Standard" }),
+            h("button", { className: `linter-tier-btn ${optimizeTier === "advanced" ? "active" : ""}`, onClick: () => setOptimizeTier("advanced"), children: "Full" })
+          ] }),
+          h("button", {
+            className: "linter-optimize-btn",
             onClick: () => {
-              setInput(linterResult.topRewrite.template);
-              setSelectedSkill(linterResult.topRewrite.skill);
-              addNotification && addNotification("success", "Applied " + linterResult.topRewrite.skill + " template");
+              if (!input || input.trim().length < 3) return;
+              if (typeof PromptLinter === 'undefined' || !PromptLinter.improvePrompt) return;
+              var result = PromptLinter.improvePrompt(input, linterResult || {}, optimizeTier);
+              if (result.success && result.improved) {
+                setInput(result.improved);
+                addNotification && addNotification("success", "Optimized (" + optimizeTier + "): " + (result.changes || []).join(", "));
+              }
             },
-            children: "Auto-fix"
+            children: "Optimize"
           })
         ]
       }),
-      // Linter preview - shows rewrite diff
+      // Skill rewrite suggestion — separate from optimize, clickable to apply
       chatSettings[mode]?.linter && linterResult && linterResult.hasRewrites && linterResult.topRewrite && h("div", {
         className: "linter-preview visible",
+        style: { cursor: "pointer" },
+        onClick: () => {
+          setInput(linterResult.topRewrite.template);
+          setSelectedSkill(linterResult.topRewrite.skill);
+          addNotification && addNotification("success", "Applied " + linterResult.topRewrite.skill + " template");
+        },
         children: [
           h("div", { className: "linter-preview-header", children: [
-            h("span", { children: "Rewrite Preview" }),
-            h("span", { style: { fontWeight: 400, fontSize: "10px", color: "var(--gray-400)" }, children: "Click Auto-fix to apply" })
+            h("span", { children: "Skill: " + linterResult.topRewrite.skill }),
+            h("span", { style: { fontWeight: 400, fontSize: "10px", color: "var(--gray-400)" }, children: "Click to apply template" })
           ] }),
-          h("div", { className: "linter-preview-diff", children: [
-            h("div", { className: "linter-preview-col original", children: [
-              h("div", { className: "linter-preview-label", children: "Original" }),
-              h("div", { children: input.length > 150 ? input.slice(0, 150) + "..." : input })
-            ] }),
-            h("div", { className: "linter-preview-col fixed", children: [
-              h("div", { className: "linter-preview-label", children: "Auto-fixed" }),
-              h("div", { children: linterResult.topRewrite.template.length > 150 ? linterResult.topRewrite.template.slice(0, 150) + "..." : linterResult.topRewrite.template })
-            ] })
-          ] })
+          h("div", { style: { fontSize: "11px", color: "var(--gray-600)", padding: "8px 12px", fontFamily: "var(--font-mono, monospace)", whiteSpace: "pre-wrap", lineHeight: 1.5 },
+            children: linterResult.topRewrite.template.length > 200 ? linterResult.topRewrite.template.slice(0, 200) + "..." : linterResult.topRewrite.template
+          })
         ]
       }),
       // Tag filter dropdown
