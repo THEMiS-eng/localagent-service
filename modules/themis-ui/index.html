@@ -4670,7 +4670,13 @@ body.dark-theme .dropdown-action-icon {
 .search-context-icon.xlsx { background: #22c55e; }
 .search-context-icon.msg { background: #6b7280; }
 .search-context-icon.mpp { background: #f59e0b; }
-.search-context-icon.png, .search-context-icon.jpg { background: #8b5cf6; }
+.search-context-icon.png, .search-context-icon.jpg, .search-context-icon.jpeg, .search-context-icon.tiff, .search-context-icon.bmp { background: #8b5cf6; }
+.search-context-icon.xer { background: #f97316; }
+.search-context-icon.dwg { background: #0ea5e9; }
+.search-context-icon.eml { background: #6366f1; }
+.search-context-icon.pst, .search-context-icon.ost { background: #7c3aed; }
+.search-context-icon.md, .search-context-icon.txt { background: #6b7280; }
+.search-context-icon.csv { background: #22c55e; }
 
 .search-context-info {
     flex: 1;
@@ -4952,6 +4958,15 @@ body.dark-theme .dropdown-action-icon {
 .file-icon.jpeg { background: var(--purple-500); }
 .file-icon.xer { background: var(--orange-500); }
 .file-icon.pptx { background: var(--orange-500); }
+.file-icon.dwg { background: #0ea5e9; }
+.file-icon.eml { background: #6366f1; }
+.file-icon.tiff { background: var(--purple-500); }
+.file-icon.bmp { background: var(--purple-500); }
+.file-icon.pst { background: #7c3aed; }
+.file-icon.ost { background: #7c3aed; }
+.file-icon.md { background: var(--gray-500); }
+.file-icon.txt { background: var(--gray-500); }
+.file-icon.csv { background: var(--green-500); }
 
 /* =============================================================================
    DOCUMENT LIST - Format: [Badge] [Info] [Checkbox]
@@ -5053,7 +5068,14 @@ body.dark-theme .dropdown-action-icon {
 .file-icon-sm.docx { background: var(--blue-500); }
 .file-icon-sm.xlsx { background: var(--green-500); }
 .file-icon-sm.msg { background: var(--gray-500); }
-.file-icon-sm.png, .file-icon-sm.jpg { background: var(--purple-500); }
+.file-icon-sm.png, .file-icon-sm.jpg, .file-icon-sm.jpeg, .file-icon-sm.tiff, .file-icon-sm.bmp { background: var(--purple-500); }
+.file-icon-sm.xer { background: var(--orange-500); }
+.file-icon-sm.dwg { background: #0ea5e9; }
+.file-icon-sm.eml { background: #6366f1; }
+.file-icon-sm.pst, .file-icon-sm.ost { background: #7c3aed; }
+.file-icon-sm.md, .file-icon-sm.txt { background: var(--gray-500); }
+.file-icon-sm.csv { background: var(--green-500); }
+.file-icon-sm.mpp { background: var(--amber-500); }
 
 .fulltext-result-file {
     font-size: 12px;
@@ -6416,6 +6438,13 @@ body.dark-theme .dropdown-action-icon {
 .item-icon.file.xlsx { background: #dcfce7; color: #16a34a; }
 .item-icon.file.mpp { background: #f3e8ff; color: #7c3aed; }
 .item-icon.file.msg { background: #cffafe; color: #0891b2; }
+.item-icon.file.xer { background: #ffedd5; color: #ea580c; }
+.item-icon.file.dwg { background: #e0f2fe; color: #0284c7; }
+.item-icon.file.eml { background: #e0e7ff; color: #4f46e5; }
+.item-icon.file.pst, .item-icon.file.ost { background: #ede9fe; color: #6d28d9; }
+.item-icon.file.png, .item-icon.file.jpg, .item-icon.file.jpeg, .item-icon.file.tiff, .item-icon.file.bmp { background: #f3e8ff; color: #7c3aed; }
+.item-icon.file.md, .item-icon.file.txt { background: #f3f4f6; color: #4b5563; }
+.item-icon.file.csv { background: #dcfce7; color: #16a34a; }
 .item-icon.tool { background: var(--blue-100); color: var(--blue-600); }
 .item-icon.output { background: var(--green-100); color: var(--green-600); }
 
@@ -10162,7 +10191,7 @@ initializeApp();
       closeModal();
     };
     const handleWizardFiles = (files) => {
-      const validExtensions = ["pdf", "docx", "xlsx", "png", "jpg", "jpeg", "tiff", "doc", "xls", "msg", "mpp"];
+      const validExtensions = ["pdf", "docx", "xlsx", "png", "jpg", "jpeg", "tiff", "bmp", "doc", "xls", "msg", "mpp", "xer", "dwg", "eml", "pst", "ost", "md", "txt", "csv"];
       const filesArray = Array.from(files);
       const validFiles = filesArray.filter((f) => {
         const ext = f.name.split(".").pop().toLowerCase();
@@ -11536,7 +11565,12 @@ Examples:
     pdf: { icon: "", color: "#ef4444" }, docx: { icon: "", color: "#3b82f6" },
     xlsx: { icon: "", color: "#22c55e" }, msg: { icon: "", color: "#f59e0b" },
     mpp: { icon: "...", color: "#8b5cf6" }, png: { icon: "-", color: "#06b6d4" },
-    jpg: { icon: "-", color: "#06b6d4" }
+    jpg: { icon: "-", color: "#06b6d4" }, jpeg: { icon: "-", color: "#06b6d4" },
+    xer: { icon: "P6", color: "#f97316" }, dwg: { icon: "CAD", color: "#0ea5e9" },
+    tiff: { icon: "-", color: "#8b5cf6" }, bmp: { icon: "-", color: "#8b5cf6" },
+    eml: { icon: "@", color: "#6366f1" }, pst: { icon: "MBX", color: "#7c3aed" },
+    ost: { icon: "MBX", color: "#7c3aed" }, md: { icon: "#", color: "#6b7280" },
+    txt: { icon: "TXT", color: "#6b7280" }, csv: { icon: ",", color: "#22c55e" }
   };
   var FileManagerModal = () => {
     const {
@@ -13601,7 +13635,7 @@ const handleSend = async () => {
         type: "file",
         ref: fileInputRef,
         multiple: true,
-        accept: "image/*,text/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.json",
+        accept: "image/*,text/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.json,.xer,.mpp,.dwg,.tiff,.bmp,.msg,.eml,.pst,.ost,.md,.txt",
         style: { display: "none" },
         onChange: (e) => { handleFileAttach(e.target.files); e.target.value = ""; }
       }),

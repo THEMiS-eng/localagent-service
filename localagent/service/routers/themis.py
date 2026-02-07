@@ -1115,7 +1115,7 @@ async def classify_evidence(evidence_id: str):
             # Read file content
             filepath = Path(e.get("file_path", ""))
             text = ""
-            if filepath.exists() and filepath.suffix.lower() in [".txt", ".md", ".pdf"]:
+            if filepath.exists() and filepath.suffix.lower() in [".txt", ".md", ".pdf", ".docx", ".csv", ".eml", ".xer", ".json"]:
                 try:
                     text = filepath.read_text(errors="ignore")[:5000]
                 except:

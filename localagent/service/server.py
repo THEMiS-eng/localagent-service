@@ -300,6 +300,131 @@ async def chat_endpoint(data: Dict[str, Any]):
                         logger.error(f"Failed to extract PDF: {e}")
                         doc_texts.append(f"[Could not extract text from {att_name}: {e}]")
 
+                elif att_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" or att_name.endswith(".xlsx"):
+                    # Extract text from XLSX
+                    try:
+                        import openpyxl
+                        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
+                        sheets_text = []
+                        for ws in wb.worksheets:
+                            rows = []
+                            for row in ws.iter_rows(values_only=True):
+                                cells = [str(c) if c is not None else "" for c in row]
+                                if any(cells):
+                                    rows.append("\t".join(cells))
+                            if rows:
+                                sheets_text.append(f"--- Sheet: {ws.title} ---\n" + "\n".join(rows))
+                        wb.close()
+                        text = "\n\n".join(sheets_text)
+                        if text:
+                            doc_texts.append(f"=== Content of {att_name} ===\n{text}\n=== End of {att_name} ===")
+                            logger.info(f"Extracted {len(text)} chars from XLSX: {att_name}")
+                    except ImportError:
+                        doc_texts.append(f"[XLSX extraction requires openpyxl - file stored: {att_name}]")
+                    except Exception as e:
+                        logger.error(f"Failed to extract XLSX: {e}")
+                        doc_texts.append(f"[Could not extract text from {att_name}: {e}]")
+
+                elif att_name.lower().endswith(".eml"):
+                    # Extract text from EML (stdlib - no external deps)
+                    try:
+                        import email
+                        from email import policy
+                        msg = email.message_from_bytes(file_bytes, policy=policy.default)
+                        parts = []
+                        parts.append(f"From: {msg.get('From', '')}")
+                        parts.append(f"To: {msg.get('To', '')}")
+                        parts.append(f"Date: {msg.get('Date', '')}")
+                        parts.append(f"Subject: {msg.get('Subject', '')}")
+                        parts.append("---")
+                        body = msg.get_body(preferencelist=('plain', 'html'))
+                        if body:
+                            content = body.get_content()
+                            if body.get_content_type() == 'text/html':
+                                import re
+                                content = re.sub(r'<[^>]+>', ' ', content)
+                                content = re.sub(r'\s+', ' ', content).strip()
+                            parts.append(content)
+                        text = "\n".join(parts)
+                        if text:
+                            doc_texts.append(f"=== Content of {att_name} ===\n{text}\n=== End of {att_name} ===")
+                            logger.info(f"Extracted {len(text)} chars from EML: {att_name}")
+                    except Exception as e:
+                        logger.error(f"Failed to extract EML: {e}")
+                        doc_texts.append(f"[Could not extract text from {att_name}: {e}]")
+
+                elif att_name.lower().endswith(".msg"):
+                    # Extract text from Outlook MSG
+                    try:
+                        import extract_msg
+                        msg = extract_msg.Message(io.BytesIO(file_bytes))
+                        parts = []
+                        parts.append(f"From: {msg.sender or ''}")
+                        parts.append(f"To: {msg.to or ''}")
+                        parts.append(f"Date: {msg.date or ''}")
+                        parts.append(f"Subject: {msg.subject or ''}")
+                        parts.append("---")
+                        if msg.body:
+                            parts.append(msg.body)
+                        msg.close()
+                        text = "\n".join(parts)
+                        if text:
+                            doc_texts.append(f"=== Content of {att_name} ===\n{text}\n=== End of {att_name} ===")
+                            logger.info(f"Extracted {len(text)} chars from MSG: {att_name}")
+                    except ImportError:
+                        doc_texts.append(f"[MSG extraction requires extract-msg - file stored: {att_name}]")
+                    except Exception as e:
+                        logger.error(f"Failed to extract MSG: {e}")
+                        doc_texts.append(f"[Could not extract text from {att_name}: {e}]")
+
+                elif att_name.lower().endswith(".xer"):
+                    # Parse Primavera P6 XER (pipe-delimited text format)
+                    try:
+                        raw = file_bytes.decode("utf-8", errors="ignore")
+                        lines = raw.split("\n")
+                        sections = []
+                        current_table = None
+                        current_fields = []
+                        current_rows = []
+                        for line in lines:
+                            line = line.rstrip("\r")
+                            if line.startswith("%T\t"):
+                                if current_table and current_rows:
+                                    sections.append(f"--- {current_table} ({len(current_rows)} rows) ---")
+                                    for row in current_rows[:20]:
+                                        sections.append(row)
+                                    if len(current_rows) > 20:
+                                        sections.append(f"  ... and {len(current_rows) - 20} more rows")
+                                current_table = line.split("\t", 1)[1] if "\t" in line else line[3:]
+                                current_fields = []
+                                current_rows = []
+                            elif line.startswith("%F\t"):
+                                current_fields = line.split("\t")[1:]
+                            elif line.startswith("%R\t"):
+                                vals = line.split("\t")[1:]
+                                if current_fields:
+                                    row = ", ".join(f"{k}={v}" for k, v in zip(current_fields, vals) if v.strip())
+                                else:
+                                    row = "\t".join(vals)
+                                current_rows.append(f"  {row}")
+                        if current_table and current_rows:
+                            sections.append(f"--- {current_table} ({len(current_rows)} rows) ---")
+                            for row in current_rows[:20]:
+                                sections.append(row)
+                        text = "\n".join(sections)
+                        if text:
+                            doc_texts.append(f"=== Content of {att_name} (P6 XER) ===\n{text}\n=== End of {att_name} ===")
+                            logger.info(f"Extracted {len(text)} chars from XER: {att_name}")
+                    except Exception as e:
+                        logger.error(f"Failed to parse XER: {e}")
+                        doc_texts.append(f"[Could not parse XER file {att_name}: {e}]")
+
+                elif att_name.lower().endswith((".mpp", ".dwg", ".pst", ".ost")):
+                    # Binary formats without local parsers - store and note
+                    ext = att_name.rsplit(".", 1)[-1].upper()
+                    doc_texts.append(f"[Attached {ext} file: {att_name} — binary format stored as evidence, text extraction not available locally]")
+                    logger.info(f"Stored binary file without extraction: {att_name} ({ext})")
+
                 elif att_type.startswith("text/") or att_name.endswith((".txt", ".md", ".json", ".csv")):
                     # Plain text files
                     text = file_bytes.decode("utf-8", errors="ignore")
