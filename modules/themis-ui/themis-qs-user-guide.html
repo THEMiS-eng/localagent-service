@@ -264,6 +264,12 @@
   .stp h4{font-size:.88rem;font-weight:600;color:var(--g800);margin-bottom:.15rem;}
   .stp p{font-size:.85rem;color:var(--g500);}
 
+  /* Screenshots */
+  .app-img{width:100%;border-radius:10px;border:1px solid var(--g200);box-shadow:0 4px 16px rgba(0,0,0,.1);margin:1rem 0 1.5rem;}
+  .app-img-sm{width:48%;border-radius:8px;border:1px solid var(--g200);box-shadow:0 2px 8px rgba(0,0,0,.08);}
+  .img-row{display:flex;gap:1rem;margin:1rem 0 1.5rem;flex-wrap:wrap;}
+  .img-cap{font-size:.78rem;color:var(--g400);text-align:center;margin-top:-.8rem;margin-bottom:1.2rem;font-style:italic;}
+
   @media print{.cover{min-height:100vh;}.pg{padding:2rem 1.5rem;}}
 </style>
 </head>
@@ -332,6 +338,9 @@
   <div class="sh"><div class="sh-n">1</div><h2>Opening THEMiS-QS &mdash; The Landing Page</h2></div>
   <p class="sh-d">When you open THEMiS-QS, the Landing Page is the first screen you see. From here you can open an existing case or create a new one.</p>
 
+  <img src="img-landing.png" alt="THEMiS-QS Landing Page" class="app-img">
+  <p class="img-cap">The Landing Page &mdash; search cases, open recent, or create new</p>
+
   <div class="scr">
     <div class="scr-bar"><div class="scr-d r"></div><div class="scr-d y"></div><div class="scr-d g"></div><div class="scr-url">localhost:9998</div></div>
     <div class="land">
@@ -379,6 +388,12 @@
   <hr>
   <div class="sh"><div class="sh-n">2</div><h2>Creating a New Case</h2></div>
   <p class="sh-d">The Case Creation Wizard guides you through setting up a new case. Choose Quick Create for a fast setup, or Full Setup for complete configuration including framework, methodology, and initial document import.</p>
+
+  <div class="img-row">
+    <img src="img-create-case.png" alt="Create New Case - Case step" class="app-img-sm">
+    <img src="img-analysis.png" alt="Analysis mode workspace" class="app-img-sm">
+  </div>
+  <p class="img-cap">Left: Case creation wizard &mdash; Right: Analysis mode with vault tree and QS Toolbox</p>
 
   <h3 class="t">Step 1 &mdash; Choose Setup Mode</h3>
 
@@ -735,6 +750,9 @@
   <div class="sh"><div class="sh-n">5</div><h2>Searching Evidence (Search Mode)</h2></div>
   <p class="sh-d">Switch to Search mode by clicking the <strong>S</strong> button in the header. Search mode provides full-text search across all evidence in the current vault.</p>
 
+  <img src="img-search.png" alt="THEMiS-QS Search Mode" class="app-img">
+  <p class="img-cap">Search mode &mdash; document list with filter, sort, and tag controls</p>
+
   <div class="scr">
     <div class="scr-bar"><div class="scr-d r"></div><div class="scr-d y"></div><div class="scr-d g"></div><div class="scr-url">localhost:9998 &mdash; Search Mode</div></div>
     <div class="ah">
@@ -784,6 +802,9 @@
   <hr>
   <div class="sh"><div class="sh-n">6</div><h2>Running Analysis (Analysis Mode)</h2></div>
   <p class="sh-d">Switch to Analysis mode by clicking the <strong>A</strong> button. The centre pane becomes a conversation panel where you submit queries against your case evidence.</p>
+
+  <img src="img-analysis.png" alt="THEMiS-QS Analysis Mode" class="app-img">
+  <p class="img-cap">Analysis mode &mdash; vault tree (left), conversation (centre), QS Toolbox (right)</p>
 
   <div class="steps">
     <div class="stp"><div class="stp-n">1</div><div><h4>Select evidence in the left pane</h4><p>Click documents in the vault to add them to the analysis context. A "USER CONTEXT" section appears showing selected documents with a count badge.</p></div></div>
@@ -1219,6 +1240,12 @@
   <hr>
   <div class="sh"><div class="sh-n">12</div><h2>Configuration &amp; Branding</h2></div>
   <p class="sh-d">Access settings via the gear icon in the header.</p>
+
+  <div class="img-row">
+    <img src="img-settings.png" alt="Settings panel" class="app-img-sm">
+    <img src="img-toolbar.png" alt="Input Toolbar configuration" class="app-img-sm">
+  </div>
+  <p class="img-cap">Left: Settings panel with Dark Mode &mdash; Right: Input Toolbar toggle configuration</p>
 
   <table class="gt">
     <thead><tr><th>Setting</th><th>Options</th></tr></thead>
