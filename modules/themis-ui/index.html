@@ -118,7 +118,7 @@ function h(type, props) {
     --pane-footer-h: 64px;
     --pane-side-w: 320px;
     --pane-collapsed-w: 48px;
-    --chat-input-h: 48px;
+    --chat-input-h: 36px;
     --chat-btn-size: 36px;
 }
 
@@ -142,40 +142,30 @@ body.mode-analysis .analysis-only-flex { display: flex; }
 
 /* Chat iframe container - base styles */
 .chat-iframe-container {
+    display: flex;
+    flex-direction: column;
     position: relative;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 
-/* The iframe itself - absolute fill */
-#localagent-chat {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    border: none !important;
+/* Disable iframe interaction while dragging files to allow drop on parent */
+.pane-center.dragging-files .chat-iframe-container iframe {
+    pointer-events: none;
 }
 
-/* ANALYSIS MODE: Chat iframe visible, document list hidden */
+/* ANALYSIS MODE: Chat iframe visible, THEMIS native input hidden */
 body.mode-analysis .pane-center .chat-iframe-container {
     flex: 1;
-    display: block !important;
-    min-height: 0 !important;
-    padding-bottom: var(--pane-footer-h); /* Leave room for unified input at bottom */
+    display: flex !important;
+}
+body.mode-analysis .pane-center .chat-input-wrapper {
+    display: flex !important;
+    visibility: visible !important;
 }
 body.mode-analysis .pane-center .pane-content {
     display: none !important;
     height: 0 !important;
     overflow: hidden !important;
-}
-/* Analysis mode: Show unified input (same as search mode) */
-body.mode-analysis .pane-center .chat-input-wrapper {
-    display: flex !important;
-    visibility: visible !important;
 }
 
 /* SEARCH MODE: Document list visible, chat iframe hidden */
@@ -192,7 +182,6 @@ body.mode-search .pane-center .pane-content {
     display: flex !important;
     flex: 1;
     min-height: 0;
-    padding-bottom: var(--pane-footer-h);
 }
 
 /* Search idle state - document list shown when not actively searching */
@@ -261,7 +250,6 @@ input, textarea {
     display: flex;
     flex: 1;
     overflow: hidden;
-    min-height: 0;
 }
 
 /* =============================================================================
@@ -4114,9 +4102,24 @@ body.dark-theme .modal-case-name {
     position: relative;
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    height: 100%;
-    overflow: hidden;
+}
+
+.pane-center.dragging-files {
+    background: #eff6ff;
+}
+
+.pane-center.dragging-files::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(59, 130, 246, 0.08);
+    border: 2px dashed var(--blue-400);
+    border-radius: 8px;
+    z-index: 50;
+    pointer-events: none;
 }
 
 .pane-right {
@@ -5702,38 +5705,188 @@ body.dark-theme .dropdown-action-icon {
 }
 
 /* =============================================================================
+   PROMPT LINTER (from localagent-chat standalone.html)
+   ============================================================================= */
+.linter-bar {
+    display: none;
+    padding: 10px 14px;
+    margin: 0 var(--space-md);
+    border-radius: 10px;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+}
+.linter-bar.visible { display: flex; }
+.linter-bar.good { background: rgba(34,197,94,0.1); border-color: var(--green-500); }
+.linter-bar.warn { background: rgba(245,158,11,0.1); border-color: var(--amber-500); }
+.linter-bar.bad { background: rgba(239,68,68,0.1); border-color: var(--red-500); }
+
+.linter-score {
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    min-width: 55px;
+    text-align: center;
+}
+.linter-bar.good .linter-score { background: var(--green-500); color: #fff; }
+.linter-bar.warn .linter-score { background: var(--amber-500); color: #000; }
+.linter-bar.bad .linter-score { background: var(--red-500); color: #fff; }
+
+.linter-meta {
+    display: flex;
+    gap: 10px;
+    color: var(--gray-500);
+    font-size: 11px;
+    flex-shrink: 0;
+}
+.linter-meta span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 8px;
+    background: var(--gray-100);
+    border-radius: 6px;
+}
+
+.linter-issues {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    overflow-x: auto;
+    padding: 2px 0;
+}
+.linter-issue {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    font-weight: 500;
+}
+.linter-issue.high { background: rgba(239,68,68,0.15); color: var(--red-500); }
+.linter-issue.medium { background: rgba(245,158,11,0.15); color: var(--amber-500); }
+.linter-issue.low { background: rgba(34,197,94,0.15); color: var(--green-500); }
+
+.linter-fix-btn {
+    padding: 6px 12px;
+    background: linear-gradient(135deg, var(--blue-600) 0%, var(--purple-500) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all .15s;
+    white-space: nowrap;
+}
+.linter-fix-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99,102,241,0.4);
+}
+
+.linter-preview {
+    display: none;
+    padding: 8px 12px;
+    margin: 8px var(--space-md) 0;
+    border-radius: 8px;
+    background: rgba(99,102,241,0.08);
+    border: 1px solid rgba(99,102,241,0.2);
+    font-size: 11px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+.linter-preview.visible { display: block; }
+.linter-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--blue-600);
+}
+.linter-preview-diff {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.linter-preview-col {
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.linter-preview-col.original {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.2);
+    text-decoration: line-through;
+    color: var(--gray-400);
+}
+.linter-preview-col.fixed {
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.2);
+    color: var(--green-600);
+}
+.linter-preview-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    opacity: 0.7;
+}
+
+/* =============================================================================
    CHAT INPUT
    ============================================================================= */
 .chat-input-wrapper {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: var(--pane-footer-h);
-    min-height: var(--pane-footer-h);
     display: flex;
-    align-items: center;
-    padding: var(--space-xs) var(--space-md);
+    padding: 0 var(--space-md);
     background: var(--white);
     border-top: 1px solid var(--gray-200);
-    z-index: 10;
     flex-shrink: 0;
-    overflow: visible;
+}
+
+/* Collapsed state - exact footer height, centered */
+.chat-input-wrapper.collapsed {
+    min-height: var(--pane-footer-h);
+    align-items: center;
+}
+
+/* Expanded state - grows for action buttons */
+.chat-input-wrapper.expanded {
+    min-height: var(--pane-footer-h);
+    align-items: flex-end;
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 
 .chat-input {
     display: flex;
-    align-items: flex-end;
-    gap: var(--space-xs);
+    flex-direction: column;
     flex: 1;
-    min-height: var(--chat-input-h);
-    max-height: 120px;
-    padding: var(--space-xs) var(--space-sm);
+    padding: 8px 12px;
     background: var(--white);
     border: 2px solid var(--gray-200);
-    border-radius: var(--radius-2xl);
+    border-radius: var(--radius-xl);
     box-shadow: var(--shadow-input);
-    transition: max-height 0.2s ease;
+}
+
+.chat-input-wrapper.collapsed .chat-input {
+    padding: 6px 12px;
+}
+
+.chat-input-wrapper.expanded .chat-input {
+    border-color: var(--blue);
+}
+
+.chat-input-wrapper.dragging .chat-input {
+    border-color: var(--blue);
+    border-style: dashed;
+    background: #eff6ff;
 }
 
 .chat-input input,
@@ -5746,11 +5899,9 @@ body.dark-theme .dropdown-action-icon {
     outline: none;
     font-family: inherit;
     line-height: 1.5;
-    padding: 8px 0;
     min-height: 24px;
-    max-height: 120px;
+    padding: 0;
     resize: none;
-    transition: height 0.1s ease;
 }
 
 .chat-input input::placeholder,
@@ -5799,6 +5950,7 @@ body.dark-theme .dropdown-action-icon {
     font-size: var(--font-size-sm);
 }
 
+.chat-btn svg { width: 16px; height: 16px; }
 .chat-btn:hover {
     background: var(--gray-100);
 }
@@ -6733,11 +6885,131 @@ body.dark-theme .dropdown-action-icon {
 .wiz-review-item { display: flex; justify-content: space-between; padding: 8px 12px; background: var(--gray-50); border-radius: 6px; }
 .wiz-review-label { font-size: 12px; color: var(--gray-500); }
 .wiz-review-value { font-size: 12px; font-weight: 600; color: var(--gray-900); }
+
+/* Chat Settings Panel */
+.chat-settings-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.3); z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(2px);
+}
+.chat-settings-panel {
+    background: var(--white); border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    width: 420px; max-width: 90vw; overflow: hidden;
+}
+.chat-settings-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--gray-200);
+}
+.chat-settings-header h3 {
+    margin: 0; font-size: 14px; font-weight: 600; color: var(--gray-900);
+}
+.chat-settings-close {
+    background: none; border: none; cursor: pointer; padding: 4px;
+    color: var(--gray-400); border-radius: 6px; display: flex;
+}
+.chat-settings-close:hover { background: var(--gray-100); color: var(--gray-600); }
+.chat-settings-body { padding: 16px 20px; }
+.chat-settings-table { width: 100%; border-collapse: collapse; }
+.chat-settings-table th {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--gray-400); padding: 0 8px 10px;
+    text-align: center;
+}
+.chat-settings-table th:first-child { text-align: left; }
+.chat-settings-table td {
+    padding: 8px; border-top: 1px solid var(--gray-100); text-align: center;
+}
+.chat-settings-table td:first-child {
+    text-align: left; font-size: 13px; font-weight: 500; color: var(--gray-700);
+    display: flex; align-items: center; gap: 8px;
+}
+.chat-settings-table td:first-child svg { width: 16px; height: 16px; color: var(--gray-400); }
+.chat-settings-toggle {
+    position: relative; width: 36px; height: 20px;
+    background: var(--gray-200); border-radius: 10px;
+    cursor: pointer; transition: background 0.2s;
+    border: none; display: inline-block;
+}
+.chat-settings-toggle.active { background: var(--blue-500); }
+.chat-settings-toggle::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; background: white;
+    border-radius: 50%; transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+.chat-settings-toggle.active::after { transform: translateX(16px); }
+.chat-settings-footer {
+    padding: 12px 20px; border-top: 1px solid var(--gray-200);
+    display: flex; justify-content: flex-end; gap: 8px;
+}
+.chat-settings-reset {
+    padding: 6px 14px; font-size: 12px; font-weight: 500;
+    background: none; border: 1px solid var(--gray-200); border-radius: 6px;
+    color: var(--gray-600); cursor: pointer;
+}
+.chat-settings-reset:hover { background: var(--gray-50); }
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Voice Status Bar (matches ai-chat-demo-with-linter UX) */
+.voice-status-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; margin-bottom: 8px;
+    border-radius: 10px; font-size: 13px;
+    background: var(--gray-50); border: 1px solid var(--gray-200);
+}
+.voice-status-bar.recording { border-color: #fca5a5; background: #fef2f2; }
+.voice-status-bar.processing { border-color: #93c5fd; background: #eff6ff; }
+.voice-status-bar.loading { border-color: #fcd34d; background: #fffbeb; }
+
+.voice-status-bar .voice-status-icon { display: flex; align-items: center; }
+.voice-status-bar .voice-status-text { flex: 1; }
+.voice-status-bar .voice-status-detail { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+.voice-status-bar .voice-progress { height: 6px; background: var(--gray-200); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.voice-status-bar .voice-progress-fill { height: 100%; background: #6366f1; transition: width 0.3s; }
+
+.voice-status-bar .voice-stop-btn {
+    background: #ef4444; border: none; color: #fff; cursor: pointer;
+    font-size: 12px; padding: 6px 14px; border-radius: 6px; font-weight: 500;
+}
+.voice-status-bar .voice-stop-btn:hover { background: #dc2626; }
+.voice-status-bar .voice-cancel-btn {
+    background: none; border: 1px solid var(--gray-300); color: var(--gray-600);
+    cursor: pointer; font-size: 11px; padding: 5px 10px; border-radius: 6px;
+}
+.voice-status-bar .voice-cancel-btn:hover { border-color: #ef4444; color: #ef4444; }
+
+.voice-waveform { display: flex; align-items: center; gap: 2px; height: 24px; padding: 0 6px; }
+.voice-waveform-bar { width: 3px; background: #ef4444; border-radius: 2px; transition: height 0.05s; }
+
+/* Voice button states inside input row */
+.voice-input-btn {
+    background: none; border: none; color: var(--gray-500); cursor: pointer;
+    padding: 6px; border-radius: 6px; display: flex; align-items: center; transition: all 0.15s;
+}
+.voice-input-btn:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+.voice-input-btn.loading { color: #f59e0b; }
+.voice-input-btn.ready { color: #22c55e; }
+.voice-input-btn.recording { color: #fff; background: #ef4444; animation: voicePulse 1.5s ease-in-out infinite; }
+.voice-input-btn.processing { color: #6366f1; }
+@keyframes voicePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
     </style>
+    <script src="/modules/localagent-chat/PromptLinter.bundle.js"></script>
+    <script src="/modules/whisper-module/WhisperTranscriber.js"></script>
 </head>
 <body class="mode-analysis framework-rics">
     <div id="root"></div>
     <script type="text/javascript">
+console.log("%c[THEMIS] CODE VERSION: 2026-02-06-V3 | WhisperTranscriber: " + (typeof WhisperTranscriber !== "undefined" ? "loaded" : "missing"), "color: red; font-size: 16px; font-weight: bold;");
 var ThemisApp = (() => {
   var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
     get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
@@ -6861,7 +7133,7 @@ var ThemisApp = (() => {
       whisper: (audioBlob) => {
         const formData = new FormData();
         formData.append("audio", audioBlob, "recording.webm");
-        return fetch("http://localhost:9998/api/whisper/transcribe", {
+        return fetch(API_BASE + "/api/whisper/transcribe", {
           method: "POST",
           body: formData
         }).then((r) => r.ok ? r.json() : null).catch(() => null);
@@ -7115,8 +7387,15 @@ var ThemisApp = (() => {
       this.reqId = 0;
       this.pending = /* @__PURE__ */ new Map();
       this.connected = false;
+      this.caseId = null;
+      this.reconnectAttempts = 0;
+      this.maxReconnectAttempts = 10;
+      this.reconnectDelay = 1000;
+      this.intentionalClose = false;
     }
     connect(caseId) {
+      this.caseId = caseId;
+      this.intentionalClose = false;
       return new Promise((resolve) => {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
           resolve(this);
@@ -7126,14 +7405,24 @@ var ThemisApp = (() => {
           this.ws = new WebSocket(WS_URL + "?case_id=" + caseId);
           this.ws.onopen = () => {
             this.connected = true;
+            this.reconnectAttempts = 0;
+            console.log("[WS] Connected to case:", caseId);
             resolve(this);
           };
-          this.ws.onerror = () => {
+          this.ws.onerror = (err) => {
+            console.log("[WS] Error:", err);
             this.connected = false;
             resolve(this);
           };
           this.ws.onclose = () => {
             this.connected = false;
+            console.log("[WS] Connection closed");
+            if (!this.intentionalClose && this.caseId && this.reconnectAttempts < this.maxReconnectAttempts) {
+              const delay = Math.min(this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts), 30000);
+              this.reconnectAttempts++;
+              console.log("[WS] Reconnecting in", Math.round(delay/1000), "s (attempt", this.reconnectAttempts + ")");
+              setTimeout(() => this.connect(this.caseId), delay);
+            }
           };
           this.ws.onmessage = (e) => this._handle(JSON.parse(e.data));
           setTimeout(() => resolve(this), 3e3);
@@ -7143,9 +7432,11 @@ var ThemisApp = (() => {
       });
     }
     disconnect() {
+      this.intentionalClose = true;
       if (this.ws) this.ws.close();
       this.ws = null;
       this.connected = false;
+      this.caseId = null;
     }
     _handle(msg) {
       if (msg.id && this.pending.has(msg.id)) {
@@ -7284,6 +7575,16 @@ var ThemisApp = (() => {
     Send: () => h("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
       h("line", { x1: "22", y1: "2", x2: "11", y2: "13" }),
       h("polygon", { points: "22 2 15 22 11 13 2 9 22 2" })
+    ] }),
+    Mic: () => h("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
+      h("path", { d: "M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" }),
+      h("path", { d: "M19 10v2a7 7 0 0 1-14 0v-2" }),
+      h("line", { x1: "12", y1: "19", x2: "12", y2: "23" }),
+      h("line", { x1: "8", y1: "23", x2: "16", y2: "23" })
+    ] }),
+    Tag: () => h("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [
+      h("path", { d: "M4 4h6l10 10-6 6L4 10V4z" }),
+      h("circle", { cx: "8.5", cy: "8.5", r: "1.5" })
     ] })
   };
   var CASES = [
@@ -7837,6 +8138,7 @@ var ThemisApp = (() => {
       settingsDropdownOpen: false,
       vaultDropdownOpen: false,
       brandDropdownOpen: false,
+      chatSettingsOpen: false,
       // Brand
       currentBrand: BRANDS[0],
       // Modals
@@ -8740,6 +9042,8 @@ initializeApp();
         setState((s) => ({ ...s, currentBrand: b, brandDropdownOpen: false }));
       },
       closeDropdowns: () => setState((s) => ({ ...s, caseDropdownOpen: false, settingsDropdownOpen: false, vaultDropdownOpen: false, brandDropdownOpen: false })),
+      openChatSettings: () => setState((s) => ({ ...s, chatSettingsOpen: true, settingsDropdownOpen: false, caseDropdownOpen: false, vaultDropdownOpen: false, brandDropdownOpen: false })),
+      closeChatSettings: () => setState((s) => ({ ...s, chatSettingsOpen: false })),
       // Modals
       openModal: (name) => setState((s) => ({
         ...s,
@@ -10313,15 +10617,13 @@ initializeApp();
     const [inventoryFilter, setInventoryFilter] = useState("all");
     const [inventorySearch, setInventorySearch] = useState("");
     if (activeModal !== "evidence-inventory") return null;
-    const selectedCount = evidence.filter((e) => e.selected).length;
-    const typeStats = {
-      pdf: evidence.filter((e) => e.type === "pdf").length,
-      docx: evidence.filter((e) => e.type === "docx").length,
-      xlsx: evidence.filter((e) => e.type === "xlsx").length,
-      mpp: evidence.filter((e) => e.type === "mpp").length,
-      msg: evidence.filter((e) => e.type === "msg").length
-    };
-    const filteredEvidence = evidence.filter((e) => inventoryFilter === "all" || e.type === inventoryFilter).filter((e) => !inventorySearch || e.name.toLowerCase().includes(inventorySearch.toLowerCase()));
+    const selectedCount = React.useMemo(() => evidence.filter((e) => e.selected).length, [evidence]);
+    const typeStats = React.useMemo(() => {
+      const stats = { pdf: 0, docx: 0, xlsx: 0, mpp: 0, msg: 0 };
+      evidence.forEach((e) => { if (stats[e.type] !== undefined) stats[e.type]++; });
+      return stats;
+    }, [evidence]);
+    const filteredEvidence = React.useMemo(() => evidence.filter((e) => inventoryFilter === "all" || e.type === inventoryFilter).filter((e) => !inventorySearch || e.name.toLowerCase().includes(inventorySearch.toLowerCase())), [evidence, inventoryFilter, inventorySearch]);
     const getTypeColor = (type) => {
       const colors = { pdf: "#ef4444", docx: "#3b82f6", xlsx: "#22c55e", mpp: "#8b5cf6", msg: "#f59e0b" };
       return colors[type] || "#6b7280";
@@ -11225,6 +11527,17 @@ Examples:
       ] })
     ] }) });
   };
+  var FM_TAG_COLORS = {
+    case: "#3b82f6", type: "#8b5cf6", fw: "#22c55e", valid: "#eab308",
+    folder: "#6b7280", conv: "#f97316", meth: "#06b6d4", phase: "#ec4899", search: "#a1a1aa"
+  };
+  var FM_VALIDATION_COLORS = { confirmed: "#22c55e", pending: "#eab308", rejected: "#ef4444" };
+  var FM_TYPE_ICONS = {
+    pdf: { icon: "", color: "#ef4444" }, docx: { icon: "", color: "#3b82f6" },
+    xlsx: { icon: "", color: "#22c55e" }, msg: { icon: "", color: "#f59e0b" },
+    mpp: { icon: "...", color: "#8b5cf6" }, png: { icon: "-", color: "#06b6d4" },
+    jpg: { icon: "-", color: "#06b6d4" }
+  };
   var FileManagerModal = () => {
     const {
       activeModal,
@@ -11261,31 +11574,9 @@ Examples:
     const [dragOver, setDragOver] = useState(false);
     const fileInputRef = React.useRef(null);
     if (activeModal !== "file-manager") return null;
-    const TAG_COLORS = {
-      case: "#3b82f6",
-      type: "#8b5cf6",
-      fw: "#22c55e",
-      valid: "#eab308",
-      folder: "#6b7280",
-      conv: "#f97316",
-      meth: "#06b6d4",
-      phase: "#ec4899",
-      search: "#a1a1aa"
-    };
-    const VALIDATION_COLORS = {
-      confirmed: "#22c55e",
-      pending: "#eab308",
-      rejected: "#ef4444"
-    };
-    const TYPE_ICONS = {
-      pdf: { icon: "", color: "#ef4444" },
-      docx: { icon: "", color: "#3b82f6" },
-      xlsx: { icon: "", color: "#22c55e" },
-      msg: { icon: "", color: "#f59e0b" },
-      mpp: { icon: "...", color: "#8b5cf6" },
-      png: { icon: "-", color: "#06b6d4" },
-      jpg: { icon: "-", color: "#06b6d4" }
-    };
+    const TAG_COLORS = FM_TAG_COLORS;
+    const VALIDATION_COLORS = FM_VALIDATION_COLORS;
+    const TYPE_ICONS = FM_TYPE_ICONS;
     const formatSize = (bytes) => {
       if (bytes < 1024) return bytes + " B";
       if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
@@ -11297,8 +11588,8 @@ Examples:
     };
     const getTagValue = (tag) => tag.split(":").slice(-1)[0];
     const getTypeInfo = (type) => TYPE_ICONS[type] || { icon: "", color: "#6b7280" };
-    const selectedIds = evidence.filter((e) => e.selected).map((e) => e.id);
-    const filteredEvidence = evidence.filter((e) => filterType === "all" || e.type === filterType).filter((e) => filterValidation === "all" || e.validation === filterValidation).filter((e) => {
+    const selectedIds = React.useMemo(() => evidence.filter((e) => e.selected).map((e) => e.id), [evidence]);
+    const filteredEvidence = React.useMemo(() => evidence.filter((e) => filterType === "all" || e.type === filterType).filter((e) => filterValidation === "all" || e.validation === filterValidation).filter((e) => {
       if (filterPhase === "all") return true;
       return e.tags.some((t) => t === `THEMIS:phase:${filterPhase}`);
     }).filter((e) => {
@@ -11313,7 +11604,7 @@ Examples:
       else if (sortBy === "type") cmp = a.type.localeCompare(b.type);
       else if (sortBy === "validation") cmp = (a.validation || "").localeCompare(b.validation || "");
       return sortOrder === "asc" ? cmp : -cmp;
-    });
+    }), [evidence, filterType, filterValidation, filterPhase, searchQuery, sortBy, sortOrder]);
     const handleDragOver = (e) => {
       e.preventDefault();
       setDragOver(true);
@@ -11769,7 +12060,7 @@ Examples:
     ] }, n.id)) });
   };
   var Header = () => {
-    const { currentCase, cases, currentBrand, caseDropdownOpen, settingsDropdownOpen, brandDropdownOpen, toggleCaseDropdown, toggleSettingsDropdown, toggleBrandDropdown, selectCase, selectBrand, openModal, theme, toggleTheme, closeDropdowns, backendConnected, wsConnected } = useApp();
+    const { currentCase, cases, currentBrand, caseDropdownOpen, settingsDropdownOpen, brandDropdownOpen, toggleCaseDropdown, toggleSettingsDropdown, toggleBrandDropdown, selectCase, selectBrand, openModal, theme, toggleTheme, closeDropdowns, openChatSettings, backendConnected, wsConnected } = useApp();
     return h("header", { className: "header", children: [
       h("div", { className: "header-left", children: [
         h("div", { className: "dropdown", children: [
@@ -11835,13 +12126,7 @@ Examples:
               h("span", { className: "settings-icon", children: h(Icons.Clock, {}) }),
               h("span", { className: "settings-label", children: "Time Tracker" })
             ] }),
-            h("div", { className: "settings-item", onClick: () => {
-              const chatIframe = document.getElementById("localagent-chat");
-              if (chatIframe && chatIframe.contentWindow) {
-                chatIframe.contentWindow.postMessage({ type: "open-settings" }, "*");
-                closeDropdowns();
-              }
-            }, children: [
+            h("div", { className: "settings-item", onClick: () => openChatSettings(), children: [
               h("span", { className: "settings-icon", children: h(Icons.Settings, {}) }),
               h("span", { className: "settings-label", children: "Chat Settings" })
             ] }),
@@ -11997,74 +12282,377 @@ Examples:
       selectFolder,
       clearFolderFilter,
       // Preview (v9.62)
-      openPreview
+      openPreview,
+      // Chat Settings
+      chatSettingsOpen,
+      closeChatSettings
     } = useApp();
     const [input, setInput] = useState("");
     const [liveSearchQuery, setLiveSearchQuery] = useState("");
     const [sending, setSending] = useState(false);
+    const [attachedFiles, setAttachedFiles] = useState([]);
+    const [isDragging, setIsDragging] = useState(false);
 
-    // Ref for chat iframe communication
-    const chatIframeRef = React.useRef(null);
+    // Chat settings - configurable buttons per mode
+    const defaultChatSettings = {
+      analysis: { skills: true, savedPrompts: true, searchHistory: false, searchConversation: true, tags: true, download: true, attach: true, voice: true, linter: true, send: true },
+      search: { skills: false, savedPrompts: false, searchHistory: true, tags: true, download: true, attach: false, voice: false, linter: false, send: false }
+    };
+    const [chatSettings, setChatSettings] = useState(() => {
+      try {
+        const saved = localStorage.getItem("themis-chat-settings");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          // Merge with defaults so new keys are always present
+          const merged = {};
+          for (const mode in defaultChatSettings) {
+            merged[mode] = Object.assign({}, defaultChatSettings[mode], parsed[mode] || {});
+          }
+          return merged;
+        }
+      } catch (e) {}
+      return defaultChatSettings;
+    });
+    const updateChatSettings = React.useCallback((newSettings) => {
+      setChatSettings(newSettings);
+      localStorage.setItem("themis-chat-settings", JSON.stringify(newSettings));
+    }, []);
 
-    // Send context to chat iframe when mode, case, evidence, or theme changes
-    React.useEffect(() => {
-      const iframe = chatIframeRef.current;
-      if (iframe && iframe.contentWindow) {
-        const selectedEvidence = evidence.filter(e => e.selected).map(e => e.id);
-        // Get actual computed colors from THEMIS body for chameleon inheritance
-        const computedStyles = getComputedStyle(document.body);
-        const textColor = computedStyles.color;
-        const bgColor = computedStyles.backgroundColor;
-        iframe.contentWindow.postMessage({
-          type: 'themis-context',
-          mode: mode,
-          theme: theme,
-          textColor: textColor,
-          bgColor: bgColor,
-          case_id: currentCase?.id,
-          case_name: currentCase?.name,
-          framework: currentCase?.framework,
-          selected_evidence: selectedEvidence,
-          evidence_files: evidence.map(e => ({ id: e.id, name: e.name, type: e.type })),
-        }, '*');
-        console.log('[THEMIS] Sent context to chat iframe:', { mode, theme, textColor, bgColor, case_id: currentCase?.id, selected: selectedEvidence.length });
+    // Conversation search (Analysis mode)
+    const [showConversationSearch, setShowConversationSearch] = useState(false);
+    const [conversationSearch, setConversationSearch] = useState("");
+    const conversationSearchTimer = React.useRef(null);
+    const sendConversationSearch = React.useCallback(function(query) {
+      if (conversationSearchTimer.current) clearTimeout(conversationSearchTimer.current);
+      conversationSearchTimer.current = setTimeout(function() {
+        var iframe = document.getElementById("localagent-chat");
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: "search-conversation", query: query }, "*");
+        }
+      }, 200);
+    }, []);
+
+    // Voice state: idle → loading → ready → recording → processing → ready
+    // Uses WhisperTranscriber module from /modules/whisper-module/
+    // UX matches ai-chat-demo-with-linter: status bar, waveform, progress, stop/cancel
+    const [voiceState, setVoiceState] = useState("idle");
+    const [voiceDetail, setVoiceDetail] = useState("");
+    const [voiceProgress, setVoiceProgress] = useState(0);
+    const voiceRef = React.useRef({
+      whisper: null,        // WhisperTranscriber instance
+      micPermissionGranted: false,
+      isRecording: false,
+      currentStream: null,
+      recordedSamples: [],
+      audioCtx: null,
+      processor: null
+    });
+
+    // handleVoiceToggle: three-click flow matching ai-chat-demo-with-linter
+    const handleVoiceToggle = React.useCallback(async function() {
+      var v = voiceRef.current;
+
+      // Click 1: init (load model via WhisperTranscriber + request mic)
+      if (!v.whisper || !v.whisper.isLoaded() || !v.micPermissionGranted) {
+        if (!v.whisper || !v.whisper.isLoaded()) {
+          if (typeof WhisperTranscriber === "undefined") {
+            console.error("[THEMIS] WhisperTranscriber module not loaded");
+            return;
+          }
+          setVoiceState("loading");
+          setVoiceDetail("~40MB, cached after first load");
+          setVoiceProgress(0);
+          console.log("[THEMIS] Loading Whisper model via WhisperTranscriber...");
+          try {
+            if (!v.whisper) v.whisper = new WhisperTranscriber();
+            await v.whisper.load("whisper-tiny.en", function(p) {
+              if (p.progress !== null && p.progress !== undefined) {
+                setVoiceProgress(p.progress);
+                setVoiceDetail(p.progress + "%");
+              }
+            });
+            console.log("[THEMIS] Whisper model loaded: " + v.whisper.getModel());
+          } catch (e) {
+            console.error("[THEMIS] Model error:", e);
+            setVoiceState("idle");
+            setVoiceDetail("");
+            return;
+          }
+        }
+        if (!v.micPermissionGranted) {
+          setVoiceDetail("Please allow microphone access");
+          try {
+            var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(function(t) { t.stop(); });
+            v.micPermissionGranted = true;
+            console.log("[THEMIS] Mic permission granted");
+          } catch (e) {
+            console.error("[THEMIS] Mic denied:", e);
+            setVoiceState("idle");
+            setVoiceDetail("");
+            return;
+          }
+        }
+        setVoiceState("ready");
+        setVoiceDetail("");
+        return;
       }
+
+      // Click 3: stop recording & transcribe
+      if (v.isRecording) {
+        v.isRecording = false;
+        if (v.currentStream) v.currentStream.getTracks().forEach(function(t) { t.stop(); });
+        if (v.processor) v.processor.disconnect();
+
+        if (v.recordedSamples.length === 0) {
+          setVoiceState("ready");
+          setVoiceDetail("");
+          return;
+        }
+
+        setVoiceState("processing");
+        setVoiceDetail("Preparing audio...");
+
+        var totalLength = v.recordedSamples.reduce(function(acc, arr) { return acc + arr.length; }, 0);
+        var merged = new Float32Array(totalLength);
+        var offset = 0;
+        for (var i = 0; i < v.recordedSamples.length; i++) {
+          merged.set(v.recordedSamples[i], offset);
+          offset += v.recordedSamples[i].length;
+        }
+        console.log("[THEMIS] Audio: " + merged.length + " samples, " + (merged.length / 16000).toFixed(1) + "s");
+
+        setVoiceDetail("Running Whisper...");
+        try {
+          var result = await v.whisper.transcribe(merged);
+          console.log("[THEMIS] Whisper result:", result.text, "lang:", result.language, "(" + result.duration + "s)");
+
+          if (result.text && result.text.trim()) {
+            var text = result.text.trim();
+            setInput(function(prev) { return prev + (prev ? " " : "") + text; });
+            console.log("[THEMIS] Transcribed:", text);
+          } else {
+            console.log("[THEMIS] No speech detected");
+          }
+        } catch (e) {
+          console.error("[THEMIS] Transcribe error:", e);
+        }
+
+        v.recordedSamples = [];
+        if (v.audioCtx) { v.audioCtx.close(); v.audioCtx = null; }
+        setVoiceState("ready");
+        setVoiceDetail("");
+        return;
+      }
+
+      // Click 2: start recording
+      try {
+        v.currentStream = await navigator.mediaDevices.getUserMedia({
+          audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true }
+        });
+        v.audioCtx = new AudioContext({ sampleRate: 16000 });
+        var source = v.audioCtx.createMediaStreamSource(v.currentStream);
+        v.processor = v.audioCtx.createScriptProcessor(4096, 1, 1);
+        v.recordedSamples = [];
+
+        v.processor.onaudioprocess = function(e) {
+          if (!v.isRecording) return;
+          var data = e.inputBuffer.getChannelData(0);
+          v.recordedSamples.push(new Float32Array(data));
+        };
+
+        source.connect(v.processor);
+        v.processor.connect(v.audioCtx.destination);
+
+        v.isRecording = true;
+        setVoiceState("recording");
+        setVoiceDetail("Click Stop when done");
+        console.log("[THEMIS] Recording started");
+      } catch (e) {
+        console.error("[THEMIS] Record error:", e);
+        setVoiceState("ready");
+        setVoiceDetail("");
+      }
+    }, []);
+
+    // cancelRecording: discard audio without transcribing (matches demo cancelRecording)
+    const cancelRecording = React.useCallback(function() {
+      var v = voiceRef.current;
+      v.isRecording = false;
+      v.recordedSamples = [];
+      if (v.currentStream) v.currentStream.getTracks().forEach(function(t) { t.stop(); });
+      if (v.processor) v.processor.disconnect();
+      if (v.audioCtx) { v.audioCtx.close(); v.audioCtx = null; }
+      setVoiceState(v.whisper && v.whisper.isLoaded() ? "ready" : "idle");
+      setVoiceDetail("");
+      console.log("[THEMIS] Recording cancelled");
+    }, []);
+
+    // Refs (Vercel pattern)
+    const chatIframeRef = React.useRef(null);
+    const fileInputRef = React.useRef(null);
+    const textareaRef = React.useRef(null);
+
+    // Auto-resize textarea (Vercel pattern: min 24px, max 120px)
+    const adjustHeight = React.useCallback(() => {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+      }
+    }, []);
+
+    const resetHeight = React.useCallback(() => {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        textarea.style.height = '24px';
+      }
+    }, []);
+
+    // Focus textarea whenever CenterPane is visible (skip when search input is active)
+    React.useEffect(() => {
+      if (showConversationSearch) return;
+      if (textareaRef.current) textareaRef.current.focus();
+    });
+
+    // Convert file to base64 data URL (offline-compatible)
+    const fileToDataURL = (file) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      });
+    };
+
+    // Handle file attachment with base64 preview (offline-compatible)
+    const handleFileAttach = React.useCallback(async (files) => {
+      console.log("[handleFileAttach] Called with", files?.length, "files");
+      if (!files || files.length === 0) {
+        console.log("[handleFileAttach] No files!");
+        return;
+      }
+      const fileList = Array.from(files).filter(f => f.size < 10 * 1024 * 1024); // Max 10MB for base64
+      console.log("[handleFileAttach] After filter:", fileList.length, "files");
+      const filesWithPreview = await Promise.all(fileList.map(async (file) => {
+        const dataUrl = await fileToDataURL(file); // base64 ALL files so server can process docx/pdf/txt
+        return {
+          file,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          preview: dataUrl // base64 data URL, works offline & cross-iframe
+        };
+      }));
+      console.log("[handleFileAttach] Setting files:", filesWithPreview.map(f => f.name));
+      setAttachedFiles(prev => {
+        const newFiles = [...prev, ...filesWithPreview];
+        console.log("[handleFileAttach] New attachedFiles count:", newFiles.length);
+        return newFiles;
+      });
+    }, []);
+
+    const removeAttachedFile = React.useCallback((index) => {
+      setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+    }, []);
+
+    // Paste support for images + large text → attachment (Claude pattern)
+    const PASTE_THRESHOLD = 500; // chars — above this, convert to attachment
+    const handlePaste = React.useCallback((e) => {
+      const items = e.clipboardData?.items;
+      if (items) {
+        const imageFiles = [];
+        for (const item of items) {
+          if (item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            if (file) imageFiles.push(file);
+          }
+        }
+        if (imageFiles.length > 0) {
+          handleFileAttach(imageFiles);
+          return;
+        }
+      }
+      // Large text paste → convert to text attachment
+      const text = e.clipboardData?.getData('text/plain');
+      if (text && text.length > PASTE_THRESHOLD) {
+        e.preventDefault();
+        const lines = text.split('\n').length;
+        const blob = new Blob([text], { type: 'text/plain' });
+        const file = new File([blob], 'pasted-content.txt', { type: 'text/plain' });
+        const dataUrl = 'data:text/plain;base64,' + btoa(unescape(encodeURIComponent(text)));
+        setAttachedFiles(prev => [...prev, {
+          name: 'pasted-content.txt',
+          size: blob.size,
+          type: 'text/plain',
+          preview: null,
+          textPreview: text.substring(0, 200) + (text.length > 200 ? '...' : ''),
+          lines: lines,
+          dataUrl: dataUrl
+        }]);
+        console.log("[THEMIS] Large paste converted to attachment:", text.length, "chars,", lines, "lines");
+      }
+    }, [handleFileAttach]);
+
+    // Global drag detection to disable iframe pointer-events
+    React.useEffect(() => {
+      let dragCounter = 0;
+      const onDragEnter = (e) => {
+        dragCounter++;
+        if (e.dataTransfer?.types?.includes('Files')) setIsDragging(true);
+      };
+      const onDragLeave = () => {
+        dragCounter--;
+        if (dragCounter <= 0) { dragCounter = 0; setIsDragging(false); }
+      };
+      const onDrop = () => { dragCounter = 0; setIsDragging(false); };
+      const onDragOver = (e) => e.preventDefault();
+      window.addEventListener('dragenter', onDragEnter);
+      window.addEventListener('dragleave', onDragLeave);
+      window.addEventListener('drop', onDrop);
+      window.addEventListener('dragover', onDragOver);
+      return () => {
+        window.removeEventListener('dragenter', onDragEnter);
+        window.removeEventListener('dragleave', onDragLeave);
+        window.removeEventListener('drop', onDrop);
+        window.removeEventListener('dragover', onDragOver);
+      };
+    }, []);
+
+    // Send context to chat iframe — shared helper used on dep changes + iframe ready
+    const sendChatContext = React.useCallback(() => {
+      const iframe = chatIframeRef.current;
+      if (!iframe || !iframe.contentWindow) return;
+      const selectedEvidence = evidence.filter(e => e.selected).map(e => e.id);
+      const computedStyles = getComputedStyle(document.body);
+      iframe.contentWindow.postMessage({
+        type: 'themis-context',
+        mode: mode,
+        theme: theme,
+        textColor: computedStyles.color,
+        bgColor: computedStyles.backgroundColor,
+        case_id: currentCase?.id,
+        case_name: currentCase?.name,
+        framework: currentCase?.framework,
+        selected_evidence: selectedEvidence,
+        evidence_files: evidence.map(e => ({ id: e.id, name: e.name, type: e.type })),
+      }, '*');
     }, [mode, theme, currentCase?.id, evidence]);
 
-    // Listen for chat iframe messages
+    React.useEffect(() => {
+      sendChatContext();
+    }, [sendChatContext]);
+
     React.useEffect(() => {
       const handleChatMessage = (event) => {
         if (event.data?.type === 'chat-ready') {
           console.log('[THEMIS] Chat iframe ready, sending initial context');
-          const iframe = chatIframeRef.current;
-          if (iframe && iframe.contentWindow) {
-            const selectedEvidence = evidence.filter(e => e.selected).map(e => e.id);
-            // Get actual computed colors from THEMIS body for chameleon inheritance
-            const computedStyles = getComputedStyle(document.body);
-            const textColor = computedStyles.color;
-            const bgColor = computedStyles.backgroundColor;
-            iframe.contentWindow.postMessage({
-              type: 'themis-context',
-              mode: mode,
-              theme: theme,
-              textColor: textColor,
-              bgColor: bgColor,
-              case_id: currentCase?.id,
-              case_name: currentCase?.name,
-              framework: currentCase?.framework,
-              selected_evidence: selectedEvidence,
-            }, '*');
-          }
-        }
-        // Handle message processed notification from iframe
-        if (event.data?.type === 'chat-message-processed') {
-          console.log('[THEMIS] Chat message processed:', event.data.success);
-          setSending(false);
+          sendChatContext();
         }
       };
       window.addEventListener('message', handleChatMessage);
       return () => window.removeEventListener('message', handleChatMessage);
-    }, [mode, theme, currentCase, evidence]);
+    }, [sendChatContext]);
 
     // Sync input to liveSearchQuery when switching to search mode
     const prevModeRef = React.useRef(mode);
@@ -12084,6 +12672,16 @@ Examples:
     const [activeTagMenu, setActiveTagMenu] = useState(null);
     const [tagFilterOpen, setTagFilterOpen] = useState(false);
     const [selectedFilterTags, setSelectedFilterTags] = useState([]);
+    const [msgTagFilterOpen, setMsgTagFilterOpen] = useState(false);
+    const [selectedMsgTags, setSelectedMsgTags] = useState([]);
+    const MSG_TAG_OPTIONS = [
+      { id: 'important', label: 'Important', color: '#ef4444' },
+      { id: 'question',  label: 'Question',  color: '#3b82f6' },
+      { id: 'action',    label: 'Action',    color: '#f97316' },
+      { id: 'reference', label: 'Reference', color: '#22c55e' },
+      { id: 'followup',  label: 'Follow-up', color: '#8b5cf6' },
+      { id: 'note',      label: 'Note',      color: '#6b7280' }
+    ];
     const [showSearchHistory, setShowSearchHistory] = useState(false);
     const [expandedMatches, setExpandedMatches] = useState(/* @__PURE__ */ new Set());
     const sortMenuRef = React.useRef(null);
@@ -12102,7 +12700,7 @@ Examples:
     
     // Debounced linting on input change
     React.useEffect(() => {
-      if (mode !== "analysis" || !input.trim() || input.length < 3) {
+      if (!chatSettings[mode]?.linter || !input.trim() || input.length < 3) {
         setLinterResult(null);
         setShowSuggestions(false);
         return;
@@ -12114,10 +12712,13 @@ Examples:
         try {
           if (typeof PromptLinter !== 'undefined' && PromptLinter.lintPromptAsync) {
             const result = await PromptLinter.lintPromptAsync(input);
+            // Enhance result with convenience properties
+            result.topSkill = result.skillMatches?.[0] || null;
+            result.hasRewrites = result.rewrites && result.rewrites.length > 0;
             setLinterResult(result);
+            console.log("[THEMIS] Linter result:", result.score, result.topSkill?.skill);
             // Show suggestions if we have skill matches or rewrites
-            if ((result.skillMatches && result.skillMatches.length > 0) || 
-                (result.rewrites && result.rewrites.length > 0)) {
+            if ((result.skillMatches && result.skillMatches.length > 0) || result.hasRewrites) {
               setShowSuggestions(true);
             }
           }
@@ -12175,13 +12776,20 @@ Examples:
       { tag: "THEMIS:meth:SCL", label: "SCL", ns: "meth" },
       { tag: "THEMIS:meth:AACE", label: "AACE", ns: "meth" }
     ];
+    const _levCache = React.useRef(new Map());
+    const _levCacheQuery = React.useRef("");
     const highlightText = (text, query) => {
       if (!query || !text || !searchHighlightEnabled) return text;
       const searchWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 1);
       if (searchWords.length === 0) return text;
+      // Reset cache when query changes
+      if (_levCacheQuery.current !== query) { _levCache.current.clear(); _levCacheQuery.current = query; }
       const levenshtein = (a, b) => {
-        if (a.length === 0) return b.length;
-        if (b.length === 0) return a.length;
+        const key = a + "\0" + b;
+        const cached = _levCache.current.get(key);
+        if (cached !== undefined) return cached;
+        if (a.length === 0) { _levCache.current.set(key, b.length); return b.length; }
+        if (b.length === 0) { _levCache.current.set(key, a.length); return a.length; }
         const matrix = [];
         for (let i = 0; i <= b.length; i++) matrix[i] = [i];
         for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
@@ -12195,7 +12803,10 @@ Examples:
             );
           }
         }
-        return matrix[b.length][a.length];
+        const result = matrix[b.length][a.length];
+        _levCache.current.set(key, result);
+        if (_levCache.current.size > 2000) { _levCache.current.clear(); }
+        return result;
       };
       const isExactMatch = (word) => searchWords.some((sw) => word.toLowerCase() === sw.toLowerCase());
       const isFuzzyMatch = (word) => {
@@ -12261,13 +12872,40 @@ Examples:
       );
     };
     const clearFilterTags = () => setSelectedFilterTags([]);
+
 const handleSend = async () => {
-      if (!input.trim() || sending) return;
-      const query = input.trim();
-      
+      if ((!input.trim() && attachedFiles.length === 0) || sending) return;
+      let query = input.trim();
+
+      // Separate pasted text attachments from file attachments
+      const textAttachments = attachedFiles.filter(att => att.textPreview);
+      const fileAttachments = attachedFiles.filter(att => !att.textPreview);
+
+      // Inline pasted text into the message (Claude pattern)
+      if (textAttachments.length > 0) {
+        const pastedBlocks = textAttachments.map(att => {
+          // Decode the dataUrl to get original text
+          const b64 = att.dataUrl?.split(',')[1] || '';
+          try { return decodeURIComponent(escape(atob(b64))); } catch(e) { return att.textPreview; }
+        });
+        const pastedContent = pastedBlocks.join('\n\n');
+        query = query
+          ? query + '\n\n---\n\n' + pastedContent
+          : pastedContent;
+      }
+
+      // Capture file attachments (not pasted text)
+      const filesToSend = fileAttachments.map(att => ({
+        name: att.name,
+        size: att.size,
+        type: att.type,
+        preview: att.preview || null
+      }));
+
       // Build the message payload with skill context
       const messagePayload = {
         prompt: query,
+        attachments: filesToSend,
         selected_skill: selectedSkill || null,
         selected_rewrite: selectedRewrite ? true : false,
         linter_result: linterResult ? {
@@ -12281,47 +12919,41 @@ const handleSend = async () => {
           hasRewrites: linterResult.hasRewrites || false
         } : null
       };
-      
-      console.log("[THEMIS] Sending with skill context:", messagePayload);
-      
-      // Clear input and skill selection
+
+      console.log("[THEMIS] Sending with attachments:", filesToSend.length, "files", filesToSend.map(f => ({name: f.name, type: f.type, hasPreview: !!f.preview, previewLen: f.preview?.length})));
+
+      // Clear input, files, and skill selection
       setInput("");
+      setAttachedFiles([]);
       setSelectedSkill(null);
       setSelectedRewrite(null);
       setLinterResult(null);
       setShowSuggestions(false);
       setSending(true);
-      
-      // Add user message to chat immediately
-      if (mode !== "search" && addMessage) {
-        addMessage("user", query, { skill: selectedSkill });
-      }
-      
+
+      // In analysis mode, iframe handles message display
+      // In search mode, no user messages shown
+
       try {
         if (mode === "search") {
           await executeSearch(query);
-          setSending(false);
         } else {
-          // ANALYSIS MODE: Send message to iframe chat via postMessage (cross-origin safe)
-          const chatIframe = document.getElementById("localagent-chat");
+          // ANALYSIS MODE: Delegate to chat iframe (it calls API + displays messages)
+          const chatIframe = chatIframeRef.current;
           if (chatIframe && chatIframe.contentWindow) {
-            console.log("[THEMIS] Sending message to iframe via postMessage:", query.substring(0, 30));
+            console.log("[THEMIS] Sending to iframe via themis-send-message");
             chatIframe.contentWindow.postMessage({
               type: "themis-send-message",
-              message: query
+              message: query,
+              attachments: filesToSend
             }, "*");
-            setTimeout(() => setSending(false), 300);
-          } else {
-            console.error("[THEMIS] Chat iframe not found");
-            addNotification && addNotification("error", "Chat not available");
-            setSending(false);
           }
         }
       } catch (err) {
         console.error("[CenterPane] handleSend error:", err);
-        addNotification && addNotification("error", "Operation failed");
-        setSending(false);
+        addNotification && addNotification("error", "Operation failed: " + err.message);
       }
+      setSending(false);
     };
     const selectedCount = evidence.filter((d) => d.selected).length;
     const totalCount = evidence.length;
@@ -12434,7 +13066,7 @@ const handleSend = async () => {
     }, [evidence, liveSearchQuery]);
     const isSearchMode = liveSearchQuery.length >= 2;
     const displayEvidence = isSearchMode ? [] : searchResults.length > 0 ? searchResults : evidence;
-    const filteredDocs = displayEvidence.filter((d) => filterType === "all" || d.type === filterType).filter((d) => selectedFilterTags.length === 0 || selectedFilterTags.every((tag) => (d.tags || []).includes(tag))).sort((a, b) => {
+    const filteredDocs = React.useMemo(() => displayEvidence.filter((d) => filterType === "all" || d.type === filterType).filter((d) => selectedFilterTags.length === 0 || selectedFilterTags.every((tag) => (d.tags || []).includes(tag))).sort((a, b) => {
       if (liveSearchQuery.length >= 2 && a.matchInfo && b.matchInfo) {
         const matchDiff = b.matchInfo.total - a.matchInfo.total;
         if (matchDiff !== 0) return matchDiff;
@@ -12445,7 +13077,7 @@ const handleSend = async () => {
       else if (sortBy === "date") cmp = (a.date || "").localeCompare(b.date || "");
       else if (sortBy === "selected") cmp = (b.selected ? 1 : 0) - (a.selected ? 1 : 0);
       return sortOrder === "asc" ? cmp : -cmp;
-    });
+    }), [displayEvidence, filterType, selectedFilterTags, liveSearchQuery, sortBy, sortOrder]);
     const toggleMatchExpand = (docId) => {
       setExpandedMatches((prev) => {
         const next = new Set(prev);
@@ -12483,7 +13115,25 @@ const handleSend = async () => {
     const getMissingTags = (doc) => {
       return CASE_TAGS.filter((t) => !doc.tags.includes(t.tag));
     };
-    return h("section", { className: "pane pane-center", children: [
+    return h("section", {
+      className: `pane pane-center ${isDragging ? "dragging-files" : ""}`,
+      onDragEnter: (e) => { e.preventDefault(); setIsDragging(true); },
+      onDragOver: (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; },
+      onDragLeave: (e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+          setIsDragging(false);
+        }
+      },
+      onDrop: (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        if (e.dataTransfer.files.length > 0) {
+          console.log("[CENTER PANE DROP]", e.dataTransfer.files.length, "files");
+          handleFileAttach(e.dataTransfer.files);
+        }
+      },
+      children: [
       h("div", { className: "pane-header", children: [
         h("div", { className: "cpane-header-content", children: [
           h("span", { className: `framework-badge ${currentCase.framework.toLowerCase()}`, children: currentCase.framework }),
@@ -12908,18 +13558,17 @@ const handleSend = async () => {
         h("iframe", {
           id: "localagent-chat",
           ref: chatIframeRef,
-          src: "../localagent-chat/standalone.html?mode=themis&case_id=" + (currentCase?.id || "") + "&case_name=" + encodeURIComponent(currentCase?.name || "") + "&framework=" + (currentCase?.framework || "RICS"),
+          src: "/modules/localagent-chat/standalone.html?mode=themis&case_id=" + (currentCase?.id || "") + "&case_name=" + encodeURIComponent(currentCase?.name || "") + "&framework=" + (currentCase?.framework || "RICS"),
           style: {
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
             width: "100%",
             height: "100%",
             border: "none"
           },
-          allow: "clipboard-read; clipboard-write"
+          tabIndex: -1,
+          onLoad: () => {
+            if (textareaRef.current) textareaRef.current.focus();
+          },
+          allow: "microphone; clipboard-read; clipboard-write"
         }),
         selectedCount > 0 && h("div", { style: {
           position: "absolute",
@@ -12947,321 +13596,617 @@ const handleSend = async () => {
       
       /* Skill suggestions are now handled inside the iframe chat module */
       
-      h("div", { className: "chat-input-wrapper", children: h("div", { className: "chat-input", style: { flexDirection: "column", alignItems: "stretch" }, children: [
-        h("div", { className: "chat-input-row", style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
-          h(
-            "textarea",
-            {
-              value: mode === "search" ? liveSearchQuery : input,
-              onChange: (e) => {
-                const text = e.target.value;
-                if (mode === "search") {
-                  setLiveSearchQuery(text);
-                } else {
-                  setInput(text);
-                }
-                // Auto-expand textarea
-                e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                // Show/hide toolbar based on input
-                const toolbar = e.target.closest('.chat-input')?.querySelector('.chat-toolbar');
-                if (toolbar) {
-                  toolbar.style.maxHeight = text.length > 0 ? '40px' : '0';
-                  toolbar.style.opacity = text.length > 0 ? '1' : '0';
-                  toolbar.style.marginTop = text.length > 0 ? '8px' : '0';
-                }
+      // Hidden file input (Vercel pattern: accept common file types)
+      h("input", {
+        type: "file",
+        ref: fileInputRef,
+        multiple: true,
+        accept: "image/*,text/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.json",
+        style: { display: "none" },
+        onChange: (e) => { handleFileAttach(e.target.files); e.target.value = ""; }
+      }),
+      // Linter bar - ABOVE input - using CSS classes from standalone.html
+      chatSettings[mode]?.linter && linterResult && h("div", {
+        className: `linter-bar visible ${linterResult.score >= 80 ? "good" : linterResult.score >= 50 ? "warn" : "bad"}`,
+        children: [
+          // Score badge
+          h("div", { className: "linter-score", children: linterResult.score }),
+          // Meta info
+          h("div", { className: "linter-meta", children: [
+            h("span", { children: linterResult.lang?.toUpperCase() || "EN" }),
+            linterResult.topSkill && h("span", { children: linterResult.topSkill.skill }),
+            linterResult.tokens && h("span", { children: "~" + (linterResult.tokens.input + linterResult.tokens.output) }),
+            linterResult.tokens && h("span", { children: "$" + linterResult.tokens.cost })
+          ] }),
+          // Issues
+          h("div", { className: "linter-issues", children:
+            (linterResult.issues || []).map((issue, i) => h("span", {
+              key: i,
+              className: `linter-issue ${issue.severity || "medium"}`,
+              title: issue.fix || "",
+              children: issue.message
+            }))
+          }),
+          // Apply rewrite button
+          linterResult.hasRewrites && linterResult.topRewrite && h("button", {
+            className: "linter-fix-btn",
+            onClick: () => {
+              setInput(linterResult.topRewrite.template);
+              setSelectedSkill(linterResult.topRewrite.skill);
+              addNotification && addNotification("success", "Applied " + linterResult.topRewrite.skill + " template");
+            },
+            children: "Auto-fix"
+          })
+        ]
+      }),
+      // Linter preview - shows rewrite diff
+      chatSettings[mode]?.linter && linterResult && linterResult.hasRewrites && linterResult.topRewrite && h("div", {
+        className: "linter-preview visible",
+        children: [
+          h("div", { className: "linter-preview-header", children: [
+            h("span", { children: "Rewrite Preview" }),
+            h("span", { style: { fontWeight: 400, fontSize: "10px", color: "var(--gray-400)" }, children: "Click Auto-fix to apply" })
+          ] }),
+          h("div", { className: "linter-preview-diff", children: [
+            h("div", { className: "linter-preview-col original", children: [
+              h("div", { className: "linter-preview-label", children: "Original" }),
+              h("div", { children: input.length > 150 ? input.slice(0, 150) + "..." : input })
+            ] }),
+            h("div", { className: "linter-preview-col fixed", children: [
+              h("div", { className: "linter-preview-label", children: "Auto-fixed" }),
+              h("div", { children: linterResult.topRewrite.template.length > 150 ? linterResult.topRewrite.template.slice(0, 150) + "..." : linterResult.topRewrite.template })
+            ] })
+          ] })
+        ]
+      }),
+      // Tag filter dropdown
+      tagFilterOpen && h("div", {
+        ref: tagFilterRef,
+        className: "tag-filter-dropdown",
+        style: { background: "var(--white)", border: "1px solid var(--gray-200)", borderRadius: "8px", padding: "8px", marginBottom: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: "200px", overflowY: "auto" },
+        children: [
+          h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", padding: "0 4px" }, children: [
+            h("span", { style: { fontSize: "11px", fontWeight: 600, color: "var(--gray-500)", textTransform: "uppercase", letterSpacing: "0.5px" }, children: "Filter by Tag" }),
+            selectedFilterTags.length > 0 && h("button", {
+              onClick: () => setSelectedFilterTags([]),
+              style: { fontSize: "10px", color: "#dc2626", background: "none", border: "none", cursor: "pointer", fontWeight: 600 },
+              children: "Clear all"
+            })
+          ] }),
+          CASE_TAGS.map((t) => {
+            const count = evidence.filter((e) => (e.tags || []).includes(t.tag)).length;
+            const isSelected = selectedFilterTags.includes(t.tag);
+            return h("div", {
+              key: t.tag,
+              onClick: () => {
+                setSelectedFilterTags((prev) =>
+                  isSelected ? prev.filter((x) => x !== t.tag) : [...prev, t.tag]
+                );
               },
-              onKeyDown: (e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  if (mode === "analysis") {
-                    handleSend();
+              style: { display: "flex", alignItems: "center", gap: "8px", padding: "5px 8px", borderRadius: "6px", cursor: "pointer", background: isSelected ? "var(--blue-50)" : "transparent", fontSize: "12px" },
+              children: [
+                h("span", { style: { width: "8px", height: "8px", borderRadius: "50%", background: getTagColor(t.ns), flexShrink: 0 } }),
+                h("span", { style: { flex: 1, fontWeight: isSelected ? 600 : 400, color: isSelected ? "var(--blue-700)" : "var(--gray-700)" }, children: t.label }),
+                h("span", { style: { fontSize: "10px", color: "var(--gray-400)", fontWeight: 500, minWidth: "20px", textAlign: "right" }, children: count })
+              ]
+            });
+          })
+        ]
+      }),
+      // Message tag filter dropdown (Analysis mode)
+      msgTagFilterOpen && mode === "analysis" && h("div", {
+        style: { background: "var(--white)", border: "1px solid var(--gray-200)", borderRadius: "8px", padding: "8px", marginBottom: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" },
+        children: [
+          h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", padding: "0 4px" }, children: [
+            h("span", { style: { fontSize: "11px", fontWeight: 600, color: "var(--gray-500)", textTransform: "uppercase", letterSpacing: "0.5px" }, children: "Filter by Message Tag" }),
+            selectedMsgTags.length > 0 && h("button", {
+              onClick: () => {
+                setSelectedMsgTags([]);
+                const iframe = document.getElementById("localagent-chat");
+                if (iframe) iframe.contentWindow.postMessage({ type: "filter-message-tags", tags: [] }, "*");
+              },
+              style: { fontSize: "10px", color: "#dc2626", background: "none", border: "none", cursor: "pointer", fontWeight: 600 },
+              children: "Clear all"
+            })
+          ] }),
+          MSG_TAG_OPTIONS.map((t) => {
+            const isSelected = selectedMsgTags.includes(t.id);
+            return h("div", {
+              key: t.id,
+              onClick: () => {
+                const newTags = isSelected ? selectedMsgTags.filter((x) => x !== t.id) : [...selectedMsgTags, t.id];
+                setSelectedMsgTags(newTags);
+                const iframe = document.getElementById("localagent-chat");
+                if (iframe) iframe.contentWindow.postMessage({ type: "filter-message-tags", tags: newTags }, "*");
+              },
+              style: { display: "flex", alignItems: "center", gap: "8px", padding: "5px 8px", borderRadius: "6px", cursor: "pointer", background: isSelected ? "var(--blue-50)" : "transparent", fontSize: "12px" },
+              children: [
+                h("span", { style: { width: "8px", height: "8px", borderRadius: "50%", background: t.color, flexShrink: 0 } }),
+                h("span", { style: { flex: 1, fontWeight: isSelected ? 600 : 400, color: isSelected ? "var(--blue-700)" : "var(--gray-700)" }, children: t.label })
+              ]
+            });
+          })
+        ]
+      }),
+      // Search history dropdown
+      showSearchHistory && searchHistory.length > 0 && h("div", {
+        style: { background: "var(--white)", border: "1px solid var(--gray-200)", borderRadius: "8px", padding: "8px", marginBottom: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: "200px", overflowY: "auto" },
+        children: [
+          h("div", { style: { fontSize: "11px", fontWeight: 600, color: "var(--gray-500)", textTransform: "uppercase", letterSpacing: "0.5px", padding: "0 4px", marginBottom: "6px" }, children: "Search History" }),
+          [...searchHistory].reverse().map((entry, i) => h("div", {
+            key: i,
+            onClick: () => {
+              if (entry.hash && replaySearch) { replaySearch(entry.hash); }
+              else if (executeSearch) { executeSearch(entry.query); }
+              setShowSearchHistory(false);
+            },
+            style: { display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" },
+            onMouseOver: (e) => e.currentTarget.style.background = "var(--gray-50)",
+            onMouseOut: (e) => e.currentTarget.style.background = "transparent",
+            children: [
+              h("svg", { width: 12, height: 12, viewBox: "0 0 24 24", fill: "none", stroke: "var(--gray-400)", strokeWidth: 2, children: [
+                h("circle", { cx: "11", cy: "11", r: "8" }),
+                h("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })
+              ] }),
+              h("span", { style: { flex: 1, color: "var(--gray-700)" }, children: entry.query }),
+              h("span", { style: { fontSize: "10px", color: "var(--gray-400)" }, children: entry.count + " results" })
+            ]
+          }))
+        ]
+      }),
+      // Voice status bar (matches demo: loading progress, recording waveform, stop/cancel)
+      (voiceState === "loading" || voiceState === "recording" || voiceState === "processing") && h("div", {
+        className: "voice-status-bar " + voiceState,
+        children: [
+          // Status icon
+          h("span", { className: "voice-status-icon", children:
+            voiceState === "recording"
+              ? h("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "#ef4444", strokeWidth: 2, children: [
+                  h("path", { d: "M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" }),
+                  h("path", { d: "M19 10v2a7 7 0 0 1-14 0v-2" })
+                ] })
+              : h("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: voiceState === "processing" ? "#6366f1" : "#f59e0b", strokeWidth: 2, style: { animation: "spin 0.8s linear infinite" }, children:
+                  h("path", { d: "M21 12a9 9 0 1 1-6.219-8.56" })
+                })
+          }),
+          // Status text + detail + progress
+          h("div", { style: { flex: 1 }, children: [
+            h("div", { style: { fontWeight: 500 }, children:
+              voiceState === "recording" ? "Recording..."
+              : voiceState === "processing" ? "Transcribing..."
+              : "Downloading Whisper model..."
+            }),
+            voiceDetail && h("div", { className: "voice-status-detail", children: voiceDetail }),
+            voiceState === "loading" && h("div", { className: "voice-progress", children:
+              h("div", { className: "voice-progress-fill", style: { width: voiceProgress + "%" } })
+            })
+          ] }),
+          // Waveform placeholder (recording)
+          voiceState === "recording" && h("div", { className: "voice-waveform", children:
+            [0,1,2,3,4,5,6,7].map(function(i) { return h("div", { key: i, className: "voice-waveform-bar", style: { height: "20%" } }); })
+          }),
+          // Stop & Transcribe button (recording)
+          voiceState === "recording" && h("button", {
+            className: "voice-stop-btn",
+            onClick: handleVoiceToggle,
+            children: "Stop & Transcribe"
+          }),
+          // Cancel button (recording + loading)
+          (voiceState === "recording" || voiceState === "loading") && h("button", {
+            className: "voice-cancel-btn",
+            onClick: cancelRecording,
+            children: "Cancel"
+          })
+        ]
+      }),
+      h("div", {
+        className: `chat-input-wrapper ${((mode === "search" ? liveSearchQuery : input).length > 0 || attachedFiles.length > 0 || voiceState === "recording" || voiceState === "processing" || showConversationSearch) ? "expanded" : "collapsed"}`,
+        children: h("div", { className: "chat-input", children: [
+          // Main row (always visible): textarea + voice btn + mode toggle
+          h("div", {
+            className: "chat-input-row",
+            style: { display: "flex", alignItems: "center", gap: "8px" },
+            children: [
+              h("textarea", {
+                ref: textareaRef,
+                value: mode === "search" ? liveSearchQuery : input,
+                onChange: (e) => {
+                  const text = e.target.value;
+                  if (mode === "search") {
+                    setLiveSearchQuery(text);
+                  } else {
+                    setInput(text);
                   }
-                }
-                if (e.key === "Escape" && mode === "search") {
-                  setLiveSearchQuery("");
-                }
-              },
-              placeholder: mode === "search" ? "Type to search documents... (live filtering)" : wsConnected ? "Ask about your documents..." : "Chat available when backend connected...",
-              disabled: sending,
-              rows: 1,
-              style: { resize: "none", overflow: "hidden", minHeight: "24px", maxHeight: "120px", lineHeight: "1.5", flex: 1 }
-            }
-          )
-        ] }),
-        h("div", { className: "chat-toolbar", style: { display: "flex", alignItems: "center", gap: "4px", maxHeight: "0", overflow: "hidden", opacity: "0", transition: "all 0.2s ease" }, children: [
-          mode === "search" && liveSearchQuery.length > 0 && h(React.Fragment, { children: [
-            h(
-              "button",
-              {
-                onClick: () => setLiveSearchQuery(""),
-                className: "chat-btn",
+                  // Vercel pattern: auto-resize on change
+                  adjustHeight();
+                },
+                onPaste: handlePaste,
+                onKeyDown: (e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (mode === "analysis") {
+                      handleSend();
+                      resetHeight();
+                    }
+                  }
+                  if (e.key === "Escape") {
+                    if (mode === "search") {
+                      setLiveSearchQuery("");
+                    } else {
+                      setInput("");
+                      setAttachedFiles([]);
+                    }
+                    resetHeight();
+                  }
+                },
+                placeholder: mode === "search" ? "Search documents..." : "Ask about your documents...",
+                disabled: sending,
+                autoFocus: true,
+                rows: 1,
+                style: { flex: 1, resize: "none", overflow: "hidden" }
+              }),
+              // Voice mic button inside input row (matches demo: voice-btn with state classes)
+              chatSettings[mode]?.voice && h("button", {
+                className: "voice-input-btn " + voiceState,
+                onClick: handleVoiceToggle,
+                title: voiceState === "recording" ? "Stop & Transcribe" : voiceState === "ready" ? "Click to record" : voiceState === "loading" ? "Loading Whisper..." : voiceState === "processing" ? "Transcribing..." : "Click to enable voice",
+                children: h("svg", { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: [
+                  h("path", { d: "M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" }),
+                  h("path", { d: "M19 10v2a7 7 0 0 1-14 0v-2" }),
+                  h("line", { x1: "12", y1: "19", x2: "12", y2: "23" }),
+                  h("line", { x1: "8", y1: "23", x2: "16", y2: "23" })
+                ] })
+              }),
+              // Mode toggle - ALWAYS visible
+              h("button", {
+                className: "chat-btn mode-toggle",
+                onClick: toggleMode,
+                title: mode === "search" ? "Switch to Analysis" : "Switch to Search",
                 style: {
-                  background: "#fee2e2",
+                  padding: "6px 10px",
+                  background: mode === "analysis" ? "#dbeafe" : "#f0fdf4",
+                  color: mode === "analysis" ? "#1d4ed8" : "#166534",
                   border: "none",
-                  color: "#dc2626",
+                  borderRadius: "6px",
                   fontWeight: 600,
                   fontSize: "12px",
-                  padding: "6px 12px",
+                  cursor: "pointer",
+                  flexShrink: 0
+                },
+                children: mode === "search" ? "A" : "S"
+              })
+            ]
+          }),
+          // Attached files display (Vercel pattern: with image preview)
+          attachedFiles.length > 0 && h("div", {
+            className: "attached-files",
+            style: { display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px" },
+            children: attachedFiles.map((attachment, i) => h("div", {
+              key: i,
+              style: {
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: attachment.preview ? "4px" : "6px 10px",
+                background: "#f3f4f6",
+                borderRadius: "8px",
+                fontSize: "12px",
+                border: "1px solid #e5e7eb"
+              },
+              children: [
+                // Image preview, text preview, or file icon
+                attachment.preview ? h("img", {
+                  src: attachment.preview,
+                  alt: attachment.name,
+                  style: { width: "40px", height: "40px", objectFit: "cover", borderRadius: "4px" }
+                }) : attachment.textPreview ? h("svg", {
+                  width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "#6366f1", strokeWidth: 2,
+                  children: [
+                    h("path", { d: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" }),
+                    h("polyline", { points: "14 2 14 8 20 8" }),
+                    h("line", { x1: 8, y1: 13, x2: 16, y2: 13 }),
+                    h("line", { x1: 8, y1: 17, x2: 13, y2: 17 })
+                  ]
+                }) : h("svg", {
+                  width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "#6b7280", strokeWidth: 2,
+                  children: [
+                    h("path", { d: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" }),
+                    h("polyline", { points: "14 2 14 8 20 8" })
+                  ]
+                }),
+                // File info
+                h("div", { style: { display: "flex", flexDirection: "column", minWidth: 0 }, children: [
+                  attachment.textPreview
+                    ? h("span", { style: { maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500, color: "#4f46e5" }, children: "Pasted content" })
+                    : h("span", { style: { maxWidth: "100px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }, children: attachment.name }),
+                  h("span", { style: { color: "#9ca3af", fontSize: "10px" }, children: attachment.textPreview
+                    ? attachment.lines + " lines \u00b7 " + (attachment.size / 1024).toFixed(1) + " KB"
+                    : (attachment.size / 1024).toFixed(0) + " KB"
+                  })
+                ] }),
+                // Remove button
+                h("button", {
+                  onClick: () => removeAttachedFile(i),
+                  style: { background: "none", border: "none", color: "#9ca3af", cursor: "pointer", padding: "4px", display: "flex", borderRadius: "4px" },
+                  onMouseOver: (e) => e.currentTarget.style.background = "#fee2e2",
+                  onMouseOut: (e) => e.currentTarget.style.background = "none",
+                  children: h("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: [
+                    h("line", { x1: 18, y1: 6, x2: 6, y2: 18 }),
+                    h("line", { x1: 6, y1: 6, x2: 18, y2: 18 })
+                  ] })
+                })
+              ]
+            }))
+          }),
+          // Action buttons row - always visible
+          h("div", {
+            className: "chat-actions",
+            style: { display: "flex", alignItems: "center", gap: "6px", marginTop: "8px", paddingTop: "8px", borderTop: "1px solid #e5e7eb", flexWrap: "wrap" },
+            children: [
+              // Clear button (always shown, not configurable)
+              h("button", {
+                onClick: () => {
+                  if (mode === "search") {
+                    setLiveSearchQuery("");
+                  } else {
+                    setInput("");
+                  }
+                  setAttachedFiles([]);
+                  resetHeight();
+                },
+                className: "chat-btn",
+                style: { padding: "6px 8px", color: "#dc2626", cursor: "pointer", background: "#fee2e2", border: "none", borderRadius: "6px", display: "flex", alignItems: "center" },
+                title: "Clear (Esc)",
+                children: h("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: [
+                  h("line", { x1: 18, y1: 6, x2: 6, y2: 18 }),
+                  h("line", { x1: 6, y1: 6, x2: 18, y2: 18 })
+                ] })
+              }),
+              // Skills button - opens DA popup in iframe
+              chatSettings[mode]?.skills && h("button", {
+                onClick: () => {
+                  const iframe = document.getElementById("localagent-chat");
+                  if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: "toggle-skills" }, "*");
+                  }
+                },
+                className: `chat-btn ${selectedSkill ? "active" : ""}`,
+                style: { padding: "6px 8px", color: selectedSkill ? "#ffffff" : "#6b7280", cursor: "pointer", background: selectedSkill ? "#6366f1" : "#f3f4f6", border: "none", borderRadius: "6px", display: "flex", alignItems: "center" },
+                title: selectedSkill ? "Skill: " + selectedSkill : "Assistants & Skills",
+                children: h(Icons.Zap, {})
+              }),
+              // Saved Prompts button
+              chatSettings[mode]?.savedPrompts && h("button", {
+                onClick: () => {
+                  const iframe = document.getElementById("localagent-chat");
+                  if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: "toggle-saved-prompts" }, "*");
+                  }
+                },
+                className: "chat-btn",
+                style: { padding: "6px 8px", color: "#6b7280", cursor: "pointer", background: "#f3f4f6", border: "none", borderRadius: "6px", display: "flex", alignItems: "center" },
+                title: "Saved Prompts",
+                children: h("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: h("polygon", { points: "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" }) })
+              }),
+              // Search History button
+              chatSettings[mode]?.searchHistory && h("button", {
+                onClick: () => {
+                  if (window.__themisToggleSearchHistory) window.__themisToggleSearchHistory();
+                },
+                className: `chat-btn ${showSearchHistory ? "active" : ""}`,
+                style: { padding: "6px 8px", color: showSearchHistory ? "#ffffff" : "#6b7280", cursor: "pointer", background: showSearchHistory ? "#3b82f6" : "#f3f4f6", border: "none", borderRadius: "6px", display: "flex", alignItems: "center" },
+                title: "Search History",
+                children: h("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: [
+                  h("circle", { cx: "11", cy: "11", r: "8" }),
+                  h("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })
+                ] })
+              }),
+              // Divider
+              (chatSettings[mode]?.skills || chatSettings[mode]?.savedPrompts || chatSettings[mode]?.searchHistory) && h("div", { style: { width: "1px", height: "20px", background: "#e5e7eb", margin: "0 2px" } }),
+              // Tags button
+              chatSettings[mode]?.tags && h("button", {
+                onClick: () => {
+                  if (mode === "analysis") {
+                    setMsgTagFilterOpen(v => !v);
+                  } else {
+                    if (window.__themisToggleTagFilter) window.__themisToggleTagFilter();
+                  }
+                },
+                className: `chat-btn ${(mode === "analysis" ? msgTagFilterOpen : tagFilterOpen) ? "active" : ""}`,
+                style: { padding: "6px 8px", color: (mode === "analysis" ? msgTagFilterOpen : tagFilterOpen) ? "#ffffff" : "#6b7280", cursor: "pointer", background: (mode === "analysis" ? msgTagFilterOpen : tagFilterOpen) ? "#8b5cf6" : "#f3f4f6", border: "none", borderRadius: "6px", display: "flex", alignItems: "center", gap: "3px", position: "relative" },
+                title: mode === "analysis" ? ("Message Tags" + (selectedMsgTags.length > 0 ? " (" + selectedMsgTags.length + " active)" : "")) : ("Tag Filter" + (selectedFilterTags.length > 0 ? " (" + selectedFilterTags.length + " active)" : "")),
+                children: [
+                  h("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: [
+                    h("path", { d: "M4 4h6l10 10-6 6L4 10V4z" }),
+                    h("circle", { cx: "8.5", cy: "8.5", r: "1.5" })
+                  ] }),
+                  (mode === "analysis" ? selectedMsgTags.length : selectedFilterTags.length) > 0 && h("span", { style: { fontSize: "9px", fontWeight: 700, background: (mode === "analysis" ? msgTagFilterOpen : tagFilterOpen) ? "#fff" : "#8b5cf6", color: (mode === "analysis" ? msgTagFilterOpen : tagFilterOpen) ? "#8b5cf6" : "#fff", borderRadius: "50%", width: "14px", height: "14px", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }, children: mode === "analysis" ? selectedMsgTags.length : selectedFilterTags.length })
+                ]
+              }),
+              // Download button - downloads selected evidence
+              chatSettings[mode]?.download && h("button", {
+                onClick: async () => {
+                  const selected = evidence.filter((e) => e.selected);
+                  if (selected.length === 0) {
+                    addNotification && addNotification("warning", "No documents selected");
+                    return;
+                  }
+                  for (const doc of selected) {
+                    const blob = await ThemisAPI.evidence.download(doc.id);
+                    if (blob) {
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = doc.name || "document";
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }
+                  }
+                  addNotification && addNotification("success", selected.length + " file(s) downloaded");
+                },
+                className: "chat-btn",
+                style: { padding: "6px 8px", color: "#6b7280", cursor: "pointer", background: "#f3f4f6", border: "none", borderRadius: "6px", display: "flex", alignItems: "center" },
+                title: "Download selected",
+                children: h("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: [
+                  h("path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }),
+                  h("polyline", { points: "7 10 12 15 17 10" }),
+                  h("line", { x1: "12", y1: "15", x2: "12", y2: "3" })
+                ] })
+              }),
+              // Search conversation button
+              chatSettings[mode]?.searchConversation && h("button", {
+                onClick: () => {
+                  var next = !showConversationSearch;
+                  setShowConversationSearch(next);
+                  if (!next) {
+                    setConversationSearch("");
+                    sendConversationSearch("");
+                  }
+                },
+                className: `chat-btn ${showConversationSearch ? "active" : ""}`,
+                style: { padding: "6px 8px", color: showConversationSearch ? "#fff" : "#6b7280", cursor: "pointer", background: showConversationSearch ? "#3b82f6" : "#f3f4f6", border: "none", borderRadius: "6px", display: "flex", alignItems: "center" },
+                title: "Search conversation",
+                children: h("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: [
+                  h("circle", { cx: "11", cy: "11", r: "8" }),
+                  h("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })
+                ] })
+              }),
+              // Conversation search input (inline, when toggled)
+              showConversationSearch && h("input", {
+                type: "text",
+                value: conversationSearch,
+                onChange: (e) => {
+                  setConversationSearch(e.target.value);
+                  sendConversationSearch(e.target.value);
+                },
+                onKeyDown: (e) => {
+                  if (e.key === "Escape") {
+                    setShowConversationSearch(false);
+                    setConversationSearch("");
+                    sendConversationSearch("");
+                  }
+                },
+                placeholder: "Search conversation...",
+                autoFocus: true,
+                style: { flex: 1, padding: "4px 8px", fontSize: "12px", border: "1px solid #d1d5db", borderRadius: "6px", outline: "none", minWidth: "120px" }
+              }),
+              // Clear search button
+              showConversationSearch && conversationSearch && h("button", {
+                onClick: () => { setConversationSearch(""); sendConversationSearch(""); },
+                style: { background: "none", border: "none", color: "#9ca3af", cursor: "pointer", padding: "2px", display: "flex" },
+                children: h("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: [
+                  h("line", { x1: "18", y1: "6", x2: "6", y2: "18" }),
+                  h("line", { x1: "6", y1: "6", x2: "18", y2: "18" })
+                ] })
+              }),
+              // Attach button
+              chatSettings[mode]?.attach && h("button", {
+                onClick: () => fileInputRef.current?.click(),
+                className: "chat-btn",
+                style: { padding: "6px 8px", color: "#6b7280", cursor: "pointer", background: "#f3f4f6", border: "none", borderRadius: "6px", display: "flex", alignItems: "center" },
+                title: "Attach files",
+                children: h("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: h("path", { d: "M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" }) })
+              }),
+              // Spacer
+              h("div", { style: { flex: 1 } }),
+              // Send button
+              chatSettings[mode]?.send && h("button", {
+                onClick: handleSend,
+                disabled: sending || (!input.trim() && attachedFiles.length === 0),
+                className: "chat-btn",
+                style: {
+                  padding: "6px 8px",
+                  background: "#3b82f6",
+                  color: "white",
+                  border: "none",
                   borderRadius: "6px",
+                  cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: "4px",
-                  cursor: "pointer"
+                  opacity: sending ? 0.7 : 1
                 },
-                title: "Clear search (Esc)",
-                children: "x Clear"
-              }
-            ),
-            liveSearchQuery.length >= 2 && h("span", { style: {
-              fontSize: "11px",
-              color: "#059669",
-              fontWeight: 600,
-              background: "#d1fae5",
-              padding: "6px 12px",
-              borderRadius: "6px"
-            }, children: [
-              searchMatchCards.length,
-              " match",
-              searchMatchCards.length !== 1 ? "es" : ""
-            ] }),
-            h("div", { className: "chat-divider" })
-          ] }),
-          h(
-            "button",
-            {
-              className: `chat-btn context-toggle ${mode}`,
-              onClick: toggleMode,
-              title: mode === "search" ? "Switch to Analysis (chat with AI)" : "Switch to Search (browse files)",
-              style: {
-                minWidth: "36px",
-                fontWeight: 700,
-                fontSize: "14px"
-              },
-              children: mode === "search" ? "A" : "S"
-            }
-          ),
-          h("div", { className: "chat-divider" }),
-          h("div", { style: { position: "relative" }, ref: tagFilterRef, children: [
-            h(
-              "button",
-              {
-                className: `chat-btn tag-filter-btn ${selectedFilterTags.length > 0 ? "active" : ""}`,
-                onClick: () => setTagFilterOpen(!tagFilterOpen),
-                style: {
-                  background: selectedFilterTags.length > 0 ? "#3b82f6" : "",
-                  color: selectedFilterTags.length > 0 ? "white" : ""
-                },
-                children: [
-                  h(Icons.Hash, {}),
-                  selectedFilterTags.length > 0 && h("span", { style: {
-                    position: "absolute",
-                    top: "-4px",
-                    right: "-4px",
-                    background: "#ef4444",
-                    color: "white",
-                    fontSize: "9px",
-                    width: "16px",
-                    height: "16px",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }, children: selectedFilterTags.length })
-                ]
-              }
-            ),
-            tagFilterOpen && h("div", { style: {
-              position: "absolute",
-              bottom: "100%",
-              left: "50%",
-              transform: "translateX(-50%)",
-              marginBottom: "8px",
-              width: "180px",
-              background: "white",
-              borderRadius: "8px",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-              border: "1px solid #e5e7eb",
-              zIndex: 1e3,
-              maxHeight: "280px",
-              overflow: "auto",
-              padding: "4px"
-            }, children: [
-              CASE_TAGS.map((t) => {
-                const isSelected = selectedFilterTags.includes(t.tag);
-                const color = getTagColor(t.ns);
-                return h(
-                  "div",
-                  {
-                    onClick: () => toggleFilterTag(t.tag),
-                    style: {
-                      padding: "8px 12px",
-                      cursor: "pointer",
-                      borderRadius: "4px",
-                      fontSize: "12px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      background: isSelected ? `${color}15` : "transparent"
-                    },
-                    onMouseEnter: (e) => {
-                      if (!isSelected) e.currentTarget.style.background = "#f3f4f6";
-                    },
-                    onMouseLeave: (e) => {
-                      if (!isSelected) e.currentTarget.style.background = "transparent";
-                    },
-                    children: [
-                      h("span", { style: { width: "8px", height: "8px", borderRadius: "50%", background: color } }),
-                      h("span", { style: { flex: 1, color: isSelected ? color : "#374151", fontWeight: isSelected ? 500 : 400 }, children: t.label }),
-                      isSelected && h("span", { style: { color, fontSize: "14px" }, children: "[ok]" })
-                    ]
-                  },
-                  t.tag
-                );
-              }),
-              selectedFilterTags.length > 0 && h(React.Fragment, { children: [
-                h("div", { style: { borderTop: "1px solid #e5e7eb", margin: "4px 0" } }),
-                h(
-                  "div",
-                  {
-                    onClick: clearFilterTags,
-                    style: { padding: "8px 12px", cursor: "pointer", borderRadius: "4px", fontSize: "11px", color: "#ef4444", textAlign: "center" },
-                    onMouseEnter: (e) => e.currentTarget.style.background = "#fef2f2",
-                    onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
-                    children: "Clear filters"
-                  }
-                )
-              ] })
-            ] })
-          ] }),
-          h("div", { style: { position: "relative" }, children: [
-            h(
-              "button",
-              {
-                className: `chat-btn ${searchHistory.length > 0 ? "has-history" : ""}`,
-                onClick: () => setShowSearchHistory(!showSearchHistory),
-                title: "Search History",
-                style: {
-                  background: showSearchHistory ? "#dbeafe" : "",
-                  color: showSearchHistory ? "#1d4ed8" : ""
-                },
-                children: [
-                  h(Icons.Search, {}),
-                  searchHistory.length > 0 && h("span", { style: {
-                    position: "absolute",
-                    top: "-4px",
-                    right: "-4px",
-                    background: "#3b82f6",
-                    color: "white",
-                    fontSize: "8px",
-                    width: "14px",
-                    height: "14px",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }, children: searchHistory.length })
-                ]
-              }
-            ),
-            showSearchHistory && searchHistory.length > 0 && h("div", { style: {
-              position: "absolute",
-              bottom: "100%",
-              right: 0,
-              marginBottom: "8px",
-              width: "280px",
-              background: "white",
-              borderRadius: "8px",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-              border: "1px solid #e5e7eb",
-              zIndex: 1e3,
-              maxHeight: "320px",
-              overflow: "auto"
-            }, children: [
-              h("div", { style: { padding: "10px 12px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
-                h("span", { style: { fontSize: "11px", fontWeight: 600, color: "#374151" }, children: "SEARCH HISTORY" }),
-                h("span", { style: { fontSize: "10px", color: "#9ca3af" }, children: [
-                  searchHistory.length,
-                  " searches"
+                title: "Send (Enter)",
+                children: h(Icons.Send, {})
+              })
+            ]
+          })
+        ] }) }),
+      // Chat Settings Panel
+      chatSettingsOpen && h("div", {
+        className: "chat-settings-overlay",
+        onClick: (e) => { if (e.target === e.currentTarget) closeChatSettings(); },
+        children: h("div", {
+          className: "chat-settings-panel",
+          children: [
+            // Header
+            h("div", { className: "chat-settings-header", children: [
+              h("h3", { children: "Input Toolbar" }),
+              h("button", {
+                className: "chat-settings-close",
+                onClick: closeChatSettings,
+                children: h("svg", { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: [
+                  h("line", { x1: 18, y1: 6, x2: 6, y2: 18 }),
+                  h("line", { x1: 6, y1: 6, x2: 18, y2: 18 })
                 ] })
-              ] }),
-              [...searchHistory].reverse().map((h, i) => h(
-                "div",
-                {
-                  onClick: () => {
-                    replaySearch(h.hash);
-                    setShowSearchHistory(false);
-                  },
-                  style: {
-                    padding: "10px 12px",
-                    cursor: "pointer",
-                    borderBottom: "1px solid #f3f4f6",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "4px"
-                  },
-                  onMouseEnter: (e) => e.currentTarget.style.background = "#f8fafc",
-                  onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
-                  children: [
-                    h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
-                      h("span", { style: { fontSize: "12px", color: "#111827", fontWeight: 500, maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: h.query }),
-                      h("span", { style: {
-                        fontSize: "10px",
-                        padding: "2px 6px",
-                        borderRadius: "10px",
-                        background: h.count > 0 ? "#d1fae5" : "#fef3c7",
-                        color: h.count > 0 ? "#065f46" : "#92400e"
-                      }, children: [
-                        h.count,
-                        " results"
-                      ] })
-                    ] }),
-                    h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
-                      h("span", { style: { fontSize: "10px", color: "#9ca3af", fontFamily: "monospace" }, children: [
-                        h.hash?.slice(0, 12),
-                        "..."
-                      ] }),
-                      h("span", { style: { fontSize: "10px", color: "#9ca3af" }, children: new Date(h.timestamp).toLocaleTimeString() })
-                    ] })
-                  ]
-                },
-                h.hash || i
-              )),
-              h(
-                "div",
-                {
-                  onClick: () => {
-                    setShowSearchHistory(false);
-                  },
-                  style: { padding: "8px 12px", cursor: "pointer", fontSize: "11px", color: "#6b7280", textAlign: "center", borderTop: "1px solid #e5e7eb" },
-                  onMouseEnter: (e) => e.currentTarget.style.background = "#f8fafc",
-                  onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
-                  children: "Close"
-                }
-              )
+              })
             ] }),
-            showSearchHistory && searchHistory.length === 0 && h("div", { style: {
-              position: "absolute",
-              bottom: "100%",
-              right: 0,
-              marginBottom: "8px",
-              width: "200px",
-              background: "white",
-              borderRadius: "8px",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-              border: "1px solid #e5e7eb",
-              padding: "16px",
-              textAlign: "center"
-            }, children: [
-              h("div", { style: { fontSize: "11px", color: "#9ca3af" }, children: "No search history yet" }),
-              h("div", { style: { fontSize: "10px", color: "#d1d5db", marginTop: "4px" }, children: "Searches are tracked for reproducibility" })
-            ] })
-          ] }),
-          h("button", { className: "chat-btn", onClick: handleSend, disabled: !input.trim() || sending, style: { opacity: input.trim() ? 1 : 0.5 }, children: h(Icons.Send, {}) })
-        ] })
-      ] }) })
+            // Body
+            h("div", { className: "chat-settings-body", children:
+              h("table", { className: "chat-settings-table", children: [
+                h("thead", { children: h("tr", { children: [
+                  h("th", { children: "Button" }),
+                  h("th", { children: "Analysis" }),
+                  h("th", { children: "Search" })
+                ] }) }),
+                h("tbody", { children: [
+                  { id: "skills", label: "Skills", icon: h(Icons.Zap, {}) },
+                  { id: "savedPrompts", label: "Saved Prompts", icon: h(Icons.Star, {}) },
+                  { id: "searchHistory", label: "Search History", icon: h(Icons.Search, {}) },
+                  { id: "searchConversation", label: "Search Chat", icon: h(Icons.Search, {}) },
+                  { id: "tags", label: "Tags", icon: h(Icons.Tag, {}) },
+                  { id: "download", label: "Download", icon: h(Icons.Download, {}) },
+                  { id: "attach", label: "Attach", icon: h("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: h("path", { d: "M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" }) }) },
+                  { id: "voice", label: "Voice", icon: h(Icons.Mic, {}) },
+                  { id: "linter", label: "Linter", icon: h("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: [h("path", { d: "M12 20h9" }), h("path", { d: "M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" })] }) },
+                  { id: "send", label: "Send", icon: h(Icons.Send, {}) }
+                ].map((btn) =>
+                  h("tr", { key: btn.id, children: [
+                    h("td", { children: [btn.icon, " ", btn.label] }),
+                    h("td", { children:
+                      h("button", {
+                        className: `chat-settings-toggle ${chatSettings.analysis[btn.id] ? "active" : ""}`,
+                        onClick: () => {
+                          const next = { ...chatSettings, analysis: { ...chatSettings.analysis, [btn.id]: !chatSettings.analysis[btn.id] } };
+                          updateChatSettings(next);
+                        }
+                      })
+                    }),
+                    h("td", { children:
+                      h("button", {
+                        className: `chat-settings-toggle ${chatSettings.search[btn.id] ? "active" : ""}`,
+                        onClick: () => {
+                          const next = { ...chatSettings, search: { ...chatSettings.search, [btn.id]: !chatSettings.search[btn.id] } };
+                          updateChatSettings(next);
+                        }
+                      })
+                    })
+                  ] })
+                ) })
+              ] })
+            }),
+            // Footer
+            h("div", { className: "chat-settings-footer", children:
+              h("button", {
+                className: "chat-settings-reset",
+                onClick: () => updateChatSettings(defaultChatSettings),
+                children: "Reset to defaults"
+              })
+            })
+          ]
+        })
+      })
     ] });
-  };
+    };
   var RightPane = () => {
     const {
       rightCollapsed,
@@ -13469,7 +14414,24 @@ const handleSend = async () => {
       ] })
     ] });
   };
-  var AppWrapper = () => h(AppProvider, { children: h(App, {}) });
+  // ErrorBoundary to catch React render crashes
+  class ErrorBoundary extends React.Component {
+    constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+    static getDerivedStateFromError(error) { return { hasError: true, error }; }
+    componentDidCatch(error, info) {
+      console.error("[THEMIS ErrorBoundary]", error, info?.componentStack);
+    }
+    render() {
+      if (this.state.hasError) {
+        return h("div", { style: { padding: "40px", fontFamily: "monospace", color: "#991b1b" }, children: [
+          h("h2", { children: "THEMIS crashed" }),
+          h("pre", { children: this.state.error?.message + "\n\n" + this.state.error?.stack })
+        ] });
+      }
+      return this.props.children;
+    }
+  }
+  var AppWrapper = () => h(AppProvider, { children: h(ErrorBoundary, { children: h(App, {}) }) });
   ReactDOM.createRoot(document.getElementById("root")).render(h(AppWrapper, {}));
 })();
     </script>
