@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THEMiS-QS &mdash; User Guide</title>
+<style>
+  :root {
+    --bp:#3b82f6;--bs:#1d4ed8;--ba:#60a5fa;
+    --w:#fff;--g50:#f9fafb;--g100:#f3f4f6;--g200:#e5e7eb;--g300:#d1d5db;
+    --g400:#9ca3af;--g500:#6b7280;--g600:#4b5563;--g700:#374151;--g800:#1f2937;--g900:#111827;
+    --gn:#22c55e;--am:#f59e0b;--rd:#ef4444;--pp:#8b5cf6;
+    --b50:#eff6ff;--b100:#dbeafe;--b200:#bfdbfe;--b600:#2563eb;--b700:#1d4ed8;--b900:#1e3a8a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif;color:var(--g800);background:var(--w);line-height:1.6;font-size:13px;}
+
+  /* Cover */
+  .cover{min-height:100vh;background:var(--w);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;page-break-after:always;}
+  .cover-band{position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--bp),var(--bs));}
+  .cover-logo{margin:0 auto 1.5rem;color:var(--g800);}
+  .cover-logo svg{width:160px;height:160px;}
+  .cover h1{font-size:2.4rem;font-weight:300;color:var(--g900);letter-spacing:.08em;margin-bottom:.2rem;}
+  .cover h1 b{font-weight:600;color:var(--bp);}
+  .cover .sub{font-size:.95rem;color:var(--g500);letter-spacing:.12em;text-transform:uppercase;font-weight:400;margin-bottom:2.5rem;}
+  .cover .desc{font-size:.88rem;color:var(--g500);line-height:1.7;max-width:380px;}
+  .cover .foot{position:absolute;bottom:2rem;font-size:.75rem;color:var(--g400);}
+
+  /* Page */
+  .pg{max-width:840px;margin:0 auto;padding:3rem 2rem;page-break-after:always;}
+  .pg hr{border:none;height:1px;background:var(--g200);margin-bottom:2.5rem;}
+
+  /* Section header */
+  .sh{display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;}
+  .sh-n{background:linear-gradient(135deg,var(--bp),var(--bs));color:#fff;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:600;flex-shrink:0;}
+  .sh h2{font-size:1.25rem;font-weight:600;color:var(--g900);}
+  .sh-d{font-size:.88rem;color:var(--g500);margin-bottom:1.5rem;}
+  h3.t{font-size:.95rem;font-weight:600;color:var(--g800);margin:1.8rem 0 .6rem;padding-bottom:.4rem;border-bottom:1px solid var(--g100);}
+  p.tx{font-size:.88rem;color:var(--g600);margin-bottom:.8rem;line-height:1.65;}
+
+  /* TOC */
+  .toc{border:1px solid var(--g200);border-radius:10px;padding:1.5rem 2rem;}
+  .toc h2{font-size:1.1rem;font-weight:600;color:var(--g900);margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid var(--g200);}
+  .toc ol{list-style:none;counter-reset:tc;}
+  .toc li{counter-increment:tc;padding:.4rem 0;font-size:.88rem;border-bottom:1px solid var(--g50);}
+  .toc li:last-child{border:none;}
+  .toc li::before{content:counter(tc) ".";color:var(--bp);font-weight:600;margin-right:.6rem;display:inline-block;width:22px;}
+  .toc a{color:var(--g700);text-decoration:none;}
+
+  /* ── APP SCREEN ─────────────────────────── */
+  .scr{border:1px solid var(--g200);border-radius:10px;overflow:hidden;margin:1.2rem 0;box-shadow:0 2px 8px rgba(0,0,0,.06);font-size:11px;}
+  .scr-bar{background:var(--g50);border-bottom:1px solid var(--g200);height:32px;display:flex;align-items:center;padding:0 10px;gap:6px;}
+  .scr-d{width:8px;height:8px;border-radius:50%;}
+  .scr-d.r{background:#ff5f57;}.scr-d.y{background:#ffbd2e;}.scr-d.g{background:#28c840;}
+  .scr-url{flex:1;text-align:center;font-size:10px;color:var(--g400);}
+
+  /* App chrome */
+  .ah{background:var(--w);border-bottom:1px solid var(--g200);height:38px;display:flex;align-items:center;padding:0 12px;gap:8px;}
+  .ah-logo{width:22px;height:22px;background:var(--b600);border-radius:5px;color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .ah-brand{font-weight:600;font-size:12px;color:var(--g900);}
+  .ah-sp{flex:1;}
+  .ab{padding:3px 8px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid var(--g200);background:var(--w);color:var(--g600);}
+  .ab.on{background:var(--b50);border-color:var(--b200);color:var(--bp);}
+  .ab.gn{background:#f0fdf4;border-color:#bbf7d0;color:#166534;}
+  .ab.fill{background:var(--bp);border-color:var(--bp);color:#fff;}
+
+  /* 3-pane */
+  .panes{display:flex;min-height:340px;background:var(--g50);}
+  .pl{width:200px;background:var(--w);border-right:1px solid var(--g200);display:flex;flex-direction:column;flex-shrink:0;}
+  .pc{flex:1;display:flex;flex-direction:column;}
+  .pr{width:180px;background:var(--w);border-left:1px solid var(--g200);display:flex;flex-direction:column;flex-shrink:0;}
+  .ph{height:36px;border-bottom:1px solid var(--g200);display:flex;align-items:center;padding:0 10px;gap:6px;font-size:11px;font-weight:600;color:var(--g700);background:var(--w);}
+  .ph .bdg{font-size:9px;padding:1px 6px;border-radius:4px;font-weight:600;}
+
+  /* Left pane items */
+  .lp-sec{padding:6px 10px;font-size:9px;font-weight:600;color:var(--g400);text-transform:uppercase;letter-spacing:.04em;}
+  .lp-ph{padding:5px 10px;font-size:11px;color:var(--g600);display:flex;align-items:center;gap:6px;cursor:default;}
+  .lp-ph.on{background:var(--b50);color:var(--bp);font-weight:600;border-right:2px solid var(--bp);}
+  .lp-ph .n{width:16px;height:16px;border-radius:4px;background:var(--g100);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--g500);flex-shrink:0;}
+  .lp-ph.on .n{background:var(--b100);color:var(--bp);}
+  .lp-fo{padding:4px 10px 4px 30px;font-size:10px;color:var(--g500);}
+  .lp-fo.on{color:var(--bp);font-weight:500;}
+  .lp-doc{padding:3px 10px 3px 42px;font-size:10px;color:var(--g500);display:flex;align-items:center;gap:4px;}
+  .lp-doc .ic{width:14px;height:14px;border-radius:3px;font-size:7px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+  /* Vault selector */
+  .vault-sel{display:flex;align-items:center;gap:6px;padding:8px 10px;cursor:default;}
+  .vault-sel .vname{font-weight:600;font-size:11px;color:var(--g800);flex:1;}
+  .vault-sel .vid{font-size:9px;padding:1px 5px;border-radius:3px;background:var(--b50);color:var(--bp);font-weight:600;}
+
+  /* Right pane tools */
+  .rp-sec{padding:6px 8px;font-size:8px;font-weight:600;color:var(--g400);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--g100);}
+  .rp-tool{padding:5px 8px;font-size:10px;color:var(--g600);display:flex;align-items:center;gap:4px;}
+  .rp-tool .dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+  .rp-tool .sub{font-size:9px;color:var(--g400);margin-left:auto;}
+  .rp-metric{padding:4px 8px;font-size:10px;display:flex;justify-content:space-between;}
+
+  /* Chat light */
+  .cht{display:flex;flex-direction:column;background:#fff;color:#202124;flex:1;}
+  .cht-h{padding:8px 12px;border-bottom:1px solid #e0e0e0;font-weight:600;font-size:11px;background:#f8f9fa;display:flex;align-items:center;gap:6px;}
+  .cht-h .bdg{font-size:9px;padding:1px 6px;border-radius:3px;font-weight:500;}
+  .cht-m{flex:1;padding:12px;display:flex;flex-direction:column;gap:10px;overflow:hidden;}
+  .msg{max-width:82%;padding:8px 12px;border-radius:8px;font-size:11px;line-height:1.55;}
+  .msg.u{align-self:flex-end;background:#e8f0fe;border:1px solid #1a73e8;border-bottom-right-radius:3px;color:#1a1a2e;}
+  .msg.a{align-self:flex-start;background:#f8f9fa;border:1px solid #e0e0e0;border-bottom-left-radius:3px;color:#3c4043;}
+  .msg .mt{font-size:9px;color:#9aa0a6;margin-top:3px;text-align:right;}
+  .msg.u .mt{color:#1a73e8;}
+  .cht-ib{margin:8px;background:#f8f9fa;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;}
+  .cht-it{padding:8px 12px;font-size:11px;color:#9aa0a6;}
+  .cht-tb{display:flex;align-items:center;padding:5px 8px;border-top:1px solid #e0e0e0;gap:3px;}
+  .tb{width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#9aa0a6;flex-shrink:0;}
+  .tb.on{color:#1a73e8;}
+  .tb.send{background:#1a73e8;color:#fff;}
+  .tb.dis{background:#dadce0;color:#9aa0a6;}
+  .tsep{width:1px;height:14px;background:#e0e0e0;margin:0 1px;}
+
+  /* Linter bar */
+  .lint{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;font-size:10px;margin:6px 8px 0;}
+  .lint.good{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);}
+  .lint.warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);}
+  .lint.bad{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);}
+  .lint-sc{font-weight:700;padding:2px 6px;border-radius:4px;min-width:28px;text-align:center;font-size:11px;color:#fff;}
+  .lint.good .lint-sc{background:#22c55e;}
+  .lint.warn .lint-sc{background:#f59e0b;color:#000;}
+  .lint.bad .lint-sc{background:#ef4444;}
+  .lint-meta{display:flex;gap:4px;flex:1;flex-wrap:wrap;}
+  .lint-meta span{background:#f3f4f6;padding:1px 6px;border-radius:3px;font-size:9px;color:#6b7280;}
+  .lint-iss{display:flex;gap:4px;flex-wrap:wrap;}
+  .lint-iss span{padding:1px 5px;border-radius:3px;font-size:9px;font-weight:500;}
+  .lint-iss .hi{background:rgba(239,68,68,.12);color:#dc2626;}
+  .lint-iss .md{background:rgba(245,158,11,.12);color:#b45309;}
+  .lint-iss .lo{background:rgba(34,197,94,.12);color:#166534;}
+  .lint-fix{padding:3px 10px;border-radius:5px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:9px;font-weight:600;border:none;cursor:pointer;}
+  .lint-prev{margin:0 8px 6px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:10px;}
+  .lint-prev-h{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-weight:600;color:#374151;}
+  .lint-prev-d{display:grid;grid-template-columns:1fr 1fr;min-height:40px;}
+  .lint-prev-col{padding:6px 10px;font-size:10px;line-height:1.5;color:#4b5563;}
+  .lint-prev-col.orig{border-right:1px solid #e5e7eb;background:#fef2f2;}
+  .lint-prev-col.fixd{background:#f0fdf4;}
+  .lint-prev-col .lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:3px;}
+
+  /* Notification mockups */
+  .notif-banner{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;font-size:11px;border:1px solid;margin-bottom:6px;}
+  .notif-banner.suc{background:#d1fae5;border-color:#a7f3d0;color:#065f46;}
+  .notif-banner.wrn{background:#fef3c7;border-color:#fde68a;color:#92400e;}
+  .notif-banner.err{background:#fee2e2;border-color:#fecaca;color:#991b1b;}
+  .notif-banner.inf{background:var(--b50);border-color:var(--b200);color:#1d4ed8;}
+  .notif-ic{width:20px;height:20px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}
+  .notif-banner.suc .notif-ic{background:#059669;}
+  .notif-banner.wrn .notif-ic{background:#d97706;}
+  .notif-banner.err .notif-ic{background:#dc2626;}
+  .notif-banner.inf .notif-ic{background:#2563eb;}
+  .notif-act{padding:3px 10px;border-radius:5px;font-size:10px;font-weight:600;border:none;cursor:pointer;margin-left:auto;flex-shrink:0;}
+  .notif-banner.suc .notif-act{background:#059669;color:#fff;}
+  .notif-banner.wrn .notif-act{background:#d97706;color:#fff;}
+  .notif-banner.inf .notif-act{background:#2563eb;color:#fff;}
+  .notif-x{background:none;border:none;font-size:13px;cursor:pointer;opacity:.5;flex-shrink:0;color:inherit;}
+  .notif-stack{display:flex;flex-direction:column;gap:6px;max-width:300px;}
+  .notif-card{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;border:1px solid var(--g200);border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.08);font-size:10px;color:var(--g700);}
+  .notif-card .notif-ic{width:18px;height:18px;font-size:9px;}
+  .corr-banner{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;font-size:11px;font-weight:500;color:#fff;margin-bottom:6px;}
+  .corr-banner.prog{background:linear-gradient(90deg,#f59e0b,#d97706);}
+  .corr-banner.done{background:linear-gradient(90deg,#10b981,#059669);}
+  .corr-banner.fail{background:linear-gradient(90deg,#ef4444,#dc2626);}
+
+  /* DA popup sections */
+  .da-pop{background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);padding:0;max-width:320px;overflow:hidden;}
+  .da-sec{border-bottom:1px solid #f3f4f6;}
+  .da-sec:last-child{border-bottom:none;}
+  .da-hd{display:flex;align-items:center;padding:8px 12px;cursor:pointer;font-size:10px;font-weight:600;letter-spacing:.04em;color:#9ca3af;text-transform:uppercase;}
+  .da-hd:hover{background:#f9fafb;}
+  .da-hd .arr{margin-right:4px;font-size:8px;}
+  .da-hd .plus{margin-left:auto;font-size:12px;color:#d1d5db;}
+  .da-bd{max-height:180px;overflow-y:auto;padding:0 6px 6px;}
+  .da-soon{padding:8px 12px;font-size:10px;color:#d1d5db;font-style:italic;}
+
+  /* Skill items */
+  .sk-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--g200);border-radius:8px;margin-bottom:4px;}
+  .sk-item.on{border-color:var(--bp);background:var(--b50);}
+  .sk-ic{width:24px;height:24px;border-radius:6px;background:var(--b50);color:var(--bp);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px;}
+  .sk-item.on .sk-ic{background:var(--bp);color:#fff;}
+  .sk-nm{font-size:11px;font-weight:600;color:var(--g800);}
+  .sk-ds{font-size:10px;color:var(--g500);line-height:1.4;}
+  .sk-ok{font-size:8px;padding:1px 5px;border-radius:3px;background:#f0fdf4;color:#166534;font-weight:600;margin-left:auto;flex-shrink:0;}
+
+  /* Landing mockup */
+  .land{background:var(--w);padding:24px;display:flex;flex-direction:column;align-items:center;min-height:340px;}
+  .land-t{font-size:18px;font-weight:300;color:var(--g900);letter-spacing:.15em;margin-bottom:2px;}
+  .land-t b{font-weight:600;color:var(--bp);}
+  .land-st{font-size:10px;color:var(--g500);letter-spacing:.1em;margin-bottom:16px;}
+  .land-search{width:300px;padding:8px 12px;border:1px solid var(--g200);border-radius:8px;font-size:11px;color:var(--g400);text-align:center;margin-bottom:16px;}
+  .land-sec{font-size:9px;font-weight:600;color:var(--g400);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;width:300px;}
+  .land-case{width:300px;padding:8px 12px;border:1px solid var(--g200);border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px;cursor:default;}
+  .land-case:hover{background:var(--g50);}
+  .land-case .nm{font-size:11px;font-weight:500;color:var(--g800);flex:1;}
+  .land-case .dt{font-size:9px;color:var(--g400);}
+  .land-case .fw{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;}
+  .land-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:300px;margin-top:12px;}
+  .land-act{padding:12px;border:1px solid var(--g200);border-radius:8px;text-align:center;cursor:default;}
+  .land-act:hover{background:var(--g50);}
+  .land-act .ic{width:28px;height:28px;border-radius:50%;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:300;}
+  .land-act .la{font-size:11px;font-weight:600;color:var(--g800);}
+  .land-act .ld{font-size:9px;color:var(--g500);margin-top:2px;}
+
+  /* Wizard mockup */
+  .wiz{background:var(--w);border-radius:10px;border:1px solid var(--g200);margin:1.2rem 0;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+  .wiz-h{padding:12px 16px;border-bottom:1px solid var(--g200);font-size:13px;font-weight:600;color:var(--g900);}
+  .wiz-steps{display:flex;padding:10px 16px;gap:4px;border-bottom:1px solid var(--g100);}
+  .wiz-s{flex:1;text-align:center;font-size:9px;font-weight:600;padding:4px 0;border-radius:4px;color:var(--g400);}
+  .wiz-s.on{background:var(--b50);color:var(--bp);}
+  .wiz-s.done{color:var(--gn);}
+  .wiz-body{padding:16px;}
+  .wiz-label{font-size:10px;font-weight:600;color:var(--g600);margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em;}
+  .wiz-input{width:100%;padding:8px 10px;border:1px solid var(--g200);border-radius:6px;font-size:11px;color:var(--g800);margin-bottom:12px;}
+  .wiz-input::placeholder{color:var(--g400);}
+  .wiz-cards{display:grid;gap:8px;margin-bottom:12px;}
+  .wiz-card{padding:10px 12px;border:1px solid var(--g200);border-radius:8px;cursor:default;}
+  .wiz-card.sel{border-color:var(--bp);background:var(--b50);}
+  .wiz-card .wc-t{font-size:11px;font-weight:600;color:var(--g800);}
+  .wiz-card .wc-d{font-size:10px;color:var(--g500);}
+  .wiz-foot{padding:12px 16px;border-top:1px solid var(--g200);display:flex;gap:8px;justify-content:flex-end;}
+
+  /* Upload zone in wizard */
+  .wiz-uz{border:2px dashed var(--g300);border-radius:8px;padding:16px;text-align:center;margin-bottom:12px;}
+  .wiz-uz .ic{font-size:20px;color:var(--g400);margin-bottom:4px;}
+  .wiz-uz .tx{font-size:10px;color:var(--g500);}
+  .wiz-uz .fm{font-size:9px;color:var(--g400);margin-top:4px;}
+  .wiz-fq{font-size:9px;font-weight:600;color:var(--g500);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;}
+  .wiz-fi{display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid var(--g200);border-radius:6px;margin-bottom:4px;font-size:10px;}
+  .wiz-fi .ic{width:20px;height:20px;border-radius:4px;font-size:7px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .wiz-fi .nm{flex:1;color:var(--g700);font-weight:500;}
+  .wiz-fi .sz{color:var(--g400);font-size:9px;}
+  .wiz-fi .st{font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600;background:#f0fdf4;color:#166534;}
+
+  /* Annotation callout */
+  .ann{background:var(--b50);border:1px solid var(--b200);border-radius:8px;padding:.7rem .9rem;margin:1rem 0;font-size:.85rem;color:var(--b900);display:flex;gap:.5rem;align-items:flex-start;}
+  .ann b{display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;margin-bottom:.1rem;}
+  .ann.warn{background:#fffbeb;border-color:#fde68a;color:#92400e;}
+  .ann.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534;}
+
+  /* Table */
+  .gt{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.85rem;}
+  .gt th{background:var(--g50);color:var(--g700);padding:.45rem .6rem;text-align:left;font-weight:600;font-size:.78rem;border-bottom:2px solid var(--g200);}
+  .gt td{padding:.4rem .6rem;border-bottom:1px solid var(--g100);color:var(--g600);}
+  .gt td:first-child{color:var(--g800);font-weight:500;}
+
+  /* Flow */
+  .fl{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin:.8rem 0;padding:.6rem;background:var(--g50);border:1px solid var(--g200);border-radius:6px;}
+  .fn{padding:.25rem .55rem;border-radius:5px;font-size:.75rem;font-weight:600;white-space:nowrap;border:1px solid;}
+  .fa{color:var(--g400);font-size:.75rem;}
+
+  /* Badge */
+  .bg{display:inline-flex;padding:.1rem .4rem;border-radius:3px;font-size:.75rem;font-weight:600;}
+  .bg.bl{background:var(--b50);color:var(--bp);}
+  .bg.gn{background:#f0fdf4;color:#166534;}
+  .bg.am{background:#fffbeb;color:#b45309;}
+  .bg.rd{background:#fef2f2;color:#b91c1c;}
+
+  /* Numbered list */
+  .steps{margin:.8rem 0;}
+  .stp{display:flex;gap:.6rem;padding:.6rem 0;border-bottom:1px solid var(--g100);}
+  .stp:last-child{border:none;}
+  .stp-n{width:22px;height:22px;background:var(--bp);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:600;flex-shrink:0;margin-top:1px;}
+  .stp h4{font-size:.88rem;font-weight:600;color:var(--g800);margin-bottom:.15rem;}
+  .stp p{font-size:.85rem;color:var(--g500);}
+
+  @media print{.cover{min-height:100vh;}.pg{padding:2rem 1.5rem;}}
+</style>
+</head>
+<body>
+
+<!-- ═══ COVER ═══════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-band"></div>
+  <div class="cover-logo"><svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <style>
+        .balance-beam { animation: stabilize 2s ease-out 0.5s both; transform-origin: center; }
+        .left-scale { animation: settle-left 2.5s ease-out 1s both; transform-origin: center; }
+        .right-scale { animation: settle-right 2.5s ease-out 1.2s both; transform-origin: center; }
+        .center-post { animation: rise 1.5s ease-out both; transform-origin: bottom; }
+        .app-name { animation: fade-in 1s ease-out 3s both; opacity: 0; }
+        .tagline { animation: fade-in 1s ease-out 3.5s both; opacity: 0; }
+        @keyframes rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+        @keyframes stabilize { 0% { transform: rotate(-15deg); opacity: 0; } 60% { transform: rotate(5deg); } 80% { transform: rotate(-2deg); } 100% { transform: rotate(0deg); opacity: 1; } }
+        @keyframes settle-left { 0% { transform: translateY(-20px) rotate(-30deg); opacity: 0; } 50% { transform: translateY(5px) rotate(10deg); } 80% { transform: translateY(-2px) rotate(-5deg); } 100% { transform: translateY(0px) rotate(0deg); opacity: 1; } }
+        @keyframes settle-right { 0% { transform: translateY(-15px) rotate(25deg); opacity: 0; } 50% { transform: translateY(8px) rotate(-8deg); } 80% { transform: translateY(-1px) rotate(3deg); } 100% { transform: translateY(0px) rotate(0deg); opacity: 1; } }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0px); } }
+      </style>
+    </defs>
+    <rect width="400" height="400" fill="transparent"/>
+    <rect class="center-post" x="199" y="150" width="2" height="60" fill="currentColor"/>
+    <rect class="balance-beam" x="130" y="189" width="140" height="2" fill="currentColor"/>
+    <g class="left-scale"><line x1="160" y1="191" x2="160" y2="220" stroke="currentColor" stroke-width="1"/><rect x="145" y="220" width="30" height="2" fill="currentColor" rx="1"/></g>
+    <g class="right-scale"><line x1="240" y1="191" x2="240" y2="220" stroke="currentColor" stroke-width="1"/><rect x="225" y="220" width="30" height="2" fill="currentColor" rx="1"/></g>
+    <text class="app-name" x="200" y="280" text-anchor="middle" fill="currentColor" font-family="Inter, -apple-system, sans-serif" font-size="32" font-weight="100" letter-spacing="3px">THEMIS</text>
+    <text class="app-name" x="260" y="270" text-anchor="start" fill="currentColor" font-family="Inter, -apple-system, sans-serif" font-size="12" font-weight="100">&reg;</text>
+    <text class="tagline" x="200" y="310" text-anchor="middle" fill="currentColor" opacity="0.6" font-family="Inter, -apple-system, sans-serif" font-size="14" font-weight="200" letter-spacing="1.5px">EQUITABLE RESOLUTION</text>
+    <text class="tagline" x="200" y="330" text-anchor="middle" fill="currentColor" opacity="0.4" font-family="Inter, -apple-system, sans-serif" font-size="10" font-weight="200" letter-spacing="0.5px">by Citadel ADR a registered UK company</text>
+  </svg></div>
+  <h1>THEM<b>i</b>S-QS</h1>
+  <div class="sub">User Guide</div>
+  <div style="width:60px;height:1px;background:var(--g200);margin:0 auto 1.5rem;"></div>
+  <div class="desc">Digital File Analyser<br>Construction Claims &middot; Evidence Management &middot; Document Discovery</div>
+  <div class="foot">&copy; 2026 THEMIS-QS. All Rights Reserved. &mdash; Version 3.0</div>
+</div>
+
+<!-- ═══ TOC ═════════════════════════════════════════ -->
+<div class="pg">
+  <div class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#s1">Opening THEMiS-QS &mdash; The Landing Page</a></li>
+      <li><a href="#s2">Creating a New Case</a></li>
+      <li><a href="#s3">The Evidence Vault</a></li>
+      <li><a href="#s4">Uploading &amp; Managing Documents</a></li>
+      <li><a href="#s5">Searching Evidence (Search Mode)</a></li>
+      <li><a href="#s6">Running Analysis (Analysis Mode)</a></li>
+      <li><a href="#s7">Skills &amp; Specialists</a></li>
+      <li><a href="#s8">QS Toolbox &amp; Reports</a></li>
+      <li><a href="#s9">Banners &amp; Notifications</a></li>
+      <li><a href="#s10">Voice Dictation</a></li>
+      <li><a href="#s11">Tagging &amp; Annotating</a></li>
+      <li><a href="#s12">Configuration &amp; Branding</a></li>
+    </ol>
+  </div>
+</div>
+
+<!-- ═══ 1. LANDING PAGE ════════════════════════════ -->
+<div class="pg" id="s1">
+  <hr>
+  <div class="sh"><div class="sh-n">1</div><h2>Opening THEMiS-QS &mdash; The Landing Page</h2></div>
+  <p class="sh-d">When you open THEMiS-QS, the Landing Page is the first screen you see. From here you can open an existing case or create a new one.</p>
+
+  <div class="scr">
+    <div class="scr-bar"><div class="scr-d r"></div><div class="scr-d y"></div><div class="scr-d g"></div><div class="scr-url">localhost:9998</div></div>
+    <div class="land">
+      <div class="land-t">T H E M <b>i</b> S - Q S</div>
+      <div class="land-st">Digital File Analyser</div>
+      <div class="land-search">Search all cases...</div>
+      <div class="land-sec">RECENT CASES</div>
+      <div class="land-case">
+        <div class="nm">Smith v. Anderson Construction</div>
+        <div class="fw" style="background:var(--b50);color:var(--bp);">RICS</div>
+        <div class="dt">12 Jan 2026</div>
+      </div>
+      <div class="land-case">
+        <div class="nm">Metro Line Extension - EOT Claim</div>
+        <div class="fw" style="background:#f0fdf4;color:#166534;">FIDIC</div>
+        <div class="dt">3 Jan 2026</div>
+      </div>
+      <div class="land-case">
+        <div class="nm">Harbor Dredging - Quantum Assessment</div>
+        <div class="fw" style="background:#fffbeb;color:#b45309;">NEC</div>
+        <div class="dt">18 Dec 2025</div>
+      </div>
+      <div class="land-acts">
+        <div class="land-act">
+          <div class="ic" style="background:var(--b50);color:var(--bp);">+</div>
+          <div class="la">Create New Case</div>
+          <div class="ld">Start fresh analysis</div>
+        </div>
+        <div class="land-act">
+          <div class="ic" style="background:#f0fdf4;color:#166534;">&#9776;</div>
+          <div class="la">Browse All Cases</div>
+          <div class="ld">Open folder browser</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tx"><strong>To open a case:</strong> Click on any case in the Recent Cases list. The application loads the case and opens the three-pane workspace.</p>
+  <p class="tx"><strong>To search:</strong> Type in the search bar to filter your case list by name.</p>
+  <p class="tx"><strong>To create a new case:</strong> Click "Create New Case". This opens the Case Creation Wizard (see next section).</p>
+</div>
+
+<!-- ═══ 2. CREATING A CASE ═════════════════════════ -->
+<div class="pg" id="s2">
+  <hr>
+  <div class="sh"><div class="sh-n">2</div><h2>Creating a New Case</h2></div>
+  <p class="sh-d">The Case Creation Wizard guides you through setting up a new case. Choose Quick Create for a fast setup, or Full Setup for complete configuration including framework, methodology, and initial document import.</p>
+
+  <h3 class="t">Step 1 &mdash; Choose Setup Mode</h3>
+
+  <div class="wiz">
+    <div class="wiz-h">Create New Case</div>
+    <div class="wiz-body">
+      <div class="wiz-cards" style="grid-template-columns:1fr 1fr;">
+        <div class="wiz-card sel">
+          <div class="wc-t">Quick Create</div>
+          <div class="wc-d">Case Name &rarr; IDs &rarr; Review &rarr; Create</div>
+          <div class="wc-d" style="color:var(--bp);margin-top:4px;">~2 minutes</div>
+        </div>
+        <div class="wiz-card">
+          <div class="wc-t">Full Setup</div>
+          <div class="wc-d">Case Name &rarr; IDs &rarr; Framework &rarr; Documents &rarr; Review</div>
+          <div class="wc-d" style="margin-top:4px;">~5-10 minutes</div>
+        </div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <div class="ab">Cancel</div>
+      <div class="ab fill">Continue</div>
+    </div>
+  </div>
+
+  <h3 class="t">Step 2 &mdash; Case Information</h3>
+  <p class="tx">Enter the case name and select the jurisdiction. Both fields are required.</p>
+
+  <div class="wiz">
+    <div class="wiz-h">Create New Case</div>
+    <div class="wiz-steps">
+      <div class="wiz-s done">Mode</div>
+      <div class="wiz-s on">Case Info</div>
+      <div class="wiz-s">IDs</div>
+      <div class="wiz-s">Review</div>
+    </div>
+    <div class="wiz-body">
+      <div class="wiz-label">Case Name *</div>
+      <div class="wiz-input" style="color:var(--g800);">Smith v. Anderson Construction</div>
+      <div class="wiz-label">Jurisdiction *</div>
+      <div class="wiz-input">United Kingdom</div>
+    </div>
+    <div class="wiz-foot">
+      <div class="ab">Back</div>
+      <div class="ab">Cancel</div>
+      <div class="ab fill">Continue</div>
+    </div>
+  </div>
+
+  <h3 class="t">Step 3 &mdash; ID Configuration</h3>
+  <p class="tx">Configure the numbering scheme for Case IDs, Vault IDs, and Evidence IDs. Defaults are provided (e.g. <code>C-0001</code>, <code>V-0001</code>, <code>DOC-001</code>) or you can customise the prefix, separator, and digit count.</p>
+
+  <h3 class="t">Step 4 &mdash; Framework &amp; Methodology (Full Setup only)</h3>
+  <p class="tx">Select the analytical framework that governs your case folders and assessment standards.</p>
+
+  <div class="wiz">
+    <div class="wiz-h">Create New Case</div>
+    <div class="wiz-steps">
+      <div class="wiz-s done">Mode</div>
+      <div class="wiz-s done">Case Info</div>
+      <div class="wiz-s done">IDs</div>
+      <div class="wiz-s on">Framework</div>
+      <div class="wiz-s">Documents</div>
+      <div class="wiz-s">Review</div>
+    </div>
+    <div class="wiz-body">
+      <div class="wiz-label">Framework</div>
+      <div class="wiz-cards" style="grid-template-columns:repeat(5,1fr);">
+        <div class="wiz-card sel"><div class="wc-t">RICS</div><div class="wc-d">UK/Intl &middot; 66 folders</div></div>
+        <div class="wiz-card"><div class="wc-t">FAR/DFARS</div><div class="wc-d">US Federal &middot; 52 folders</div></div>
+        <div class="wiz-card"><div class="wc-t">FIDIC</div><div class="wc-d">International</div></div>
+        <div class="wiz-card"><div class="wc-t">NEC</div><div class="wc-d">Engineering</div></div>
+        <div class="wiz-card"><div class="wc-t">+ Custom</div><div class="wc-d">User-defined</div></div>
+      </div>
+      <div class="wiz-label">Delay Methodology</div>
+      <div class="wiz-cards" style="grid-template-columns:repeat(3,1fr);">
+        <div class="wiz-card sel"><div class="wc-t">SCL Protocol</div><div class="wc-d">2nd Edition</div></div>
+        <div class="wiz-card"><div class="wc-t">AACE 29R-03</div><div class="wc-d">9 MIPs</div></div>
+        <div class="wiz-card"><div class="wc-t">Combined</div><div class="wc-d">SCL + AACE</div></div>
+      </div>
+      <div class="wiz-label">Validation Mode</div>
+      <div class="wiz-cards" style="grid-template-columns:1fr 1fr;">
+        <div class="wiz-card sel"><div class="wc-t">Project Control</div><div class="wc-d">Proactive, Flexible</div></div>
+        <div class="wiz-card"><div class="wc-t">Forensic</div><div class="wc-d">Dispute, Audit trail</div></div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <div class="ab">Back</div>
+      <div class="ab">Cancel</div>
+      <div class="ab fill">Continue</div>
+    </div>
+  </div>
+
+  <h3 class="t">Step 5 &mdash; Document Import (Full Setup only)</h3>
+  <p class="tx">Import documents into the case via folder selection or drag and drop. Files are queued for Zero Trust validation before being added to the Evidence Vault.</p>
+
+  <div class="wiz">
+    <div class="wiz-h">Create New Case &mdash; Zero Trust Import</div>
+    <div class="wiz-steps">
+      <div class="wiz-s done">Mode</div>
+      <div class="wiz-s done">Case Info</div>
+      <div class="wiz-s done">IDs</div>
+      <div class="wiz-s done">Framework</div>
+      <div class="wiz-s on">Documents</div>
+      <div class="wiz-s">Review</div>
+    </div>
+    <div class="wiz-body">
+      <div style="font-size:10px;color:var(--g500);margin-bottom:10px;">Files verified before vault migration</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <div class="ab fill">Select Folder</div>
+        <div class="ab" style="color:var(--g400);border-style:dashed;">Cloud Storage (Coming soon)</div>
+      </div>
+      <div class="wiz-uz">
+        <div class="ic">&uarr;</div>
+        <div class="tx">Or drop files here</div>
+        <div class="fm">PDF, DOCX, XLSX, MD, TXT, XER, MPP, DWG, PNG, JPG, TIFF, BMP, MSG, EML, PST, OST</div>
+      </div>
+      <div class="wiz-fq">8 FILES QUEUED</div>
+      <div class="wiz-fi">
+        <div class="ic" style="background:var(--rd);">PDF</div>
+        <div class="nm">Main Contract Agreement.pdf</div>
+        <div class="sz">2.4 MB</div>
+        <div class="st">Ready</div>
+      </div>
+      <div class="wiz-fi">
+        <div class="ic" style="background:var(--bp);">DOC</div>
+        <div class="nm">Delay Notification 14-Aug.docx</div>
+        <div class="sz">340 KB</div>
+        <div class="st">Ready</div>
+      </div>
+      <div class="wiz-fi">
+        <div class="ic" style="background:var(--gn);">XLS</div>
+        <div class="nm">Interim Valuation No.12.xlsx</div>
+        <div class="sz">1.1 MB</div>
+        <div class="st">Ready</div>
+      </div>
+      <div class="wiz-fi">
+        <div class="ic" style="background:#f97316;">XER</div>
+        <div class="nm">Programme Rev 8 - Baseline.xer</div>
+        <div class="sz">4.7 MB</div>
+        <div class="st">Ready</div>
+      </div>
+      <div class="wiz-fi">
+        <div class="ic" style="background:#8b5cf6;">DWG</div>
+        <div class="nm">GA-Floor Plan Level 03.dwg</div>
+        <div class="sz">12.3 MB</div>
+        <div class="st">Ready</div>
+      </div>
+      <div class="wiz-fi">
+        <div class="ic" style="background:#06b6d4;">IMG</div>
+        <div class="nm">Site Progress Photo 2024-08-14.jpg</div>
+        <div class="sz">3.8 MB</div>
+        <div class="st">Ready</div>
+      </div>
+      <div class="wiz-fi">
+        <div class="ic" style="background:#ec4899;">EML</div>
+        <div class="nm">RE Variation Order VO-017 - Approved.eml</div>
+        <div class="sz">125 KB</div>
+        <div class="st">Ready</div>
+      </div>
+      <div class="wiz-fi">
+        <div class="ic" style="background:var(--rd);">PDF</div>
+        <div class="nm">Architect Instruction AI-042.pdf</div>
+        <div class="sz">890 KB</div>
+        <div class="st">Ready</div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <div class="ab">Back</div>
+      <div class="ab">Cancel</div>
+      <div class="ab fill">Continue</div>
+    </div>
+  </div>
+
+  <h3 class="t">Step 6 &mdash; Review &amp; Create</h3>
+  <p class="tx">Review all settings before creating the case. Click <strong>Create Case</strong> to finalise. The case opens automatically and imported documents enter the validation pipeline.</p>
+</div>
+
+<!-- ═══ 3. EVIDENCE VAULT ══════════════════════════ -->
+<div class="pg" id="s3">
+  <hr>
+  <div class="sh"><div class="sh-n">3</div><h2>The Evidence Vault</h2></div>
+  <p class="sh-d">After creating a case, the three-pane workspace opens. The left pane is the Evidence Vault &mdash; a structured container for all case documents, organised by framework phases and smart folders.</p>
+
+  <!-- Full 3-pane view -->
+  <div class="scr">
+    <div class="scr-bar"><div class="scr-d r"></div><div class="scr-d y"></div><div class="scr-d g"></div><div class="scr-url">localhost:9998 &mdash; Smith v. Anderson Construction</div></div>
+    <div class="ah">
+      <div class="ah-logo">T</div>
+      <div class="ah-brand">THEMIS-QS</div>
+      <div class="ah-sp"></div>
+      <div class="ab">Smith v. Anderson Construction</div>
+      <div style="width:1px;height:16px;background:var(--g200);margin:0 2px;"></div>
+      <div class="ab on">S</div>
+      <div class="ab">A</div>
+      <div style="width:1px;height:16px;background:var(--g200);margin:0 2px;"></div>
+      <div class="ab">Settings</div>
+    </div>
+    <div class="panes">
+      <!-- LEFT: Vault -->
+      <div class="pl">
+        <div class="vault-sel" style="border-bottom:1px solid var(--g200);">
+          <div class="vname">Primary Vault</div>
+          <div class="vid">V-0001</div>
+          <div style="color:var(--g400);font-size:11px;">&#9662;</div>
+        </div>
+        <div style="flex:1;overflow:auto;">
+          <div class="lp-sec">RICS Framework</div>
+          <div class="lp-ph on"><div class="n">1</div>Pre-Contract</div>
+          <div class="lp-fo on">Tender Documents</div>
+          <div class="lp-doc"><div class="ic" style="background:var(--rd);">P</div>Main Contract Agreement.pdf</div>
+          <div class="lp-doc"><div class="ic" style="background:var(--rd);">P</div>Conditions of Contract.pdf</div>
+          <div class="lp-fo">Bond &amp; Guarantees</div>
+          <div class="lp-ph"><div class="n">2</div>Construction</div>
+          <div class="lp-ph"><div class="n">3</div>Claims &amp; Variations</div>
+          <div class="lp-ph"><div class="n">4</div>Delay &amp; EOT</div>
+          <div class="lp-ph"><div class="n">5</div>Financial</div>
+          <div class="lp-ph"><div class="n">6</div>Close-Out</div>
+        </div>
+        <div style="padding:6px 10px;border-top:1px solid var(--g200);font-size:9px;color:var(--g400);display:flex;justify-content:space-between;">
+          <span>9 in vault &middot; 6 Smart Folders</span>
+          <span style="color:var(--bp);font-weight:600;">Open Files</span>
+        </div>
+      </div>
+      <!-- CENTER -->
+      <div class="pc">
+        <div class="ph">
+          <div class="bdg" style="background:var(--b50);color:var(--bp);">RICS</div>
+          Search
+          <div style="flex:1;"></div>
+          <div class="ab" style="font-size:9px;">Sort &amp; Filter</div>
+          <div style="font-size:9px;color:var(--g400);">9 documents</div>
+        </div>
+        <div style="padding:10px;flex:1;background:var(--g50);">
+          <div style="background:var(--w);border:1px solid var(--g200);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--g400);margin-bottom:10px;">Search documents...</div>
+          <div class="wiz-fi" style="margin-bottom:4px;">
+            <div class="ic" style="background:var(--rd);">P</div>
+            <div class="nm">Main Contract Agreement.pdf</div>
+            <div style="font-size:8px;padding:1px 5px;border-radius:3px;background:var(--b50);color:var(--bp);font-weight:600;">Contract</div>
+            <div class="sz">2.4 MB</div>
+          </div>
+          <div class="wiz-fi" style="margin-bottom:4px;">
+            <div class="ic" style="background:var(--bp);">D</div>
+            <div class="nm">Delay Notification 14-Aug.docx</div>
+            <div style="font-size:8px;padding:1px 5px;border-radius:3px;background:#f0fdf4;color:#166534;font-weight:600;">Correspondence</div>
+            <div class="sz">340 KB</div>
+          </div>
+          <div class="wiz-fi" style="margin-bottom:4px;">
+            <div class="ic" style="background:var(--gn);">X</div>
+            <div class="nm">Interim Valuation No. 12.xlsx</div>
+            <div style="font-size:8px;padding:1px 5px;border-radius:3px;background:#faf5ff;color:var(--pp);font-weight:600;">Financial</div>
+            <div class="sz">1.1 MB</div>
+          </div>
+        </div>
+      </div>
+      <!-- RIGHT: Toolbox -->
+      <div class="pr">
+        <div class="ph">QS - Toolbox</div>
+        <div class="rp-sec">ZERO TRUST PIPELINE</div>
+        <div class="rp-metric"><span style="color:var(--g500);">Staging</span><span style="color:var(--am);font-weight:600;">2</span></div>
+        <div class="rp-metric"><span style="color:var(--g500);">Validated</span><span style="color:var(--gn);font-weight:600;">7</span></div>
+        <div class="rp-sec" style="margin-top:4px;">ANALYSIS TOOLS</div>
+        <div class="rp-tool"><div class="dot" style="background:var(--bp);"></div>Delay Analysis<span class="sub">As-planned vs. as-built</span></div>
+        <div class="rp-tool"><div class="dot" style="background:var(--pp);"></div>Document Extract<span class="sub">Key clauses</span></div>
+        <div class="rp-tool"><div class="dot" style="background:var(--gn);"></div>Review<span class="sub">Completeness</span></div>
+        <div class="rp-tool"><div class="dot" style="background:var(--am);"></div>Quantum<span class="sub">Assessment</span></div>
+        <div class="rp-tool"><div class="dot" style="background:var(--rd);"></div>Timeline<span class="sub">Chronology</span></div>
+        <div class="rp-tool"><div class="dot" style="background:var(--g400);"></div>Compare<span class="sub">Programmes</span></div>
+        <div class="rp-sec" style="margin-top:4px;">TIER 3 - PROTOCOL</div>
+        <div class="rp-tool"><div class="dot" style="background:var(--bp);"></div>SCL Compliance</div>
+        <div class="rp-tool"><div class="dot" style="background:var(--rd);"></div>Risk Events</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="t">Vault Selector</h3>
+  <p class="tx">Each case can contain multiple vaults for organising evidence by category. Click the vault name at the top of the left pane to open the vault dropdown. From here you can switch between vaults, search vaults, or create a new one with "+ Add New Vault".</p>
+
+  <h3 class="t">Framework Phases &amp; Smart Folders</h3>
+  <p class="tx">The left pane organises documents by framework phase. For RICS, the six phases are: Pre-Contract, Construction, Claims &amp; Variations, Delay &amp; EOT, Financial, and Close-Out. Click a phase to expand its smart folders. Click a folder to see the documents filed within it.</p>
+
+  <h3 class="t">Selecting Evidence for Analysis</h3>
+  <p class="tx">In Analysis mode, click documents in the left pane to add them to your analysis context. Selected documents appear under a "USER CONTEXT" section with a count badge. The analysis engine uses these documents as reference material when processing your queries.</p>
+</div>
+
+<!-- ═══ 4. UPLOADING DOCUMENTS ═════════════════════ -->
+<div class="pg" id="s4">
+  <hr>
+  <div class="sh"><div class="sh-n">4</div><h2>Uploading &amp; Managing Documents</h2></div>
+  <p class="sh-d">After case creation, add documents through the File Manager or by dragging files onto the workspace.</p>
+
+  <h3 class="t">Opening the File Manager</h3>
+  <p class="tx">Click <strong>Open Files</strong> in the left pane footer to open the File Manager. You can also access it from the header toolbar. The File Manager provides full control over evidence in the current vault.</p>
+
+  <h3 class="t">Uploading Files</h3>
+  <div class="steps">
+    <div class="stp"><div class="stp-n">1</div><div><h4>Drop files onto the upload zone</h4><p>Drag files from your desktop onto the dashed drop zone, or click "Select Folder" to browse. Accepted formats: PDF, DOCX, XLSX, MD, TXT, XER, MPP, DWG, PNG, JPG, TIFF, BMP, MSG, EML, PST, OST.</p></div></div>
+    <div class="stp"><div class="stp-n">2</div><div><h4>Review the file queue</h4><p>Queued files show their name, size, and a "Ready" status badge. Remove unwanted files with the delete button.</p></div></div>
+    <div class="stp"><div class="stp-n">3</div><div><h4>Zero Trust validation</h4><p>Files pass through the validation pipeline: Staging &rarr; Validation &rarr; Confirmed. A progress bar shows validation status per file.</p></div></div>
+    <div class="stp"><div class="stp-n">4</div><div><h4>Evidence confirmation</h4><p>Validated files are promoted to confirmed evidence and appear in the vault. Each receives an Evidence ID (e.g. DOC-001) and initial tags.</p></div></div>
+  </div>
+
+  <div class="fl">
+    <div class="fn" style="background:#fef2f2;color:var(--rd);border-color:#fecaca;">Upload</div>
+    <div class="fa">&rarr;</div>
+    <div class="fn" style="background:#fffbeb;color:#b45309;border-color:#fde68a;">Staging</div>
+    <div class="fa">&rarr;</div>
+    <div class="fn" style="background:var(--b50);color:var(--bp);border-color:var(--b200);">Validating</div>
+    <div class="fa">&rarr;</div>
+    <div class="fn" style="background:#f0fdf4;color:#166534;border-color:#bbf7d0;">Confirmed</div>
+  </div>
+
+  <h3 class="t">Supported File Formats</h3>
+  <table class="gt">
+    <thead><tr><th>Category</th><th>Formats</th><th>Usage</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Documents</strong></td><td>PDF, DOCX, MD, TXT</td><td>Contracts, correspondence, reports, submittals, technical notes</td></tr>
+      <tr><td><strong>Spreadsheets</strong></td><td>XLSX, CSV</td><td>Valuations, cost schedules, BoQ, registers</td></tr>
+      <tr><td><strong>Programmes</strong></td><td>XER (Primavera P6), MPP</td><td>Baseline &amp; as-built schedules, delay analysis, critical path</td></tr>
+      <tr><td><strong>Drawings</strong></td><td>DWG (AutoCAD)</td><td>Architectural plans, structural details, site layouts, as-built drawings</td></tr>
+      <tr><td><strong>Images</strong></td><td>PNG, JPG, TIFF, BMP</td><td>Site progress photos, inspection records, defect captures</td></tr>
+      <tr><td><strong>Correspondence</strong></td><td>MSG, EML</td><td>Outlook messages, email chains, formal notices, instructions</td></tr>
+      <tr><td><strong>Mail Archives</strong></td><td>PST, OST (Outlook)</td><td>Full mailbox archives, offline data files &mdash; bulk import of project correspondence</td></tr>
+    </tbody>
+  </table>
+  <div class="ann" style="margin-top:.8rem;">
+    <b>P6 XER Support</b>
+    Primavera P6 XER files are parsed natively. Activity data, relationships, calendars and resource assignments are extracted for schedule analysis, delay quantification, and critical-path comparison between baseline and as-built programmes.
+  </div>
+  <div class="ann" style="margin-top:.5rem;">
+    <b>DWG Support</b>
+    AutoCAD DWG files are rendered for preview within the Evidence Vault. Layer data, dimensions and annotations are preserved for cross-referencing with contract specifications and variation records.
+  </div>
+
+  <h3 class="t">Managing Evidence</h3>
+  <p class="tx">In the File Manager, use the toolbar to filter by type (PDF, Word, Excel, Programme, Drawing, Image, Email), sort by name/date/size, and filter by validation status (Pending, Confirmed, Rejected). Select files using checkboxes for bulk operations: set validation status, add or remove tags, or delete from the vault.</p>
+
+  <h3 class="t">Evidence Tags</h3>
+  <p class="tx">Documents are automatically tagged on import with namespace-based labels:</p>
+  <table class="gt">
+    <thead><tr><th>Namespace</th><th>Example</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>case</td><td><code>THEMIS:case:C-0001</code></td><td>Links document to its case</td></tr>
+      <tr><td>type</td><td><code>THEMIS:type:CONTRACT</code></td><td>Document classification</td></tr>
+      <tr><td>fw</td><td><code>THEMIS:fw:RICS</code></td><td>Framework association</td></tr>
+      <tr><td>valid</td><td><code>THEMIS:valid:confirmed</code></td><td>Validation status</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══ 5. SEARCH MODE ═════════════════════════════ -->
+<div class="pg" id="s5">
+  <hr>
+  <div class="sh"><div class="sh-n">5</div><h2>Searching Evidence (Search Mode)</h2></div>
+  <p class="sh-d">Switch to Search mode by clicking the <strong>S</strong> button in the header. Search mode provides full-text search across all evidence in the current vault.</p>
+
+  <div class="scr">
+    <div class="scr-bar"><div class="scr-d r"></div><div class="scr-d y"></div><div class="scr-d g"></div><div class="scr-url">localhost:9998 &mdash; Search Mode</div></div>
+    <div class="ah">
+      <div class="ah-logo">T</div><div class="ah-brand">THEMIS-QS</div><div class="ah-sp"></div>
+      <div class="ab on">S &middot; Search</div><div class="ab">A &middot; Analysis</div>
+    </div>
+    <div style="background:var(--g50);padding:12px;">
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <div style="flex:1;background:var(--w);border:2px solid var(--bp);border-radius:8px;padding:7px 10px;font-size:11px;color:var(--g800);">delay notification clause 8.3</div>
+        <div class="ab fill">Search</div>
+      </div>
+      <div style="font-size:10px;color:var(--g500);margin-bottom:8px;">3 results in 2 documents &middot; 0.12s</div>
+
+      <!-- Result 1 -->
+      <div style="background:#fffbeb;border:1px solid #fef08a;border-radius:8px;padding:10px;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+          <div style="width:16px;height:16px;border-radius:3px;background:var(--rd);color:#fff;font-size:7px;font-weight:700;display:flex;align-items:center;justify-content:center;">P</div>
+          <span style="font-size:11px;font-weight:600;color:var(--g800);">Main Contract Agreement.pdf</span>
+          <span style="margin-left:auto;font-size:9px;padding:1px 5px;border-radius:3px;background:#f0fdf4;color:#166534;font-weight:600;">p42 S3 L14</span>
+        </div>
+        <div style="font-size:11px;color:var(--g600);line-height:1.5;background:var(--w);padding:6px 8px;border-radius:4px;">
+          ...pursuant to <span style="background:#fef08a;padding:0 2px;border-radius:2px;font-weight:600;">Clause 8.3</span>, the Contractor shall give <span style="background:#fef08a;padding:0 2px;border-radius:2px;font-weight:600;">notification</span> of any <span style="background:#fef08a;padding:0 2px;border-radius:2px;font-weight:600;">delay</span> event within 28 days...
+        </div>
+      </div>
+
+      <!-- Result 2 -->
+      <div style="background:#fffbeb;border:1px solid #fef08a;border-radius:8px;padding:10px;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+          <div style="width:16px;height:16px;border-radius:3px;background:var(--bp);color:#fff;font-size:7px;font-weight:700;display:flex;align-items:center;justify-content:center;">D</div>
+          <span style="font-size:11px;font-weight:600;color:var(--g800);">Contractor Letter - Delay Notification 14-Aug.docx</span>
+          <span style="margin-left:auto;font-size:9px;padding:1px 5px;border-radius:3px;background:#f0fdf4;color:#166534;font-weight:600;">p1 S1 L3</span>
+        </div>
+        <div style="font-size:11px;color:var(--g600);line-height:1.5;background:var(--w);padding:6px 8px;border-radius:4px;">
+          We hereby provide formal <span style="background:#fef08a;padding:0 2px;border-radius:2px;font-weight:600;">delay notification</span> in accordance with <span style="background:#fef08a;padding:0 2px;border-radius:2px;font-weight:600;">Clause 8.3</span>...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tx">Each result card shows the document name, location (page, section, line), and an excerpt with highlighted matching terms. Click a result to open the document preview.</p>
+
+  <p class="tx">Use <strong>Sort &amp; Filter</strong> in the toolbar to refine results by document type (PDF, Word, Excel, Programme, Drawing, Image) or sort by name, date, or size.</p>
+</div>
+
+<!-- ═══ 6. ANALYSIS MODE ═══════════════════════════ -->
+<div class="pg" id="s6">
+  <hr>
+  <div class="sh"><div class="sh-n">6</div><h2>Running Analysis (Analysis Mode)</h2></div>
+  <p class="sh-d">Switch to Analysis mode by clicking the <strong>A</strong> button. The centre pane becomes a conversation panel where you submit queries against your case evidence.</p>
+
+  <div class="steps">
+    <div class="stp"><div class="stp-n">1</div><div><h4>Select evidence in the left pane</h4><p>Click documents in the vault to add them to the analysis context. A "USER CONTEXT" section appears showing selected documents with a count badge.</p></div></div>
+    <div class="stp"><div class="stp-n">2</div><div><h4>Type or dictate your query</h4><p>Write your question in the input field, or click the microphone for voice dictation. You can also attach additional files directly to the message.</p></div></div>
+    <div class="stp"><div class="stp-n">3</div><div><h4>Review the response</h4><p>The response appears in the conversation with structured findings. Multi-step analyses show expandable workflow steps.</p></div></div>
+    <div class="stp"><div class="stp-n">4</div><div><h4>Continue the conversation</h4><p>Ask follow-up questions. The conversation maintains context from previous messages for multi-turn analysis.</p></div></div>
+  </div>
+
+  <!-- Analysis chat mockup -->
+  <div class="scr">
+    <div class="scr-bar"><div class="scr-d r"></div><div class="scr-d y"></div><div class="scr-d g"></div><div class="scr-url">localhost:9998 &mdash; Analysis Mode</div></div>
+    <div class="cht">
+      <div class="cht-h">
+        Analysis
+        <div class="bdg" style="background:var(--b50);color:var(--bp);">RICS Framework</div>
+        <div style="flex:1;"></div>
+        <div class="bdg" style="background:#f0fdf4;color:#166534;">Connected</div>
+      </div>
+      <div class="cht-m">
+        <div class="msg u">
+          Identify the delay events in the contractor correspondence from Q3 2024 and assess whether timely notification was given under Clause 8.3.
+          <div class="mt">14:32</div>
+        </div>
+        <div class="msg a">
+          Based on the documents in context, three delay events were identified in Q3 2024:
+          <br><br>
+          <strong>1. Revised Foundation Design (12 Jul)</strong> &mdash; Notification given 15 Jul. Compliant.
+          <br><br>
+          <strong>2. Material Supply Disruption (3 Aug)</strong> &mdash; Notification given 14 Aug. Compliant.
+          <br><br>
+          <strong>3. Access Restriction - Zone C (22 Sep)</strong> &mdash; No formal notification found. Non-compliant with Clause 8.3.
+          <div class="mt">14:33 &middot; 3 steps</div>
+        </div>
+        <div class="msg u">
+          What is the contractor's potential entitlement for event 3, given the missing notification?
+          <div class="mt">14:35</div>
+        </div>
+      </div>
+      <!-- Linter bar mockup -->
+      <div class="lint warn">
+        <div class="lint-sc">72</div>
+        <div class="lint-meta">
+          <span>EN</span>
+          <span>delay-analysis</span>
+          <span>~1.2k tokens</span>
+          <span>$0.003</span>
+        </div>
+        <div class="lint-iss">
+          <span class="md">missing methodology</span>
+          <span class="lo">add date range</span>
+        </div>
+        <div class="lint-fix">Auto-fix</div>
+      </div>
+      <!-- Rewrite preview -->
+      <div class="lint-prev">
+        <div class="lint-prev-h">
+          <span>Rewrite Preview</span>
+          <span style="font-weight:400;font-size:9px;color:#9ca3af;">Click Auto-fix to apply</span>
+        </div>
+        <div class="lint-prev-d">
+          <div class="lint-prev-col orig">
+            <div class="lbl">Original</div>
+            Identify the delay events in the contractor correspondence from Q3 2024
+          </div>
+          <div class="lint-prev-col fixd">
+            <div class="lbl">Auto-fixed</div>
+            Using Time Impact Analysis (SCL Protocol), identify delay events in contractor correspondence from Jul&ndash;Sep 2024 and assess Clause 8.3 notification compliance
+          </div>
+        </div>
+      </div>
+      <div class="cht-ib">
+        <div class="cht-it">Identify the delay events in the contractor correspondence from Q3 2024...</div>
+        <div class="cht-tb">
+          <div class="tb on">S</div>
+          <div class="tb" style="background:#1a73e8;color:#fff;font-size:9px;font-weight:700;">DA</div>
+          <div class="tb" style="font-size:11px;">&#9734;</div>
+          <div class="tb" style="font-size:12px;">&#8981;</div>
+          <div class="tsep"></div>
+          <div class="tb" style="font-size:12px;">&#9991;</div>
+          <div class="tb" style="font-size:12px;">&#128206;</div>
+          <div class="tb" style="font-size:12px;">&#127908;</div>
+          <div style="flex:1;"></div>
+          <div style="font-size:9px;color:#9aa0a6;margin-right:4px;">0</div>
+          <div class="tb send">&#9654;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="t">Input Toolbar</h3>
+  <table class="gt">
+    <thead><tr><th>Button</th><th>Function</th></tr></thead>
+    <tbody>
+      <tr><td><strong>S / A</strong></td><td>Toggle between Search and Analysis mode. Shows <strong>S</strong> when in Analysis (switch to Search) and <strong>A</strong> when in Search (switch to Analysis). The button is always highlighted in the accent colour.</td></tr>
+      <tr><td><strong>DA</strong></td><td>Open the Skills &amp; Specialists panel (see section 7). Turns accent blue when a skill is active. Tooltip shows the active skill name.</td></tr>
+      <tr><td>Star</td><td>Access saved prompts &mdash; frequently used queries stored for quick reuse</td></tr>
+      <tr><td>Magnifier</td><td>Browse conversation and search history</td></tr>
+      <tr><td>Tags</td><td>Open the tag filter panel to tag or filter messages</td></tr>
+      <tr><td>Clip</td><td>Attach files directly to the current message</td></tr>
+      <tr><td>Microphone</td><td>Start voice dictation (see section 9)</td></tr>
+      <tr><td>Counter</td><td>Shows the number of attached files. Appears next to the Send button.</td></tr>
+      <tr><td>Send</td><td>Submit the message. Enabled when text or files are present.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="t">Prompt Linter</h3>
+  <p class="tx">The Prompt Linter is a real-time quality bar that appears above the input field as you type. It analyses your query and provides instant feedback on quality, completeness, and specificity before you submit.</p>
+
+  <table class="gt">
+    <thead><tr><th>Element</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Score</strong></td><td>Quality score from 0 to 100. Green (80+) = good, Amber (50&ndash;79) = needs improvement, Red (&lt;50) = poor. The entire bar changes colour to match.</td></tr>
+      <tr><td><strong>Language</strong></td><td>Detected language (EN / FR) based on keyword patterns.</td></tr>
+      <tr><td><strong>Task Type</strong></td><td>Inferred task: create, modify, explain, analyze, delay-analysis, rea-preparation, concurrent-analysis, etc.</td></tr>
+      <tr><td><strong>Tokens</strong></td><td>Estimated token count for the input.</td></tr>
+      <tr><td><strong>Cost</strong></td><td>Estimated processing cost for the query.</td></tr>
+      <tr><td><strong>Issues</strong></td><td>Coloured badges for detected problems: <span style="color:#dc2626;">high</span> (missing methodology, conflicts), <span style="color:#b45309;">medium</span> (vague references, ambiguous quantities), <span style="color:#166534;">low</span> (missing dates, format suggestions).</td></tr>
+      <tr><td><strong>Auto-fix</strong></td><td>Gradient button that applies the linter's suggested rewrite. Appears only when improvements are available.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="t">Rewrite Preview</h3>
+  <p class="tx">When the Linter detects issues or an active Skill offers a tailored rewrite, a side-by-side preview panel appears below the linter bar showing the <strong>Original</strong> text and the <strong>Auto-fixed</strong> version. Click <strong>Auto-fix</strong> to replace your input with the improved version, or ignore it to keep your original text.</p>
+  <p class="tx">When a Skill is active, the linter may show multiple <strong>Skill Rewrite</strong> options &mdash; each tailored to a specific methodology or discipline. Click any rewrite option to apply it.</p>
+
+  <div class="ann">
+    <b>Linter Score Thresholds</b>
+    The score is computed from word count, presence of technical and domain terms, numbers, date references, file extensions, and methodology keywords. A higher score means a more precise, actionable prompt that will produce better results.
+  </div>
+</div>
+
+<!-- ═══ 7. SKILLS & SPECIALISTS ══════════════════════ -->
+<div class="pg" id="s7">
+  <hr>
+  <div class="sh"><div class="sh-n">7</div><h2>Skills &amp; Specialists</h2></div>
+  <p class="sh-d">Skills are domain-specific configurations that tailor the analysis to a particular ADR process or expert discipline. Click the <strong>DA</strong> button in the input toolbar to open the Skills panel. The panel has three collapsible sections: <strong>Specialists</strong> (active skills list), <strong>Style &amp; Tone</strong> (response formatting), and <strong>System</strong> (system-level settings).</p>
+
+  <!-- DA popup mockup -->
+  <div class="scr">
+    <div class="scr-bar"><div class="scr-d r"></div><div class="scr-d y"></div><div class="scr-d g"></div><div class="scr-url">localhost:9998 &mdash; Skills Panel</div></div>
+    <div class="cht" style="min-height:auto;">
+      <div class="cht-h">
+        Analysis
+        <div class="bdg" style="background:var(--b50);color:var(--bp);">RICS Framework</div>
+        <div style="flex:1;"></div>
+        <div class="bdg" style="background:#f0fdf4;color:#166534;">Active: Delay Expert</div>
+      </div>
+      <div style="padding:10px;">
+        <!-- Simulated DA popup with 3 sections -->
+        <div class="da-pop">
+          <!-- Section 1: SPECIALISTS (expanded) -->
+          <div class="da-sec">
+            <div class="da-hd"><span class="arr">&#9662;</span> SPECIALISTS <span class="plus">+</span></div>
+            <div class="da-bd">
+              <div class="sk-item">
+                <div class="sk-ic">C</div>
+                <div><div class="sk-nm">Claims Advocate</div><div class="sk-ds">Claims preparation and advocacy for ADR</div></div>
+              </div>
+              <div class="sk-item">
+                <div class="sk-ic">A</div>
+                <div><div class="sk-nm">Adjudication Support</div><div class="sk-ds">Statutory adjudication under HGCRA 1996</div></div>
+              </div>
+              <div class="sk-item">
+                <div class="sk-ic">A</div>
+                <div><div class="sk-nm">Arbitration Support</div><div class="sk-ds">ICC, LCIA, DIAC, SIAC, UNCITRAL proceedings</div></div>
+              </div>
+              <div class="sk-item on">
+                <div class="sk-ic">D</div>
+                <div><div class="sk-nm">Delay Expert</div><div class="sk-ds">Forensic schedule analysis &amp; delay quantification</div></div>
+                <div class="sk-ok">ok</div>
+              </div>
+              <div class="sk-item">
+                <div class="sk-ic">Q</div>
+                <div><div class="sk-nm">Quantum Expert</div><div class="sk-ds">Damages quantification &amp; cost analysis</div></div>
+              </div>
+              <div class="sk-item">
+                <div class="sk-ic">M</div>
+                <div><div class="sk-nm">Mediation Support</div><div class="sk-ds">Facilitated settlement negotiation</div></div>
+              </div>
+              <div class="sk-item">
+                <div class="sk-ic">E</div>
+                <div><div class="sk-nm">Expert Determination</div><div class="sk-ds">Binding technical &amp; valuation decisions</div></div>
+              </div>
+              <div class="sk-item">
+                <div class="sk-ic">C</div>
+                <div><div class="sk-nm">Contract Analyst</div><div class="sk-ds">Contract interpretation &amp; entitlement analysis</div></div>
+              </div>
+            </div>
+          </div>
+          <!-- Section 2: STYLE & TONE (collapsed) -->
+          <div class="da-sec">
+            <div class="da-hd"><span class="arr">&#9656;</span> STYLE &amp; TONE <span class="plus">+</span></div>
+            <div class="da-soon">Coming soon</div>
+          </div>
+          <!-- Section 3: SYSTEM (collapsed) -->
+          <div class="da-sec">
+            <div class="da-hd"><span class="arr">&#9656;</span> SYSTEM <span class="plus">+</span></div>
+            <div class="da-soon">Coming soon</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="t">Available Skills</h3>
+  <table class="gt">
+    <thead><tr><th>Skill</th><th>Discipline</th><th>Use When</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Claims Advocate</strong></td><td>Claims preparation</td><td>Drafting claim submissions, notices, Scott Schedules, witness statements, narrative reports for ADR proceedings.</td></tr>
+      <tr><td><strong>Adjudication Support</strong></td><td>Statutory adjudication</td><td>Fast-track disputes under HGCRA 1996. Referral notices, responses, smash-and-grab adjudication, enforcement.</td></tr>
+      <tr><td><strong>Arbitration Support</strong></td><td>Formal arbitration</td><td>ICC, LCIA, DIAC, SIAC, UNCITRAL proceedings. Memorials, Redfern Schedules, hearing preparation.</td></tr>
+      <tr><td><strong>Delay Expert</strong></td><td>Schedule analysis</td><td>Time Impact Analysis, windows analysis, as-planned vs as-built, SCL Protocol, AACE 29R-03, critical path analysis.</td></tr>
+      <tr><td><strong>Quantum Expert</strong></td><td>Damages &amp; costs</td><td>Prolongation, head office overhead (Eichleay/Hudson/Emden), disruption, loss of profit, variation valuation.</td></tr>
+      <tr><td><strong>Mediation Support</strong></td><td>Settlement</td><td>BATNA/WATNA/ZOPA analysis, position papers, opening statements, settlement agreements, impasse breaking.</td></tr>
+      <tr><td><strong>Expert Determination</strong></td><td>Technical decisions</td><td>Binding expert decisions on measurement, valuation, and technical disputes. Referrals and submissions.</td></tr>
+      <tr><td><strong>Contract Analyst</strong></td><td>Contract interpretation</td><td>Entitlement analysis, conditions precedent, time bars, FIDIC/NEC/JCT clause interpretation, variation analysis.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="t">Activating a Skill</h3>
+  <div class="steps">
+    <div class="stp"><div class="stp-n">1</div><div><h4>Open the Skills panel</h4><p>Click the <strong>DA</strong> button in the input toolbar. The panel lists all available skills with their descriptions.</p></div></div>
+    <div class="stp"><div class="stp-n">2</div><div><h4>Select a skill</h4><p>Click a skill to activate it. The active skill shows an "ok" badge and the DA button tooltip updates to show the active skill name.</p></div></div>
+    <div class="stp"><div class="stp-n">3</div><div><h4>Submit your query</h4><p>Type your query as usual. The active skill shapes the analysis approach and response structure to match the selected discipline.</p></div></div>
+    <div class="stp"><div class="stp-n">4</div><div><h4>Deactivate</h4><p>Click the active skill again to deactivate it and return to the default analysis mode.</p></div></div>
+  </div>
+
+  <h3 class="t">Automatic Skill Detection</h3>
+  <p class="tx">The Prompt Linter automatically detects relevant skills based on your input. When it recognises trigger patterns (e.g. "time impact analysis", "Eichleay formula", "adjudication referral"), it suggests the appropriate skill and may offer a rewritten prompt optimised for that discipline. You can accept the suggestion or keep your original text.</p>
+</div>
+
+<!-- ═══ 8. QS TOOLBOX ══════════════════════════════ -->
+<div class="pg" id="s8">
+  <hr>
+  <div class="sh"><div class="sh-n">8</div><h2>QS Toolbox &amp; Reports</h2></div>
+  <p class="sh-d">The right pane provides the QS Toolbox &mdash; specialised analysis tools that operate on the selected evidence. Click a tool to execute it.</p>
+
+  <h3 class="t">Zero Trust Pipeline</h3>
+  <p class="tx">The top section shows the current validation status: how many documents are in Staging (awaiting validation) and how many are Validated (confirmed evidence). This gives you an at-a-glance view of evidence readiness.</p>
+
+  <h3 class="t">Analysis Tools</h3>
+  <table class="gt">
+    <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Delay Analysis</strong></td><td>As-planned vs. as-built programme comparison</td></tr>
+      <tr><td><strong>Document Extract</strong></td><td>Extract key clauses and provisions from contracts</td></tr>
+      <tr><td><strong>Review</strong></td><td>Completeness check across evidence categories</td></tr>
+      <tr><td><strong>Quantum</strong></td><td>Quantum assessment and cost analysis</td></tr>
+      <tr><td><strong>Timeline</strong></td><td>Event chronology from correspondence and records</td></tr>
+      <tr><td><strong>Compare</strong></td><td>Programme comparison between baselines and revisions</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="t">Tier 3 &mdash; Protocol &amp; Analysis</h3>
+  <table class="gt">
+    <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><strong>SCL Compliance</strong></td><td>Assessment against SCL Protocol principles</td></tr>
+      <tr><td><strong>Risk Events</strong></td><td>Risk event timeline and categorisation</td></tr>
+      <tr><td><strong>Notices</strong></td><td>Contract notice tracking and compliance</td></tr>
+      <tr><td><strong>Quarantine</strong></td><td>View files pending validation</td></tr>
+      <tr><td><strong>R and O Report</strong></td><td>Risk and Opportunity assessment</td></tr>
+      <tr><td><strong>Verify Provenance</strong></td><td>Check VSP hashes for document integrity</td></tr>
+    </tbody>
+  </table>
+
+  <div class="ann">
+    <div><b>Note</b>Some tools require selected evidence in the left pane before execution. If no evidence is selected, you will be prompted to select documents first.</div>
+  </div>
+</div>
+
+<!-- ═══ 9. BANNERS & NOTIFICATIONS ════════════════ -->
+<div class="pg" id="s9">
+  <hr>
+  <div class="sh"><div class="sh-n">9</div><h2>Banners &amp; Notifications</h2></div>
+  <p class="sh-d">THEMiS-QS uses two notification layers to keep you informed: a <strong>top banner</strong> for system-wide alerts, and a <strong>notification stack</strong> (top-right) for transient event messages. Both support four severity levels.</p>
+
+  <h3 class="t">Top Banner</h3>
+  <p class="tx">The top banner is a fixed bar that spans the full width of the screen. It appears for system-level events such as updates, backend status, and analysis progress. Dismiss it with the &times; button, or click the action button when one is shown.</p>
+
+  <!-- Banner mockups -->
+  <div style="margin:1rem 0;">
+    <div class="notif-banner suc">
+      <div class="notif-ic">&#10003;</div>
+      <span style="flex:1;">DOC-014 validated &mdash; promoted to confirmed evidence</span>
+      <button class="notif-act">View</button>
+      <button class="notif-x">&times;</button>
+    </div>
+    <div class="notif-banner wrn">
+      <div class="notif-ic">&#9888;</div>
+      <span style="flex:1;">Backend Offline &mdash; Service unavailable. Retrying every 5s.</span>
+      <button class="notif-act">Service Dashboard</button>
+      <button class="notif-x">&times;</button>
+    </div>
+    <div class="notif-banner err">
+      <div class="notif-ic">!</div>
+      <span style="flex:1;">Analysis failed: context window exceeded</span>
+      <button class="notif-x">&times;</button>
+    </div>
+    <div class="notif-banner inf">
+      <div class="notif-ic">i</div>
+      <span style="flex:1;">3 file(s) queued for Zero Trust validation</span>
+      <button class="notif-x">&times;</button>
+    </div>
+  </div>
+
+  <table class="gt">
+    <thead><tr><th>Type</th><th>Colour</th><th>Example Triggers</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Success</strong></td><td style="color:#059669;">Green</td><td>Evidence validated, case created, analysis complete, output ready, file uploaded</td></tr>
+      <tr><td><strong>Warning</strong></td><td style="color:#d97706;">Amber</td><td>Backend offline, update available, connection lost, no files selected</td></tr>
+      <tr><td><strong>Error</strong></td><td style="color:#dc2626;">Red</td><td>Analysis failed, import failed, case creation failed, service error</td></tr>
+      <tr><td><strong>Info</strong></td><td style="color:#2563eb;">Blue</td><td>Files queued, tag added, classification updated, import progress</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="t">Notification Stack</h3>
+  <p class="tx">The notification stack appears in the top-right corner. Each card slides in from the right, shows for <strong>5 seconds</strong>, then auto-dismisses. Multiple notifications stack vertically. Click &times; to dismiss manually.</p>
+
+  <!-- Stack mockup -->
+  <div style="margin:1rem 0;display:flex;justify-content:flex-end;">
+    <div class="notif-stack">
+      <div class="notif-card">
+        <div class="notif-ic" style="background:#059669;">&#10003;</div>
+        <span style="flex:1;">3 file(s) in Zero Trust staging</span>
+        <button class="notif-x" style="color:var(--g400);">&times;</button>
+      </div>
+      <div class="notif-card">
+        <div class="notif-ic" style="background:#059669;">&#10003;</div>
+        <span style="flex:1;">Main Contract Agreement.pdf validated</span>
+        <button class="notif-x" style="color:var(--g400);">&times;</button>
+      </div>
+      <div class="notif-card">
+        <div class="notif-ic" style="background:#2563eb;">i</div>
+        <span style="flex:1;">DOC-014 classified: CONTRACT</span>
+        <button class="notif-x" style="color:var(--g400);">&times;</button>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="t">Evidence Lifecycle Notifications</h3>
+  <p class="tx">As documents move through the Zero Trust pipeline, notifications fire at each stage:</p>
+  <div class="steps">
+    <div class="stp"><div class="stp-n">1</div><div><h4>Upload queued</h4><p><em>"3 file(s) in Zero Trust staging"</em> &mdash; files accepted, awaiting validation.</p></div></div>
+    <div class="stp"><div class="stp-n">2</div><div><h4>Validation complete</h4><p><em>"DOC-014 validated"</em> &mdash; file passed integrity and format checks.</p></div></div>
+    <div class="stp"><div class="stp-n">3</div><div><h4>Classification</h4><p><em>"DOC-014 classified: CONTRACT"</em> &mdash; document type detected and tagged.</p></div></div>
+    <div class="stp"><div class="stp-n">4</div><div><h4>Vault commit</h4><p><em>"DOC-014 committed to vault"</em> &mdash; evidence promoted to confirmed status.</p></div></div>
+  </div>
+
+  <h3 class="t">Correction Banner</h3>
+  <p class="tx">When the analysis engine encounters a recoverable error, the Negotiator attempts an automatic correction. A gradient banner appears at the top of the chat:</p>
+
+  <div style="margin:1rem 0;">
+    <div class="corr-banner prog">&#128260; Negotiator: Correcting error&hellip; token limit exceeded</div>
+    <div class="corr-banner done">&#9989; Correction applied (attempt 1) &mdash; Error type: context_overflow</div>
+    <div class="corr-banner fail">&#10060; Correction failed &mdash; Max retries exceeded</div>
+  </div>
+
+  <table class="gt">
+    <thead><tr><th>State</th><th>Colour</th><th>Auto-dismiss</th></tr></thead>
+    <tbody>
+      <tr><td><strong>In progress</strong></td><td style="color:#d97706;">Amber gradient</td><td>Stays until resolved</td></tr>
+      <tr><td><strong>Corrected</strong></td><td style="color:#059669;">Green gradient</td><td>3 seconds</td></tr>
+      <tr><td><strong>Failed</strong></td><td style="color:#dc2626;">Red gradient</td><td>5 seconds</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="t">Validation Status Indicators</h3>
+  <p class="tx">Throughout the interface, evidence validation status is shown with colour-coded badges and dots:</p>
+  <div style="display:flex;gap:12px;margin:1rem 0;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:4px;font-size:11px;"><div style="width:8px;height:8px;border-radius:50%;background:#eab308;"></div> <span style="padding:2px 8px;background:#fef9c3;color:#854d0e;border-radius:4px;font-size:10px;font-weight:500;">Pending</span></div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:11px;"><div style="width:8px;height:8px;border-radius:50%;background:#22c55e;"></div> <span style="padding:2px 8px;background:#d1fae5;color:#065f46;border-radius:4px;font-size:10px;font-weight:500;">Confirmed</span></div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:11px;"><div style="width:8px;height:8px;border-radius:50%;background:#ef4444;"></div> <span style="padding:2px 8px;background:#fee2e2;color:#991b1b;border-radius:4px;font-size:10px;font-weight:500;">Rejected</span></div>
+  </div>
+</div>
+
+<!-- ═══ 10. VOICE DICTATION ════════════════════════ -->
+<div class="pg" id="s10">
+  <hr>
+  <div class="sh"><div class="sh-n">10</div><h2>Voice Dictation</h2></div>
+  <p class="sh-d">THEMiS-QS includes on-device speech-to-text. All audio processing is performed locally &mdash; no audio data is transmitted externally.</p>
+
+  <div class="fl">
+    <div class="fn" style="background:var(--g100);color:var(--g600);border-color:var(--g300);">Idle</div>
+    <div class="fa">&rarr;</div>
+    <div class="fn" style="background:#fffbeb;color:#b45309;border-color:#fde68a;">Loading Model</div>
+    <div class="fa">&rarr;</div>
+    <div class="fn" style="background:#f0fdf4;color:#166534;border-color:#bbf7d0;">Ready</div>
+    <div class="fa">&rarr;</div>
+    <div class="fn" style="background:#fef2f2;color:var(--rd);border-color:#fecaca;">Recording</div>
+    <div class="fa">&rarr;</div>
+    <div class="fn" style="background:var(--b50);color:var(--bp);border-color:var(--b200);">Processing</div>
+    <div class="fa">&rarr;</div>
+    <div class="fn" style="background:#f0fdf4;color:#166534;border-color:#bbf7d0;">Ready</div>
+  </div>
+
+  <div class="steps">
+    <div class="stp"><div class="stp-n">1</div><div><h4>Click the microphone button</h4><p>On first use, the transcription model (~40 MB) downloads and caches locally. A progress bar shows download status. Subsequent uses load from cache.</p></div></div>
+    <div class="stp"><div class="stp-n">2</div><div><h4>Speak your query</h4><p>When the status shows Ready, click the microphone again. A waveform visualisation confirms active recording. Speak naturally.</p></div></div>
+    <div class="stp"><div class="stp-n">3</div><div><h4>Stop and review</h4><p>Click "Stop &amp; Transcribe" to end recording. The transcribed text appears in the input field for review before sending. Click "Cancel" to discard.</p></div></div>
+  </div>
+
+  <div class="ann warn">
+    <div><b>Browser Permission</b>Your browser will request microphone access on first use. Grant permission to enable voice input.</div>
+  </div>
+</div>
+
+<!-- ═══ 11. TAGGING ════════════════════════════════ -->
+<div class="pg" id="s11">
+  <hr>
+  <div class="sh"><div class="sh-n">11</div><h2>Tagging &amp; Annotating</h2></div>
+  <p class="sh-d">Tag conversation messages to mark findings, flag action items, and annotate your analysis session.</p>
+
+  <p class="tx">In Analysis mode, hover over any message to reveal the tag button. Click it to open the tag picker:</p>
+
+  <table class="gt">
+    <thead><tr><th>Tag</th><th>Colour</th><th>Use</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Important</strong></td><td><span class="bg rd">Red</span></td><td>Critical findings requiring immediate attention</td></tr>
+      <tr><td><strong>Question</strong></td><td><span class="bg bl">Blue</span></td><td>Open questions to be resolved</td></tr>
+      <tr><td><strong>Action</strong></td><td><span class="bg am">Amber</span></td><td>Action items and follow-up tasks</td></tr>
+      <tr><td><strong>Reference</strong></td><td><span class="bg gn">Green</span></td><td>Key contractual or evidential references</td></tr>
+      <tr><td>Follow-up</td><td style="color:var(--pp);">Purple</td><td>Items requiring further investigation</td></tr>
+      <tr><td>Note</td><td style="color:var(--g500);">Gray</td><td>General annotations</td></tr>
+    </tbody>
+  </table>
+
+  <p class="tx">Tagged messages display coloured pills below the message content and an amber left border. Use the tag filter button in the toolbar to filter the conversation &mdash; non-matching messages are dimmed for quick scanning.</p>
+</div>
+
+<!-- ═══ 12. CONFIGURATION ══════════════════════════ -->
+<div class="pg" id="s12">
+  <hr>
+  <div class="sh"><div class="sh-n">12</div><h2>Configuration &amp; Branding</h2></div>
+  <p class="sh-d">Access settings via the gear icon in the header.</p>
+
+  <table class="gt">
+    <thead><tr><th>Setting</th><th>Options</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Theme</strong></td><td>Dark / Light</td></tr>
+      <tr><td><strong>Brand</strong></td><td>THEMIS-QS (default), Tenant A, Tenant B, Tenant C, Custom</td></tr>
+      <tr><td><strong>Framework</strong></td><td>RICS, FAR/DFARS, FIDIC, NEC, Custom</td></tr>
+      <tr><td><strong>Modules</strong></td><td>Enable or disable individual platform modules</td></tr>
+    </tbody>
+  </table>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:1.2rem 0;">
+    <div style="border:1px solid var(--g200);border-radius:8px;padding:.8rem;text-align:center;">
+      <div style="width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border-radius:6px;margin:0 auto .5rem;"></div>
+      <div style="font-size:.82rem;font-weight:600;color:var(--g800);">THEMIS-QS</div>
+      <div style="font-size:.72rem;color:var(--g500);">Default</div>
+    </div>
+    <div style="border:1px solid var(--g200);border-radius:8px;padding:.8rem;text-align:center;">
+      <div style="width:32px;height:32px;background:linear-gradient(135deg,#0f766e,#14b8a6);border-radius:6px;margin:0 auto .5rem;"></div>
+      <div style="font-size:.82rem;font-weight:600;color:var(--g800);">Tenant A</div>
+      <div style="font-size:.72rem;color:var(--g500);">Construction Law</div>
+    </div>
+    <div style="border:1px solid var(--g200);border-radius:8px;padding:.8rem;text-align:center;">
+      <div style="width:32px;height:32px;background:linear-gradient(135deg,#dc2626,#ef4444);border-radius:6px;margin:0 auto .5rem;"></div>
+      <div style="font-size:.82rem;font-weight:600;color:var(--g800);">Tenant B</div>
+      <div style="font-size:.72rem;color:var(--g500);">Risk &amp; Disputes</div>
+    </div>
+    <div style="border:1px solid var(--g200);border-radius:8px;padding:.8rem;text-align:center;">
+      <div style="width:32px;height:32px;background:linear-gradient(135deg,#7c3aed,#8b5cf6);border-radius:6px;margin:0 auto .5rem;"></div>
+      <div style="font-size:.82rem;font-weight:600;color:var(--g800);">Tenant C</div>
+      <div style="font-size:.72rem;color:var(--g500);">Global Law Firm</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--g200);text-align:center;">
+    <div style="font-size:1rem;font-weight:300;color:var(--g900);letter-spacing:.08em;">THEM<span style="color:var(--bp);font-weight:600;">i</span>S-QS</div>
+    <div style="font-size:.78rem;color:var(--g500);margin-top:.2rem;">Digital File Analyser</div>
+    <div style="font-size:.72rem;color:var(--g400);margin-top:.4rem;">&copy; 2026 THEMIS-QS. All Rights Reserved.</div>
+  </div>
+</div>
+
+</body>
+</html>
