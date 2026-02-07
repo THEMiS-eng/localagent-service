@@ -1592,7 +1592,7 @@ async function loadWhisperModule() {
       console.log('[CHAT] WhisperTranscriber already in window');
     }
 
-    whisper = new window.WhisperTranscriber();
+    whisper = new window.WhisperTranscriber({ serverUrl: 'http://localhost:9998/themis' });
     console.log('[CHAT] WhisperTranscriber instance created, loading model...');
 
     await whisper.load('whisper-small', (p) => {

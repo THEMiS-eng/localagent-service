@@ -13,6 +13,9 @@ from pathlib import Path
 import json
 import uuid
 import os
+import subprocess
+import tempfile
+import shutil
 
 # MLX AI and Spotlight connectors
 try:
@@ -43,6 +46,33 @@ except ImportError:
     SPOTLIGHT_AVAILABLE = False
 
 router = APIRouter(prefix="/themis", tags=["themis"])
+
+# =============================================================================
+# WHISPER-CPP CONFIG
+# =============================================================================
+WHISPER_CPP_BIN = shutil.which("whisper-cli") or shutil.which("whisper-cpp") or shutil.which("whisper")
+WHISPER_MODEL_DIR = Path.home() / ".cache" / "whisper-cpp"
+WHISPER_DEFAULT_MODEL = "ggml-base.bin"
+
+def _find_whisper_model() -> Optional[Path]:
+    """Find whisper model file in common locations."""
+    candidates = [
+        WHISPER_MODEL_DIR / WHISPER_DEFAULT_MODEL,
+        Path("/usr/local/share/whisper-cpp") / WHISPER_DEFAULT_MODEL,
+        Path.home() / ".local" / "share" / "whisper-cpp" / WHISPER_DEFAULT_MODEL,
+    ]
+    # Also check Homebrew Cellar share directory
+    brew_share = Path("/usr/local/Cellar/whisper-cpp")
+    if brew_share.exists():
+        for version_dir in sorted(brew_share.iterdir(), reverse=True):
+            p = version_dir / "share" / "whisper-cpp" / WHISPER_DEFAULT_MODEL
+            if p.exists():
+                candidates.insert(0, p)
+                break
+    for p in candidates:
+        if p.exists():
+            return p
+    return None
 
 # =============================================================================
 # DATA STORAGE (in-memory + file persistence)
@@ -135,11 +165,16 @@ async def serve_themis_ui():
 @router.get("/api/health")
 async def health():
     """Health check."""
+    model_path = _find_whisper_model()
     return {
         "status": "ok",
         "version": "10.2.0",
         "backend": "localagent",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "whisper": {
+            "available": WHISPER_CPP_BIN is not None and model_path is not None,
+            "backend": "whisper-cpp"
+        }
     }
 
 @router.get("/api/service/status")
@@ -1075,14 +1110,114 @@ async def get_modules():
 
 
 # =============================================================================
-# WHISPER (Voice Input)
+# WHISPER (Voice Input) — native whisper-cpp with browser WASM fallback
 # =============================================================================
 
+@router.get("/api/whisper/status")
+async def whisper_status():
+    """Check if native whisper-cpp is available."""
+    model_path = _find_whisper_model()
+    return {
+        "available": WHISPER_CPP_BIN is not None and model_path is not None,
+        "binary": WHISPER_CPP_BIN,
+        "model": str(model_path) if model_path else None,
+        "backend": "whisper-cpp"
+    }
+
 @router.post("/api/whisper/transcribe")
-async def whisper_transcribe(request: Request):
-    """Transcribe audio via Whisper."""
-    # TODO: Implement Whisper integration when python-multipart is available
-    return {"text": "", "error": "Whisper not configured"}
+async def whisper_transcribe(file: UploadFile):
+    """Transcribe audio via native whisper-cpp."""
+    if not WHISPER_CPP_BIN:
+        return JSONResponse(
+            {"error": "whisper-cpp not installed. Run: brew install whisper-cpp"},
+            status_code=503
+        )
+
+    model_path = _find_whisper_model()
+    if not model_path:
+        return JSONResponse(
+            {"error": f"Whisper model not found. Download ggml-base.bin to {WHISPER_MODEL_DIR}"},
+            status_code=503
+        )
+
+    tmp_dir = None
+    try:
+        tmp_dir = tempfile.mkdtemp(prefix="whisper_")
+        tmp_wav = os.path.join(tmp_dir, "audio.wav")
+
+        # Save uploaded audio to temp file
+        content = await file.read()
+        with open(tmp_wav, "wb") as f:
+            f.write(content)
+
+        # Run whisper-cpp: -oj = output JSON, --no-prints = suppress progress
+        cmd = [
+            WHISPER_CPP_BIN,
+            "-m", str(model_path),
+            "-f", tmp_wav,
+            "-oj",
+            "--no-prints"
+        ]
+
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=120
+        )
+
+        if result.returncode != 0:
+            return JSONResponse(
+                {"error": f"whisper-cpp failed: {result.stderr.strip()}"},
+                status_code=500
+            )
+
+        # whisper-cpp -oj creates audio.wav.json next to the input file
+        json_path = tmp_wav + ".json"
+        if not os.path.exists(json_path):
+            return JSONResponse(
+                {"error": "whisper-cpp did not produce JSON output"},
+                status_code=500
+            )
+
+        with open(json_path, "r") as jf:
+            whisper_out = json.load(jf)
+
+        # Extract text from segments
+        segments = whisper_out.get("transcription", [])
+        full_text = " ".join(
+            seg.get("text", "").strip() for seg in segments
+        ).strip()
+
+        # Calculate duration from timestamps
+        duration = 0.0
+        if segments:
+            last = segments[-1]
+            # whisper-cpp timestamps format: "HH:MM:SS.mmm" or offset objects
+            ts_to = last.get("offsets", {}).get("to", 0)
+            if isinstance(ts_to, (int, float)):
+                duration = ts_to / 1000.0  # ms to seconds
+
+        lang = whisper_out.get("result", {}).get("language", None)
+
+        return {
+            "text": full_text,
+            "segments": segments,
+            "language": lang,
+            "duration": round(duration, 2),
+            "backend": "whisper-cpp"
+        }
+
+    except subprocess.TimeoutExpired:
+        return JSONResponse(
+            {"error": "whisper-cpp timed out (120s limit)"},
+            status_code=504
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"error": f"Transcription failed: {str(e)}"},
+            status_code=500
+        )
+    finally:
+        if tmp_dir and os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 
