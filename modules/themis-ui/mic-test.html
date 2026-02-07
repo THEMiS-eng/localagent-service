@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Mic Test</title>
+<style>
+body { font-family: system-ui; max-width: 600px; margin: 40px auto; padding: 20px; background: #f9fafb; }
+h1 { color: #1f2937; }
+.status { padding: 12px; border-radius: 8px; margin: 12px 0; font-weight: 500; }
+.info { background: #dbeafe; color: #1e40af; }
+.ok { background: #d1fae5; color: #065f46; }
+.err { background: #fee2e2; color: #991b1b; }
+.warn { background: #fef3c7; color: #92400e; }
+button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; margin: 4px; }
+.btn-start { background: #3b82f6; color: white; }
+.btn-stop { background: #ef4444; color: white; }
+.btn-play { background: #10b981; color: white; }
+#level-bar { width: 100%; height: 30px; background: #e5e7eb; border-radius: 8px; overflow: hidden; margin: 12px 0; }
+#level-fill { height: 100%; background: #22c55e; transition: width 50ms; width: 0%; }
+#log { background: #1f2937; color: #d1d5db; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Microphone Test</h1>
+
+<div>
+<button class="btn-start" onclick="startTest()">Start Mic Test</button>
+<button class="btn-stop" onclick="stopTest()">Stop</button>
+<button class="btn-play" onclick="playBack()">Play Recording</button>
+</div>
+
+<div id="status" class="status info">Click "Start Mic Test" to begin</div>
+
+<div>
+<strong>Audio Level:</strong>
+<div id="level-bar"><div id="level-fill"></div></div>
+</div>
+
+<div>
+<strong>Details:</strong>
+<div id="details" style="margin:8px 0;font-size:13px;color:#4b5563;">—</div>
+</div>
+
+<div>
+<strong>Log:</strong>
+<div id="log"></div>
+</div>
+
+<script>
+var stream = null;
+var audioCtx = null;
+var analyser = null;
+var processor = null;
+var samples = [];
+var animFrame = null;
+var recordingBlob = null;
+
+function log(msg) {
+  var el = document.getElementById("log");
+  el.textContent += new Date().toLocaleTimeString() + " " + msg + "\n";
+  el.scrollTop = el.scrollHeight;
+  console.log("[MIC-TEST]", msg);
+}
+
+function setStatus(cls, msg) {
+  var el = document.getElementById("status");
+  el.className = "status " + cls;
+  el.textContent = msg;
+}
+
+function setDetails(msg) {
+  document.getElementById("details").textContent = msg;
+}
+
+async function startTest() {
+  try {
+    log("Requesting microphone access...");
+    setStatus("info", "Requesting mic permission...");
+
+    // Check if getUserMedia is available
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus("err", "getUserMedia not available in this browser/context");
+      log("ERROR: navigator.mediaDevices.getUserMedia not available");
+      return;
+    }
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        sampleRate: 16000,
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true
+      }
+    });
+
+    log("Mic access granted! Tracks: " + stream.getAudioTracks().length);
+    var track = stream.getAudioTracks()[0];
+    var settings = track.getSettings();
+    log("Track settings: " + JSON.stringify(settings));
+    log("Track label: " + track.label);
+    log("Track readyState: " + track.readyState);
+
+    // Create AudioContext
+    audioCtx = new AudioContext({ sampleRate: 16000 });
+    log("AudioContext created, sampleRate: " + audioCtx.sampleRate + ", state: " + audioCtx.state);
+
+    if (audioCtx.state === "suspended") {
+      await audioCtx.resume();
+      log("AudioContext resumed, state: " + audioCtx.state);
+    }
+
+    var source = audioCtx.createMediaStreamSource(stream);
+
+    // Analyser for level meter
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+
+    // ScriptProcessor for recording
+    processor = audioCtx.createScriptProcessor(4096, 1, 1);
+    samples = [];
+    var sampleCount = 0;
+    var maxLevel = 0;
+
+    processor.onaudioprocess = function(e) {
+      var data = e.inputBuffer.getChannelData(0);
+      var copy = new Float32Array(data);
+      samples.push(copy);
+      sampleCount += copy.length;
+
+      // Check for silence
+      var max = 0;
+      for (var i = 0; i < copy.length; i++) {
+        var abs = Math.abs(copy[i]);
+        if (abs > max) max = abs;
+      }
+      if (max > maxLevel) maxLevel = max;
+    };
+
+    source.connect(processor);
+    processor.connect(audioCtx.destination);
+
+    // Level meter animation
+    var dataArray = new Uint8Array(analyser.frequencyBinCount);
+    function updateLevel() {
+      analyser.getByteFrequencyData(dataArray);
+      var sum = 0;
+      for (var i = 0; i < dataArray.length; i++) sum += dataArray[i];
+      var avg = sum / dataArray.length;
+      var pct = Math.min(100, (avg / 128) * 100);
+      document.getElementById("level-fill").style.width = pct + "%";
+      document.getElementById("level-fill").style.background = pct > 50 ? "#ef4444" : pct > 20 ? "#f59e0b" : "#22c55e";
+
+      var duration = (sampleCount / audioCtx.sampleRate).toFixed(1);
+      setDetails("Recording: " + duration + "s | Samples: " + sampleCount + " | Peak: " + maxLevel.toFixed(4) + " | Level: " + pct.toFixed(0) + "%");
+
+      animFrame = requestAnimationFrame(updateLevel);
+    }
+    updateLevel();
+
+    setStatus("ok", "Recording... Speak into your microphone!");
+    log("Recording started. Speak now...");
+
+  } catch (err) {
+    setStatus("err", "Error: " + err.message);
+    log("ERROR: " + err.message);
+    log("Stack: " + err.stack);
+  }
+}
+
+function stopTest() {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  if (processor) processor.disconnect();
+  if (stream) stream.getTracks().forEach(function(t) { t.stop(); });
+
+  document.getElementById("level-fill").style.width = "0%";
+
+  if (samples.length === 0) {
+    setStatus("warn", "No audio captured");
+    log("Stopped - no samples captured");
+    return;
+  }
+
+  var total = samples.reduce(function(a, b) { return a + b.length; }, 0);
+  var merged = new Float32Array(total);
+  var off = 0;
+  for (var i = 0; i < samples.length; i++) {
+    merged.set(samples[i], off);
+    off += samples[i].length;
+  }
+
+  // Check if audio is silence
+  var maxVal = 0;
+  var rms = 0;
+  for (var i = 0; i < merged.length; i++) {
+    var abs = Math.abs(merged[i]);
+    if (abs > maxVal) maxVal = abs;
+    rms += merged[i] * merged[i];
+  }
+  rms = Math.sqrt(rms / merged.length);
+
+  var duration = (merged.length / 16000).toFixed(1);
+  log("Stopped. Total: " + merged.length + " samples, " + duration + "s");
+  log("Peak amplitude: " + maxVal.toFixed(6));
+  log("RMS level: " + rms.toFixed(6));
+
+  if (maxVal < 0.001) {
+    setStatus("err", "SILENCE DETECTED! " + duration + "s recorded but peak=" + maxVal.toFixed(6) + ". Mic may not be working.");
+    log("WARNING: Audio appears to be silence. Check your microphone.");
+  } else if (maxVal < 0.01) {
+    setStatus("warn", "Very quiet audio. " + duration + "s, peak=" + maxVal.toFixed(4) + ", RMS=" + rms.toFixed(4));
+    log("Audio is very quiet. Try speaking louder or check mic settings.");
+  } else {
+    setStatus("ok", "Audio captured! " + duration + "s, peak=" + maxVal.toFixed(4) + ", RMS=" + rms.toFixed(4));
+    log("Audio looks good for transcription.");
+  }
+
+  // Convert to WAV for playback
+  try {
+    var wavBuffer = float32ToWav(merged, 16000);
+    recordingBlob = new Blob([wavBuffer], { type: "audio/wav" });
+    log("WAV blob created: " + (recordingBlob.size / 1024).toFixed(1) + " KB");
+  } catch (e) {
+    log("WAV conversion error: " + e.message);
+  }
+
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+}
+
+function playBack() {
+  if (!recordingBlob) {
+    setStatus("warn", "No recording to play. Record first.");
+    return;
+  }
+  var url = URL.createObjectURL(recordingBlob);
+  var audio = new Audio(url);
+  audio.onplay = function() { setStatus("info", "Playing back..."); };
+  audio.onended = function() { setStatus("ok", "Playback done"); URL.revokeObjectURL(url); };
+  audio.play();
+  log("Playing back recording...");
+}
+
+function float32ToWav(samples, sampleRate) {
+  var buffer = new ArrayBuffer(44 + samples.length * 2);
+  var view = new DataView(buffer);
+  function writeString(offset, string) {
+    for (var i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+  }
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  for (var i = 0; i < samples.length; i++) {
+    var s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return buffer;
+}
+</script>
+</body>
+</html>
