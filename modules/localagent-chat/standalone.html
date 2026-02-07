@@ -474,7 +474,8 @@ body.themis-embed .da-popup{bottom:20px}
 .da-item-info{flex:1;min-width:0}
 .da-item-name{font-size:13px;font-weight:500;color:var(--chat-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .da-item-desc{font-size:11px;color:var(--chat-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.da-item-status{font-size:10px;color:var(--chat-accent);font-weight:500}
+.da-item-status{font-size:8px;padding:1px 5px;border-radius:3px;background:#f0fdf4;color:#166534;font-weight:600;margin-left:auto;flex-shrink:0}
+.da-item.active .da-item-icon{background:var(--chat-accent);color:#fff}
 .da-empty{padding:16px;text-align:center;color:var(--chat-muted);font-size:12px}
 /* Legacy support */
 .attach-btn,.voice-btn{background:none;border:none;color:var(--chat-muted);cursor:pointer;padding:6px;border-radius:6px;display:flex;transition:all .15s}
@@ -786,7 +787,7 @@ if (window.location.search.includes('mode=themis') || window.parent !== window) 
 <!-- DA Popup - Outside expanded-overlay so it works in embed mode -->
 <div class="da-popup" id="daPopup">
 <div class="da-section">
-<div class="da-header" id="daAssistantsHeader"><span class="da-header-title">▾ THEMIS-QS PORTFOLIO</span><span class="da-header-add">+</span></div>
+<div class="da-header" id="daAssistantsHeader"><span class="da-header-title">▾ SPECIALISTS</span><span class="da-header-add">+</span></div>
 <div class="da-body open" id="daAssistantsBody"><div class="da-empty">Loading skills...</div></div>
 </div>
 <div class="da-section">
@@ -1977,7 +1978,7 @@ $('#daAssistantsHeader').onclick = () => {
   const body = $('#daAssistantsBody');
   const title = $('#daAssistantsHeader').querySelector('.da-header-title');
   body.classList.toggle('open');
-  title.textContent = body.classList.contains('open') ? '▾ THEMIS-QS PORTFOLIO' : '▸ THEMIS-QS PORTFOLIO';
+  title.textContent = body.classList.contains('open') ? '▾ SPECIALISTS' : '▸ SPECIALISTS';
 };
 $('#daStyleHeader').onclick = () => {
   const body = $('#daStyleBody');
@@ -2047,8 +2048,9 @@ async function loadDaSkills() {
     
     body.innerHTML = daSkills.map(skill => {
       const isActive = activeNames.includes(skill.name);
+      const initial = (skill.name || '?').charAt(0).toUpperCase();
       return `<div class="da-item ${isActive ? 'active' : ''}" data-skill="${skill.name}" data-path="${skill.path || skill.name}">
-        <div class="da-item-icon">⚡</div>
+        <div class="da-item-icon">${initial}</div>
         <div class="da-item-info">
           <div class="da-item-name">${skill.name}</div>
           <div class="da-item-desc">${skill.description || skill.domain || 'Analysis skill'}</div>
