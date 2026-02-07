@@ -1616,6 +1616,7 @@ body.dark-theme .landing-action-title {
     color: var(--gray-100);
 }
 
+
 /* =============================================================================
    PAGE-WIDE PROGRESS BAR
    ============================================================================= */
@@ -5901,6 +5902,12 @@ body.dark-theme .dropdown-action-icon {
     padding: 6px 12px;
 }
 
+/* Hide action buttons and attached files in collapsed state */
+.chat-input-wrapper.collapsed .chat-actions,
+.chat-input-wrapper.collapsed .attached-files {
+    display: none !important;
+}
+
 .chat-input-wrapper.expanded .chat-input {
     border-color: var(--blue);
 }
@@ -6661,6 +6668,9 @@ body.dark-theme .dropdown-action-icon {
 .landing-case-info { flex: 1; }
 .landing-case-name { font-size: 14px; font-weight: 500; color: var(--gray-800); }
 .landing-case-meta { font-size: 11px; color: var(--gray-500); }
+.landing-footer { text-align: center; padding-top: 8px; }
+.landing-spinner { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--gray-500); margin-bottom: 8px; }
+.landing-spinner.connected { color: #22c55e; }
 .landing-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .landing-action-card {
     display: flex; align-items: center; gap: 12px;
@@ -9678,7 +9688,7 @@ initializeApp();
     checkbox && h("input", { type: "checkbox", className: "item-check", checked: selected, readOnly: true })
   ] });
   var LandingOverlay = () => {
-    const { showLanding, closeLanding, selectCase, openModal, cases, appVersion, updateInfo, releases } = useApp();
+    const { showLanding, closeLanding, selectCase, openModal, cases, appVersion, updateInfo, releases, backendConnected } = useApp();
     if (!showLanding) return null;
     const latestRelease = releases && releases[0];
     const releaseDate = latestRelease ? latestRelease.published_at?.split("T")[0] : "2026-01-31";
@@ -9720,7 +9730,17 @@ initializeApp();
           ] })
         ] })
       ] }),
-      h("div", { className: "modal-copyright", children: "T H E M i S - QS   (c) 2026" })
+      h("div", { className: "landing-footer", children: [
+        !backendConnected && h("div", { className: "landing-spinner", children: [
+          h("svg", { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", style: { animation: "spin 0.8s linear infinite" }, children: h("path", { d: "M21 12a9 9 0 1 1-6.219-8.56", stroke: "#3b82f6", strokeWidth: "2.5", strokeLinecap: "round" }) }),
+          h("span", { children: "Connecting to LocalAgent..." })
+        ] }),
+        backendConnected && h("div", { className: "landing-spinner connected", children: [
+          h("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "#22c55e", strokeWidth: "2.5", children: h("path", { d: "M20 6L9 17l-5-5" }) }),
+          h("span", { children: "Connected" })
+        ] }),
+        h("div", { className: "modal-copyright", children: "T H E M i S - QS   (c) 2026" })
+      ] })
     ] }) });
   };
   var Modal = ({ id, title, children, large }) => {
@@ -10790,6 +10810,191 @@ initializeApp();
           h("button", { className: "btn btn-primary", onClick: closeModal, children: "Done" })
         ] })
       ] })
+    ] }) });
+  };
+  // THEMiS-QS Portfolio — Full 28-skill catalog
+  var PORTFOLIO_CATALOG = [
+    // Analytics Division (10)
+    { id: "delay_analyst", title: "Delay Analyst", sub: "Critical path method", desc: "Forensic analysis of project delays, CPM analysis, EOT quantification", div: "Analytics", color: "#3b82f6", alias: "delay-expert" },
+    { id: "quantum_analyst", title: "Quantum Analyst", sub: "Quantum computing feasibility", desc: "Quantum computing feasibility assessment, algorithm evaluation", div: "Analytics", color: "#8b5cf6", alias: "quantum-expert" },
+    { id: "risk_analyst", title: "Risk Analyst", sub: "Enterprise risk assessment", desc: "ISO 31000 / COSO ERM risk assessment, risk matrix, Monte Carlo", div: "Analytics", color: "#f59e0b" },
+    { id: "financial_analyst", title: "Financial Analyst", sub: "DCF and valuation", desc: "Investment banking grade financial analysis, DCF valuation", div: "Analytics", color: "#10b981" },
+    { id: "contract_analyst", title: "Contract Analyst", sub: "Legal contract review", desc: "Legal contract review and risk assessment, FIDIC/NEC4/JCT", div: "Analytics", color: "#06b6d4", alias: "contract-analyst" },
+    { id: "claims_analyst", title: "Claims Analyst", sub: "Damages calculation", desc: "Construction claims preparation and quantum calculation", div: "Analytics", color: "#eab308", alias: "claims-advocate" },
+    { id: "performance_analyst", title: "Performance Analyst", sub: "System profiling", desc: "System performance profiling and optimization", div: "Analytics", color: "#3b82f6" },
+    { id: "competitive_analyst", title: "Competitive Analyst", sub: "Market intelligence", desc: "Market and competitive intelligence, Porter Five Forces", div: "Analytics", color: "#8b5cf6" },
+    { id: "data_analysis", title: "Data Analysis", sub: "Statistical EDA", desc: "Statistical exploratory data analysis, pattern detection", div: "Analytics", color: "#10b981" },
+    { id: "business_analysis", title: "Business Analysis", sub: "Strategic frameworks", desc: "Strategic business analysis, SWOT, value chain mapping", div: "Analytics", color: "#f59e0b" },
+    // Engineering Division (8)
+    { id: "code_review", title: "Code Review", sub: "Quality assessment", desc: "Code review: correctness, security, performance, SOLID", div: "Engineering", color: "#10b981" },
+    { id: "security_audit", title: "Security Audit", sub: "Vulnerability assessment", desc: "OWASP Top 10 / SANS security vulnerability assessment", div: "Engineering", color: "#f59e0b" },
+    { id: "api_doc", title: "API Doc", sub: "OpenAPI documentation", desc: "API documentation generation following OpenAPI 3.1", div: "Engineering", color: "#3b82f6" },
+    { id: "test_driven_development", title: "Test Driven Dev", sub: "Red-Green-Refactor", desc: "TDD workflow with test design and coverage analysis", div: "Engineering", color: "#10b981" },
+    { id: "systematic_debugging", title: "Systematic Debugging", sub: "Scientific method", desc: "Bug investigation using scientific method, hypothesis testing", div: "Engineering", color: "#8b5cf6" },
+    { id: "clean_architecture", title: "Clean Architecture", sub: "DDD and SOLID", desc: "Architecture assessment against Clean Architecture/DDD", div: "Engineering", color: "#06b6d4" },
+    { id: "git_workflow", title: "Git Workflow", sub: "Branching strategies", desc: "Git workflow analysis, branching strategy evaluation", div: "Engineering", color: "#f59e0b" },
+    { id: "aws_best_practices", title: "AWS Best Practices", sub: "Well-Architected review", desc: "AWS Well-Architected Framework review, six pillars", div: "Engineering", color: "#eab308" },
+    // Advisory Division (10)
+    { id: "synthesis", title: "Synthesis", sub: "Executive summary", desc: "Executive-level content synthesis, pyramid principle", div: "Advisory", color: "#3b82f6" },
+    { id: "doc_summary", title: "Doc Summary", sub: "Hierarchical extraction", desc: "Hierarchical document summarization at multiple levels", div: "Advisory", color: "#10b981" },
+    { id: "technical_report", title: "Technical Report", sub: "IEEE format", desc: "Structured technical report generation, IEEE format", div: "Advisory", color: "#8b5cf6" },
+    { id: "meeting_notes", title: "Meeting Notes", sub: "Decision capture", desc: "Meeting transcription analysis, action items extraction", div: "Advisory", color: "#06b6d4" },
+    { id: "content_research_writer", title: "Content Writer", sub: "SEO optimization", desc: "Research-backed content creation with SEO", div: "Advisory", color: "#f59e0b" },
+    { id: "changelog_generator", title: "Changelog Generator", sub: "Release notes", desc: "Commits to user-friendly changelogs, semantic versioning", div: "Advisory", color: "#10b981" },
+    { id: "csv_data_summarizer", title: "CSV Summarizer", sub: "Data profiling", desc: "Automated data profiling for CSV files", div: "Advisory", color: "#3b82f6" },
+    { id: "compare", title: "Compare", sub: "Diff analysis", desc: "Multi-file comparison with structural/semantic diff", div: "Advisory", color: "#8b5cf6" },
+    { id: "brainstorming", title: "Brainstorming", sub: "Design thinking", desc: "Structured ideation, SCAMPER, Six Hats methodology", div: "Advisory", color: "#eab308" },
+    { id: "root_cause_tracing", title: "Root Cause Tracing", sub: "Post-mortem analysis", desc: "Root cause analysis: Five Whys, Ishikawa, Fault Tree", div: "Advisory", color: "#f59e0b" }
+  ];
+  var PortfolioModal = () => {
+    const { activeModal, closeModal, addNotification } = useApp();
+    const [installedSkills, setInstalledSkills] = useState([]);
+    const [activeSkills, setActiveSkills] = useState([]);
+    const [filter, setFilter] = useState("All");
+    const [loading, setLoading] = useState(true);
+    const SKILLS_API = "http://localhost:9998/api/skills";
+
+    useEffect(() => {
+      if (activeModal === "portfolio") loadPortfolio();
+    }, [activeModal]);
+
+    const loadPortfolio = async () => {
+      setLoading(true);
+      try {
+        const [skillsRes, activeRes] = await Promise.all([
+          fetch(SKILLS_API).then(r => r.json()).catch(() => ({ skills: [] })),
+          fetch(SKILLS_API + "/active").then(r => r.json()).catch(() => ({ active: [] }))
+        ]);
+        setInstalledSkills(skillsRes.skills || []);
+        setActiveSkills((activeRes.active || []).map(s => s.name));
+      } catch (err) { console.error("Portfolio load error:", err); }
+      setLoading(false);
+    };
+
+    const findInstalled = (cat) => {
+      var alias = cat.alias;
+      var hyphen = cat.id.replace(/_/g, "-");
+      return installedSkills.find(s => s.name === alias || s.name === hyphen || s.name === cat.id);
+    };
+
+    const toggleSkill = async (name) => {
+      const isActive = activeSkills.includes(name);
+      try {
+        await fetch(SKILLS_API + (isActive ? "/deactivate" : "/activate"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ skill_name: name })
+        });
+        addNotification("success", (isActive ? "Deactivated: " : "Activated: ") + name);
+        loadPortfolio();
+        var iframe = document.getElementById("localagent-chat");
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: "skill-changed", skill: isActive ? null : name }, "*");
+        }
+      } catch (err) {
+        addNotification("error", "Failed to toggle skill: " + name);
+      }
+    };
+
+    var DIVISIONS = ["Analytics", "Engineering", "Advisory"];
+    var divCounts = {};
+    DIVISIONS.forEach(function(d) {
+      var ds = PORTFOLIO_CATALOG.filter(function(s) { return s.div === d; });
+      divCounts[d] = { total: ds.length, installed: ds.filter(function(s) { return findInstalled(s); }).length };
+    });
+    var catalogNames = PORTFOLIO_CATALOG.reduce(function(acc, s) {
+      acc.push(s.id); acc.push(s.id.replace(/_/g, "-"));
+      if (s.alias) acc.push(s.alias);
+      return acc;
+    }, []);
+    var extraInstalled = installedSkills.filter(function(s) { return catalogNames.indexOf(s.name) === -1; });
+
+    var skillCard = function(cat) {
+      var inst = findInstalled(cat);
+      var isInst = !!inst;
+      var isActive = isInst && activeSkills.includes(inst.name);
+      var initial = cat.title.charAt(0);
+      var badge = isActive
+        ? h("span", { style: { fontSize: "9px", padding: "2px 6px", borderRadius: "3px", background: "#f0fdf4", color: "#166534", fontWeight: 600, flexShrink: 0 }, children: "active" })
+        : isInst
+          ? h("span", { style: { fontSize: "9px", padding: "2px 6px", borderRadius: "3px", background: "#eff6ff", color: "#1d4ed8", fontWeight: 600, flexShrink: 0 }, children: "ready" })
+          : h("span", { style: { fontSize: "9px", padding: "2px 6px", borderRadius: "3px", background: "#f3f4f6", color: "#9ca3af", fontWeight: 600, flexShrink: 0 }, children: "catalog" });
+      return h("div", { key: cat.id, onClick: isInst ? function() { toggleSkill(inst.name); } : undefined, title: cat.desc, style: {
+        display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", borderRadius: "8px",
+        cursor: isInst ? "pointer" : "default",
+        border: isActive ? "2px solid " + cat.color : "1px solid " + (isInst ? "#d1d5db" : "#e5e7eb"),
+        background: isActive ? cat.color + "15" : isInst ? "#fff" : "#f9fafb",
+        opacity: isInst ? 1 : 0.55, transition: "all 0.15s"
+      }, children: [
+        h("div", { style: {
+          width: "36px", height: "36px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "14px", fontWeight: 700, flexShrink: 0,
+          background: isActive ? cat.color : cat.color + "20", color: isActive ? "#fff" : cat.color
+        }, children: initial }),
+        h("div", { style: { flex: 1, minWidth: 0 }, children: [
+          h("div", { style: { fontSize: "13px", fontWeight: 500, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, children: cat.title }),
+          h("div", { style: { fontSize: "11px", color: "#9ca3af", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, children: cat.sub })
+        ] }),
+        badge
+      ] });
+    };
+
+    var extraCard = function(s) {
+      var isActive = activeSkills.includes(s.name);
+      var badge = isActive
+        ? h("span", { style: { fontSize: "9px", padding: "2px 6px", borderRadius: "3px", background: "#f0fdf4", color: "#166534", fontWeight: 600, flexShrink: 0 }, children: "active" })
+        : h("span", { style: { fontSize: "9px", padding: "2px 6px", borderRadius: "3px", background: "#eff6ff", color: "#1d4ed8", fontWeight: 600, flexShrink: 0 }, children: "ready" });
+      return h("div", { key: s.name, onClick: function() { toggleSkill(s.name); }, style: {
+        display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", borderRadius: "8px", cursor: "pointer",
+        border: isActive ? "2px solid #6366f1" : "1px solid #d1d5db", background: isActive ? "rgba(99,102,241,.08)" : "#fff", transition: "all 0.15s"
+      }, children: [
+        h("div", { style: {
+          width: "36px", height: "36px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "14px", fontWeight: 700, flexShrink: 0,
+          background: isActive ? "#6366f1" : "rgba(99,102,241,.1)", color: isActive ? "#fff" : "#6366f1"
+        }, children: s.name.charAt(0).toUpperCase() }),
+        h("div", { style: { flex: 1, minWidth: 0 }, children: [
+          h("div", { style: { fontSize: "13px", fontWeight: 500, color: "#111827" }, children: s.name.replace(/-/g, " ").replace(/\b\w/g, function(c) { return c.toUpperCase(); }) }),
+          h("div", { style: { fontSize: "11px", color: "#9ca3af" }, children: s.description || "Custom skill" })
+        ] }),
+        badge
+      ] });
+    };
+
+    if (activeModal !== "portfolio") return null;
+    var divSections = DIVISIONS.filter(function(d) { return filter === "All" || filter === d; }).map(function(div) {
+      var divSkills = PORTFOLIO_CATALOG.filter(function(s) { return s.div === div; });
+      return h("div", { key: div, children: [
+        h("div", { style: { fontSize: "11px", fontWeight: 600, color: "#6b7280", letterSpacing: "0.5px", marginBottom: "10px", textTransform: "uppercase" },
+          children: div + " Division \u2014 " + divCounts[div].installed + "/" + divCounts[div].total + " installed" }),
+        h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }, children: divSkills.map(function(cat) { return skillCard(cat); }) })
+      ] });
+    });
+    if (filter === "All" && extraInstalled.length > 0) {
+      divSections.push(h("div", { key: "extra", children: [
+        h("div", { style: { fontSize: "11px", fontWeight: 600, color: "#6b7280", letterSpacing: "0.5px", marginBottom: "10px", textTransform: "uppercase" },
+          children: "Additional Installed (" + extraInstalled.length + ")" }),
+        h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }, children: extraInstalled.map(function(s) { return extraCard(s); }) })
+      ] }));
+    }
+    return h("div", { className: "modal-overlay open", onClick: closeModal, children: h("div", { className: "modal modal-lg", onClick: function(e) { e.stopPropagation(); }, children: [
+      h("div", { className: "modal-header", children: [
+        h("span", { className: "modal-title", children: "THEMiS-QS Portfolio \u2014 28 Skills" }),
+        h("button", { className: "modal-close", onClick: closeModal, children: "x" })
+      ] }),
+      h("div", { style: { display: "flex", gap: "6px", padding: "12px 20px", borderBottom: "1px solid #e5e7eb" }, children:
+        ["All", "Analytics", "Engineering", "Advisory"].map(function(d) {
+          return h("button", { key: d, onClick: function() { setFilter(d); }, style: {
+            padding: "4px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: 500, border: "none", cursor: "pointer",
+            background: filter === d ? "#6366f1" : "#f3f4f6", color: filter === d ? "#fff" : "#374151"
+          }, children: d === "All" ? "All (28)" : d + " (" + divCounts[d].total + ")" });
+        })
+      }),
+      h("div", { className: "modal-body", style: { padding: "20px", maxHeight: "65vh", overflow: "auto" }, children: loading
+        ? h("div", { style: { textAlign: "center", padding: "40px", color: "#9ca3af" }, children: "Loading portfolio..." })
+        : h("div", { style: { display: "flex", flexDirection: "column", gap: "20px" }, children: divSections })
+      }),
+      h("div", { className: "modal-copyright", children: "T H E M i S - QS   (c) 2026" })
     ] }) });
   };
   var DashboardModal = () => {
@@ -12144,6 +12349,10 @@ Examples:
           h("button", { className: "avatar-btn", onClick: toggleSettingsDropdown, children: h("span", { className: "avatar-initials", children: "PH" }) }),
           settingsDropdownOpen && h("div", { className: "dropdown-menu settings-dropdown show", children: [
             h("div", { className: "dropdown-header", children: "Settings" }),
+            h("div", { className: "settings-item", onClick: () => openModal("portfolio"), children: [
+              h("span", { className: "settings-icon", children: h(Icons.Zap, {}) }),
+              h("span", { className: "settings-label", children: "THEMiS-QS Portfolio" })
+            ] }),
             h("div", { className: "settings-item", onClick: () => openModal("dashboard"), children: [
               h("span", { className: "settings-icon", children: h(Icons.Circle, {}) }),
               h("span", { className: "settings-label", children: "Services Dashboard" })
@@ -13998,15 +14207,10 @@ const handleSend = async () => {
               }),
               // Skills button - opens DA popup in iframe
               chatSettings[mode]?.skills && h("button", {
-                onClick: () => {
-                  const iframe = document.getElementById("localagent-chat");
-                  if (iframe && iframe.contentWindow) {
-                    iframe.contentWindow.postMessage({ type: "toggle-skills" }, "*");
-                  }
-                },
+                onClick: () => openModal("portfolio"),
                 className: `chat-btn ${selectedSkill ? "active" : ""}`,
                 style: { padding: "6px 8px", color: selectedSkill ? "#ffffff" : "#6b7280", cursor: "pointer", background: selectedSkill ? "#6366f1" : "#f3f4f6", border: "none", borderRadius: "6px", display: "flex", alignItems: "center" },
-                title: selectedSkill ? "Skill: " + selectedSkill : "Assistants & Skills",
+                title: selectedSkill ? "Skill: " + selectedSkill : "THEMiS-QS Portfolio",
                 children: h(Icons.Zap, {})
               }),
               // Saved Prompts button
@@ -14022,21 +14226,8 @@ const handleSend = async () => {
                 title: "Saved Prompts",
                 children: h("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: h("polygon", { points: "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" }) })
               }),
-              // Search History button
-              chatSettings[mode]?.searchHistory && h("button", {
-                onClick: () => {
-                  if (window.__themisToggleSearchHistory) window.__themisToggleSearchHistory();
-                },
-                className: `chat-btn ${showSearchHistory ? "active" : ""}`,
-                style: { padding: "6px 8px", color: showSearchHistory ? "#ffffff" : "#6b7280", cursor: "pointer", background: showSearchHistory ? "#3b82f6" : "#f3f4f6", border: "none", borderRadius: "6px", display: "flex", alignItems: "center" },
-                title: "Search History",
-                children: h("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, children: [
-                  h("circle", { cx: "11", cy: "11", r: "8" }),
-                  h("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })
-                ] })
-              }),
               // Divider
-              (chatSettings[mode]?.skills || chatSettings[mode]?.savedPrompts || chatSettings[mode]?.searchHistory) && h("div", { style: { width: "1px", height: "20px", background: "#e5e7eb", margin: "0 2px" } }),
+              (chatSettings[mode]?.skills || chatSettings[mode]?.savedPrompts) && h("div", { style: { width: "1px", height: "20px", background: "#e5e7eb", margin: "0 2px" } }),
               // Tags button
               chatSettings[mode]?.tags && h("button", {
                 onClick: () => {
@@ -14195,7 +14386,6 @@ const handleSend = async () => {
                 h("tbody", { children: [
                   { id: "skills", label: "Skills", icon: h(Icons.Zap, {}) },
                   { id: "savedPrompts", label: "Saved Prompts", icon: h(Icons.Star, {}) },
-                  { id: "searchHistory", label: "Search History", icon: h(Icons.Search, {}) },
                   { id: "searchConversation", label: "Search Chat", icon: h(Icons.Search, {}) },
                   { id: "tags", label: "Tags", icon: h(Icons.Tag, {}) },
                   { id: "download", label: "Download", icon: h(Icons.Download, {}) },
@@ -14437,6 +14627,7 @@ const handleSend = async () => {
       h(TagManagerModal, {}),
       h(FileManagerModal, {}),
       h(EvidenceInventoryModal, {}),
+      h(PortfolioModal, {}),
       h(PreviewContainer, {}),
       !showLanding && h("div", { className: "app", children: [
         h(Header, {}),

@@ -544,6 +544,249 @@
   }
 
   // ============================================================
+  // LOCAL PROMPT OPTIMIZER — runs entirely in-browser
+  // Uses: lint rules, skill triggers, skill rewrites, case context
+  // Tiers: beginner (fix issues), intermediate (structured),
+  //        advanced (full JSON with case context + methodology)
+  // ============================================================
+
+  // Safe negation rewrites — only patterns where meaning is unambiguous
+  var NEGATION_REWRITES = {
+    "not too long": 'concise (max 200 words)',
+    "not too short": 'detailed (min 100 words)',
+    "without dependencies": 'standard library only',
+    "sans dépendances": 'bibliothèque standard uniquement'
+  };
+
+  // Negation patterns to FLAG (shown as suggestion, not auto-applied)
+  var NEGATION_FLAGS = [
+    "don't", "dont", "do not", "don\u2019t",
+    "never", "avoid", "not",
+    "ne pas", "n'", "pas de", "\u00e9viter", "jamais"
+  ];
+
+  var VAGUE_REWRITES = {
+    "some": '3-5',
+    "a few": '2-3',
+    "several": '4-6',
+    "many": '8-10',
+    "the code": 'the source files',
+    "my project": 'the current project',
+    "this thing": 'this component',
+    "le code": 'les fichiers source',
+    "mon projet": 'le projet actuel',
+    "cette chose": 'ce composant',
+    "quelques": '3-5',
+    "plusieurs": '4-6',
+    "beaucoup": '8-10'
+  };
+
+  var OUTPUT_FORMATS = {
+    create: 'Produce a complete, structured document with all sections.',
+    analyze: 'Provide a detailed analytical report with findings, methodology, and recommendations.',
+    explain: 'Explain clearly with definitions, examples, and key takeaways.',
+    fix: 'Identify root cause, provide corrected version, and explain the fix.',
+    modify: 'Show modifications with clear before/after comparison.',
+    unknown: 'Provide a structured, comprehensive response.'
+  };
+
+  /**
+   * Improve a prompt locally — no API calls, no network, fully offline.
+   *
+   * @param {string} prompt - The raw user prompt
+   * @param {Object} lintResult - Result from lintPrompt()/lintPromptAsync() (optional)
+   * @param {string} tier - 'beginner', 'intermediate', or 'advanced'
+   * @returns {{success: boolean, improved: string, source: string, tier: string, changes: string[]}}
+   */
+  function improvePrompt(prompt, lintResult, tier) {
+    tier = tier || 'intermediate';
+    if (!prompt || !prompt.trim()) {
+      return { success: false, improved: prompt, source: 'local', tier: tier, changes: [] };
+    }
+
+    // Run linter if not provided
+    if (!lintResult || !lintResult.issues) {
+      lintResult = lintPrompt(prompt);
+    }
+
+    var improved = prompt.trim();
+    var changes = [];
+    var lang = lintResult.lang || detectLanguage(prompt);
+    var taskType = lintResult.taskType || inferTaskType(prompt);
+    var caseCtx = _caseContext || {};
+
+    // =========================================================
+    // BEGINNER: Fix lint issues + basic cleanup
+    // =========================================================
+
+    // 1a. Safe negation rewrites (unambiguous patterns only)
+    for (var neg in NEGATION_REWRITES) {
+      if (NEGATION_REWRITES.hasOwnProperty(neg)) {
+        var negRegex = new RegExp('\\b' + neg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+        if (negRegex.test(improved)) {
+          improved = improved.replace(negRegex, NEGATION_REWRITES[neg]);
+          changes.push('Reframed: "' + neg + '" \u2192 "' + NEGATION_REWRITES[neg] + '"');
+        }
+      }
+    }
+
+    // 1b. Flag remaining negations (suggest positive framing, don't auto-rewrite)
+    for (var fi = 0; fi < NEGATION_FLAGS.length; fi++) {
+      var flag = NEGATION_FLAGS[fi];
+      var flagRegex = new RegExp('\\b' + flag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+      if (flagRegex.test(improved)) {
+        changes.push('Tip: consider positive framing instead of "' + flag + '"');
+        break; // one tip is enough
+      }
+    }
+
+    // 2. Replace vague references and quantities
+    for (var vague in VAGUE_REWRITES) {
+      if (VAGUE_REWRITES.hasOwnProperty(vague)) {
+        var vagueRegex = new RegExp('\\b' + vague.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+        if (vagueRegex.test(improved)) {
+          improved = improved.replace(vagueRegex, VAGUE_REWRITES[vague]);
+          changes.push('Clarified: "' + vague + '" \u2192 "' + VAGUE_REWRITES[vague] + '"');
+        }
+      }
+    }
+
+    // 3. Capitalize first letter
+    if (improved.charAt(0) !== improved.charAt(0).toUpperCase()) {
+      improved = improved.charAt(0).toUpperCase() + improved.slice(1);
+      changes.push('Capitalized first letter');
+    }
+
+    // 4. Ensure ends with punctuation
+    if (!/[.!?]$/.test(improved.trim())) {
+      improved = improved.trim() + '.';
+      changes.push('Added ending punctuation');
+    }
+
+    // 5. Clean excessive whitespace (preserve intentional line breaks)
+    var cleaned = improved.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n');
+    if (cleaned !== improved) {
+      improved = cleaned;
+      changes.push('Cleaned whitespace');
+    }
+
+    if (tier === 'beginner') {
+      return { success: true, improved: improved, source: 'local', tier: tier, changes: changes };
+    }
+
+    // =========================================================
+    // INTERMEDIATE: Add structure + context + output format
+    // =========================================================
+
+    var sections = [];
+    var taskLabel = (typeof taskType === 'string' ? taskType : taskType).toUpperCase();
+
+    // Skip structuring if prompt already has TASK/OUTPUT headers
+    var alreadyStructured = /^TASK:/im.test(improved);
+    if (alreadyStructured) {
+      // Already structured — only inject context/skill if missing
+      if (tier === 'intermediate') {
+        return { success: true, improved: improved, source: 'local', tier: tier, changes: changes };
+      }
+    }
+
+    // Task header
+    sections.push('TASK: ' + taskLabel);
+
+    // Case context line
+    var ctxParts = [];
+    if (caseCtx.framework) ctxParts.push('Framework: ' + caseCtx.framework);
+    if (caseCtx.methodology) ctxParts.push('Methodology: ' + caseCtx.methodology);
+    if (caseCtx.jurisdiction) ctxParts.push('Jurisdiction: ' + caseCtx.jurisdiction);
+    if (caseCtx.forum) ctxParts.push('Forum: ' + caseCtx.forum);
+    if (ctxParts.length > 0) {
+      sections.push('CONTEXT: ' + ctxParts.join(' | '));
+      changes.push('Injected case context (' + ctxParts.length + ' variables)');
+    }
+
+    // Active skill reference
+    var topSkill = lintResult.topSkill || (lintResult.skillMatches && lintResult.skillMatches[0]) || null;
+    if (topSkill) {
+      sections.push('SKILL: ' + topSkill.skill + ' (matched ' + topSkill.matchedTriggers.length + ' triggers, score: ' + topSkill.score + ')');
+      changes.push('Linked to skill: ' + topSkill.skill);
+    }
+
+    // Main prompt body
+    sections.push(improved);
+
+    // Output format if not already specified
+    if (!/(format|output|return|produce|generate as|respond with)/i.test(improved)) {
+      var fmt = OUTPUT_FORMATS[taskType] || OUTPUT_FORMATS['unknown'];
+      sections.push('OUTPUT FORMAT: ' + fmt);
+      changes.push('Added output format specification');
+    }
+
+    // Skill methodology hint
+    if (caseCtx.methodology && !new RegExp(caseCtx.methodology, 'i').test(improved)) {
+      sections.push('METHODOLOGY: Follow ' + caseCtx.methodology + ' standards and procedures.');
+      changes.push('Added methodology reference: ' + caseCtx.methodology);
+    }
+
+    improved = sections.join('\n\n');
+
+    if (tier === 'intermediate') {
+      return { success: true, improved: improved, source: 'local', tier: tier, changes: changes };
+    }
+
+    // =========================================================
+    // ADVANCED: Full JSON structure with chain-of-thought
+    // =========================================================
+
+    var struct = {};
+
+    // Context block
+    var ctx = {};
+    if (caseCtx.framework) ctx.framework = caseCtx.framework;
+    if (caseCtx.methodology) ctx.methodology = caseCtx.methodology;
+    if (caseCtx.jurisdiction) ctx.jurisdiction = caseCtx.jurisdiction;
+    if (caseCtx.forum) ctx.forum = caseCtx.forum;
+    if (caseCtx.contract_type) ctx.contract_type = caseCtx.contract_type;
+    if (caseCtx.dispute_type) ctx.dispute_type = caseCtx.dispute_type;
+    if (topSkill) ctx.active_skill = topSkill.skill;
+    if (Object.keys(ctx).length > 0) struct.context = ctx;
+
+    // Task block — reuse beginner-cleaned prompt (already has safe rewrites applied)
+    struct.task = { type: taskLabel, prompt: improved.replace(/^TASK:.*\n\n/m, '').replace(/\n\nOUTPUT FORMAT:.*$/m, '').trim() };
+
+    // Skill rewrite template if available
+    if (lintResult.topRewrite && lintResult.topRewrite.template) {
+      struct.skill_template = { skill: lintResult.topRewrite.skill, template: lintResult.topRewrite.template };
+      changes.push('Embedded skill rewrite template from ' + lintResult.topRewrite.skill);
+    }
+
+    // Constraints
+    var constraints = {
+      reasoning: 'Think step-by-step. Show your analytical process before conclusions.',
+      quality: 'Be precise, cite sources, quantify where possible. Support assertions with evidence.'
+    };
+    if (caseCtx.methodology) {
+      constraints.standards = 'Follow ' + caseCtx.methodology + ' standards, procedures, and documentation requirements.';
+    }
+    if (caseCtx.forum) {
+      constraints.forum = 'Output must be suitable for ' + caseCtx.forum + ' proceedings.';
+    }
+    struct.constraints = constraints;
+
+    // Output format
+    var fmtAdv = OUTPUT_FORMATS[taskType] || OUTPUT_FORMATS['unknown'];
+    var outFmt = { structure: fmtAdv, style: 'Professional, evidence-based, suitable for formal proceedings.' };
+    if (lang === 'fr') {
+      outFmt.language = 'French (formal register)';
+    }
+    struct.output_format = outFmt;
+
+    improved = JSON.stringify(struct, null, 2);
+    changes.push('Generated full JSON-structured prompt');
+
+    return { success: true, improved: improved, source: 'local', tier: tier, changes: changes };
+  }
+
+  // ============================================================
   // EXPORT
   // ============================================================
 
@@ -559,6 +802,8 @@
     loadCaseContext: loadCaseContext,
     getCaseContext: getCaseContext,
     setCaseContext: setCaseContext,
+    // Prompt Improver
+    improvePrompt: improvePrompt,
     // Debug
     getSkillTriggers: function() { return _skillTriggers; },
     getSkillRewrites: function() { return _skillRewrites; },

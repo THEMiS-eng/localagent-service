@@ -7,12 +7,18 @@ Endpoints:
 - GET  /api/llm/active          - Get active provider
 - POST /api/llm/provider        - Set active provider
 - POST /api/llm/complete        - Send completion request
+- POST /api/llm/improve-prompt  - Improve prompt via Anthropic API
 - GET  /api/llm/status          - Get LLM system status
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pydantic import BaseModel
+import json
+import urllib.request
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/llm", tags=["llm"])
 
@@ -143,6 +149,168 @@ async def complete_request(request: CompleteRequest):
         )
     
     return result
+
+
+class ImprovePromptRequest(BaseModel):
+    prompt: str
+    system: Optional[str] = ""
+    feedback: Optional[str] = ""
+    skill_name: Optional[str] = None
+    tier: Optional[str] = "intermediate"  # beginner, intermediate, advanced
+    issues: Optional[List[Dict[str, Any]]] = []
+
+
+TIER_INSTRUCTIONS = {
+    "beginner": "Simplify and clarify the prompt. Fix grammar, remove ambiguity, add basic structure. Keep it short and direct.",
+    "intermediate": "Restructure with clear sections using XML tags. Add reasoning instructions, ensure specificity, and organize for optimal LLM processing.",
+    "advanced": "Full expert rewrite. Use structured XML sections with <context>, <task>, <constraints>, <output_format> tags. Add chain-of-thought reasoning instructions, methodology references, case context variables, and expert-level formatting for maximum analytical depth."
+}
+
+
+@router.post("/improve-prompt")
+async def improve_prompt(request: ImprovePromptRequest):
+    """
+    Improve a prompt using Anthropic's Prompt Improver API.
+    Falls back to Claude completion with metaprompt if experimental API unavailable.
+
+    Args:
+        prompt: The prompt to improve
+        system: Optional system prompt context
+        feedback: Optional specific improvement guidance
+        skill_name: Active skill for context injection
+        tier: Optimization level (beginner, intermediate, advanced)
+        issues: Linter-detected issues array
+
+    Returns:
+        Improved prompt with source info
+    """
+    from ...connectors.llm import get_api_key
+    from ...connectors.llm_providers import get_llm_manager
+
+    # Build feedback from linter issues + tier
+    feedback_parts = []
+    if request.feedback:
+        feedback_parts.append(request.feedback)
+    if request.issues:
+        issue_text = "; ".join([
+            f"[{i.get('severity', '')}] {i.get('message', '')}: {i.get('fix', '')}"
+            for i in request.issues
+        ])
+        feedback_parts.append(f"Linter detected: {issue_text}")
+
+    tier_instruction = TIER_INSTRUCTIONS.get(request.tier, TIER_INSTRUCTIONS["intermediate"])
+    feedback_parts.append(tier_instruction)
+    full_feedback = " | ".join(feedback_parts)
+
+    # Get skill context
+    skill_context = ""
+    if request.skill_name:
+        try:
+            from ...skills import get_manager as get_skill_manager
+            sm = get_skill_manager()
+            skill = sm.get_skill(request.skill_name)
+            if skill:
+                skill_context = f"\n\nActive Skill: {skill.name}\nDomain: {skill.description}"
+                if hasattr(skill, 'body') and skill.body:
+                    # Include first 500 chars of skill body for context
+                    skill_context += f"\nExpertise:\n{skill.body[:500]}"
+        except Exception:
+            pass
+
+    # --- Attempt 1: Anthropic experimental Prompt Improver API ---
+    api_key = get_api_key()
+    if api_key:
+        try:
+            url = "https://api.anthropic.com/v1/experimental/improve_prompt"
+            payload = {
+                "messages": [{"role": "user", "content": request.prompt}],
+                "feedback": full_feedback
+            }
+            if request.system or skill_context:
+                payload["system"] = (request.system or "") + skill_context
+
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode('utf-8'),
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "anthropic-beta": "prompt-tools-2025-04-02",
+                    "content-type": "application/json"
+                },
+                method="POST"
+            )
+
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+
+            # Extract improved prompt from response
+            improved = ""
+            for msg in data.get("messages", []):
+                if msg.get("role") == "user":
+                    content = msg.get("content", "")
+                    if isinstance(content, list):
+                        improved = " ".join([
+                            c.get("text", "") for c in content
+                            if c.get("type") == "text"
+                        ])
+                    else:
+                        improved = str(content)
+                    break
+
+            if improved:
+                return {
+                    "success": True,
+                    "improved": improved,
+                    "source": "anthropic-api",
+                    "tier": request.tier
+                }
+        except urllib.error.HTTPError as e:
+            logger.info(f"Prompt Improver API returned {e.code}, falling back to metaprompt")
+        except Exception as e:
+            logger.info(f"Prompt Improver API unavailable ({e}), falling back to metaprompt")
+
+    # --- Attempt 2: Fallback to Claude completion with metaprompt ---
+    manager = get_llm_manager()
+
+    metaprompt = f"""You are an expert prompt engineer specializing in optimizing prompts for AI language models.
+
+TASK: Rewrite the user's prompt to be maximally effective.
+
+TIER: {request.tier}
+{tier_instruction}
+{f"LINTER FEEDBACK: {full_feedback}" if request.issues else ""}
+{skill_context}
+
+RULES:
+1. Return ONLY the improved prompt text — no explanations, no preamble, no commentary
+2. Preserve the user's original intent exactly
+3. Make it more specific, structured, and effective
+4. Use positive framing (replace negations with affirmatives)
+5. Replace vague quantities with specific numbers
+6. Add output format specifications if missing
+7. For intermediate/advanced: organize with XML tags (<context>, <task>, <constraints>, <output_format>)
+8. For advanced: add chain-of-thought instructions and methodology references"""
+
+    result = manager.complete(
+        prompt=f"Improve this prompt:\n\n{request.prompt}",
+        system=metaprompt,
+        fallback=True
+    )
+
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=500,
+            detail=result.get("error", "Failed to improve prompt")
+        )
+
+    return {
+        "success": True,
+        "improved": result.get("response", ""),
+        "source": "claude-metaprompt",
+        "tier": request.tier,
+        "provider": result.get("provider")
+    }
 
 
 @router.get("/status")
