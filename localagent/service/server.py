@@ -234,61 +234,155 @@ async def websocket_endpoint(ws: WebSocket):
 
 @app.post("/api/chat")
 async def chat_endpoint(data: Dict[str, Any]):
-    """Chat with Claude - uses chat_handler for logic."""
+    """Chat with Claude - uses chat_handler for logic, supports multimodal."""
     from ..core.chat_handler import (
         detect_tracking_type, create_tracking_entry, mark_tracking_done,
         lint_message, build_conversation_context, handle_conversation,
         execute_negotiation, process_tasks
     )
     from ..core.constraints import validate_action, get_constraints_for_context
-    
+    from ..connectors.llm import call_claude
+
     message = data.get("message", "").strip()
     history = data.get("history", [])
-    
+
+    # Extract attachments for multimodal support
+    attachments = data.get("attachments", [])
+    images = []
+    doc_texts = []
+
+    for att in attachments:
+        att_data = att.get("data", "")
+        att_type = att.get("type", "")
+        att_name = att.get("name", "file")
+
+        if att_data and att_type.startswith("image/"):
+            images.append({
+                "data": att_data,
+                "type": att_type,
+                "name": att_name
+            })
+        elif att_data:
+            # Handle document files (docx, pdf, txt, etc.)
+            try:
+                import base64
+                import io
+
+                # Remove data URL prefix if present
+                if "," in att_data:
+                    att_data = att_data.split(",", 1)[1]
+
+                file_bytes = base64.b64decode(att_data)
+
+                if att_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or att_name.endswith(".docx"):
+                    # Extract text from DOCX
+                    try:
+                        from docx import Document
+                        doc = Document(io.BytesIO(file_bytes))
+                        text = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
+                        if text:
+                            doc_texts.append(f"=== Content of {att_name} ===\n{text}\n=== End of {att_name} ===")
+                            logger.info(f"Extracted {len(text)} chars from DOCX: {att_name}")
+                    except Exception as e:
+                        logger.error(f"Failed to extract DOCX: {e}")
+                        doc_texts.append(f"[Could not extract text from {att_name}: {e}]")
+
+                elif att_type == "application/pdf" or att_name.endswith(".pdf"):
+                    # Extract text from PDF
+                    try:
+                        import pdfplumber
+                        with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                            text = "\n".join([page.extract_text() or "" for page in pdf.pages])
+                        if text:
+                            doc_texts.append(f"=== Content of {att_name} ===\n{text}\n=== End of {att_name} ===")
+                            logger.info(f"Extracted {len(text)} chars from PDF: {att_name}")
+                    except Exception as e:
+                        logger.error(f"Failed to extract PDF: {e}")
+                        doc_texts.append(f"[Could not extract text from {att_name}: {e}]")
+
+                elif att_type.startswith("text/") or att_name.endswith((".txt", ".md", ".json", ".csv")):
+                    # Plain text files
+                    text = file_bytes.decode("utf-8", errors="ignore")
+                    if text:
+                        doc_texts.append(f"=== Content of {att_name} ===\n{text}\n=== End of {att_name} ===")
+                        logger.info(f"Read {len(text)} chars from text file: {att_name}")
+
+            except Exception as e:
+                logger.error(f"Failed to process attachment {att_name}: {e}")
+
+    # If documents attached, include their content in the message
+    if doc_texts:
+        doc_context = "\n\n".join(doc_texts)
+        message = f"{message}\n\n[ATTACHED DOCUMENTS]\n{doc_context}" if message else f"Please analyze these documents:\n\n{doc_context}"
+        logger.info(f"Added {len(doc_texts)} document(s) to context")
+
+    # If images attached, use direct multimodal call (run in thread to avoid blocking event loop)
+    if images:
+        logger.info(f"Multimodal chat with {len(images)} image(s)")
+        result = await asyncio.to_thread(
+            call_claude,
+            message or "Describe what you see in this image.",
+            "",
+            "You are a helpful assistant. Analyze images carefully and describe what you see.",
+            images
+        )
+        return {
+            "status": "ok" if result.get("success") else "error",
+            "response": result.get("response", result.get("error", "Error")),
+            "detail": result.get("detail", ""),
+            "ai_source": "claude",
+            "images_received": len(images),
+            "protocol": [
+                {"step": "context", "label": f"📎 {len(images)} image(s)", "status": "complete"},
+                {"step": "complete", "label": "🤖 CLAUDE (multimodal)", "status": "complete"}
+            ]
+        }
+
     if not message:
         return {"error": "Empty message", "response": "Empty message"}
-    
-    # Auto-detect and create tracking
+
+    # Documents attached or chat message → direct Claude call (single call, fast)
+    # Only use negotiation for explicit file-creation commands (rare)
+    if doc_texts or not message.lower().startswith(("create file ", "generate file ")):
+        context = build_conversation_context(history)
+        response = await asyncio.to_thread(handle_conversation, message, context, DEFAULT_PROJECT)
+        return {"status": "ok", "response": response, "tracking": None}
+
+    # Explicit file creation requests → negotiation path
     tracking_type, title = detect_tracking_type(message)
     tracking_entry = None
     if tracking_type:
         tracking_entry = create_tracking_entry(tracking_type, title, message)
         invalidate(tracking_type.lower(), DEFAULT_PROJECT)
-        logger.info(f"Created {tracking_entry['id']}")
-    
-    # Lint
-    optimized, lint_report, is_conversation = lint_message(message, DEFAULT_PROJECT)
-    
-    # Handle simple conversation
-    if is_conversation:
-        context = build_conversation_context(history)
-        response = handle_conversation(message, context, DEFAULT_PROJECT)
-        return {"status": "ok", "response": response, "tracking": tracking_entry}
-    
-    # Validate constraints
+
+    optimized, lint_report, _ = lint_message(message, DEFAULT_PROJECT)
     valid, violations = validate_action("chat", {"message": message})
-    
-    # Negotiate with Claude
+
     add_message(DEFAULT_PROJECT, "user", message)
     context = build_conversation_context(history)
-    success, result = execute_negotiation(optimized, DEFAULT_PROJECT, context)
-    
-    # Process result
+    success, result = await asyncio.to_thread(execute_negotiation, optimized, DEFAULT_PROJECT, context)
+
     if success:
         tasks = result.get("tasks", [])
         saved_files, attachments = process_tasks(tasks, DEFAULT_PROJECT)
         response = f"✅ {len(tasks)} tasks completed"
         if saved_files:
             response += f"\n📁 Files: {', '.join(saved_files)}"
-        
-        # Mark tracking as done
         if tracking_entry:
             mark_tracking_done(tracking_entry, tracking_type)
             invalidate(tracking_type.lower(), DEFAULT_PROJECT)
     else:
-        response = f"❌ Failed: {result.get('error', 'unknown')}"
+        # Negotiation failed — fallback to conversation
+        raw_response = result.get("raw_response", "")
+        if raw_response:
+            response = raw_response
+        else:
+            try:
+                response = await asyncio.to_thread(handle_conversation, message, context, DEFAULT_PROJECT)
+            except Exception:
+                response = f"❌ Failed: {result.get('error', 'unknown')}"
         attachments = []
-    
+
     add_message(DEFAULT_PROJECT, "agent", response)
     return {"status": "ok" if success else "error", "response": response, "files": attachments, "tracking": tracking_entry}
 
@@ -426,7 +520,7 @@ Provide:
 # RUN
 # ============================================================
 def run():
-    uvicorn.run(app, host=HOST, port=PORT, log_level="info")
+    uvicorn.run(app, host=HOST, port=PORT, log_level="info", timeout_keep_alive=300)
 
 if __name__ == "__main__":
     run()

@@ -463,15 +463,20 @@ Format your response as JSON:
 {"analysis": "...", "fix": "...", "code": "...", "prevention": "..."}"""
     
     try:
-        response = call_claude(prompt, max_tokens=1000)
-        
+        claude_result = call_claude(prompt)
+
+        if not claude_result.get("success"):
+            return {"success": False, "error": claude_result.get("error", "Claude API call failed")}
+
+        response_text = claude_result.get("response", "")
+
         # Try to parse JSON response
         import re
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
         if json_match:
             result = json.loads(json_match.group())
         else:
-            result = {"analysis": response, "fix": None}
+            result = {"analysis": response_text, "fix": None}
         
         # Store Claude's analysis
         set_claude_analysis(error_id, result.get("analysis", ""), result.get("fix"))

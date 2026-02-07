@@ -11878,6 +11878,17 @@ Examples:
     const [activeTagMenu, setActiveTagMenu] = useState(null);
     const [tagFilterOpen, setTagFilterOpen] = useState(false);
     const [selectedFilterTags, setSelectedFilterTags] = useState([]);
+    const [msgTagFilterOpen, setMsgTagFilterOpen] = useState(false);
+    const [selectedMsgTags, setSelectedMsgTags] = useState([]);
+    const msgTagFilterRef = React.useRef(null);
+    const MSG_TAG_OPTIONS = [
+      { id: 'important', label: 'Important', color: '#ef4444' },
+      { id: 'question',  label: 'Question',  color: '#3b82f6' },
+      { id: 'action',    label: 'Action',    color: '#f97316' },
+      { id: 'reference', label: 'Reference', color: '#22c55e' },
+      { id: 'followup',  label: 'Follow-up', color: '#8b5cf6' },
+      { id: 'note',      label: 'Note',      color: '#6b7280' }
+    ];
     const [showSearchHistory, setShowSearchHistory] = useState(false);
     const [expandedMatches, setExpandedMatches] = useState(/* @__PURE__ */ new Set());
     const sortMenuRef = React.useRef(null);
@@ -12041,6 +12052,9 @@ Examples:
         if (!e.target.closest(".tag-menu-container")) {
           setActiveTagMenu(null);
         }
+        if (msgTagFilterRef.current && !msgTagFilterRef.current.contains(e.target) && !e.target.closest(".msg-tag-filter-btn")) {
+          setMsgTagFilterOpen(false);
+        }
       };
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -12051,6 +12065,24 @@ Examples:
       );
     };
     const clearFilterTags = () => setSelectedFilterTags([]);
+    const toggleMsgTagFilter = (tagId) => {
+      setSelectedMsgTags(prev => {
+        const next = prev.includes(tagId) ? prev.filter(t => t !== tagId) : [...prev, tagId];
+        // Send filter to iframe
+        const iframe = document.getElementById('localagent-chat');
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: 'filter-message-tags', tags: next }, '*');
+        }
+        return next;
+      });
+    };
+    const clearMsgTagFilter = () => {
+      setSelectedMsgTags([]);
+      const iframe = document.getElementById('localagent-chat');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: 'filter-message-tags', tags: [] }, '*');
+      }
+    };
 const handleSend = async () => {
       if (!input.trim() || sending) return;
       const query = input.trim();
@@ -12821,6 +12853,7 @@ const handleSend = async () => {
             }
           ),
           h("div", { className: "chat-divider" }),
+          mode === "search" ?
           h("div", { style: { position: "relative" }, ref: tagFilterRef, children: [
             h(
               "button",
@@ -12904,6 +12937,98 @@ const handleSend = async () => {
                   "div",
                   {
                     onClick: clearFilterTags,
+                    style: { padding: "8px 12px", cursor: "pointer", borderRadius: "4px", fontSize: "11px", color: "#ef4444", textAlign: "center" },
+                    onMouseEnter: (e) => e.currentTarget.style.background = "#fef2f2",
+                    onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
+                    children: "Clear filters"
+                  }
+                )
+              ] })
+            ] })
+          ] }) :
+          /* Analysis mode: message tag filter */
+          h("div", { style: { position: "relative" }, ref: msgTagFilterRef, children: [
+            h(
+              "button",
+              {
+                className: `chat-btn msg-tag-filter-btn ${selectedMsgTags.length > 0 ? "active" : ""}`,
+                onClick: () => setMsgTagFilterOpen(!msgTagFilterOpen),
+                title: "Filter messages by tag",
+                style: {
+                  background: selectedMsgTags.length > 0 ? "#f59e0b" : "",
+                  color: selectedMsgTags.length > 0 ? "white" : ""
+                },
+                children: [
+                  h(Icons.Hash, {}),
+                  selectedMsgTags.length > 0 && h("span", { style: {
+                    position: "absolute",
+                    top: "-4px",
+                    right: "-4px",
+                    background: "#ef4444",
+                    color: "white",
+                    fontSize: "9px",
+                    width: "16px",
+                    height: "16px",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }, children: selectedMsgTags.length })
+                ]
+              }
+            ),
+            msgTagFilterOpen && h("div", { style: {
+              position: "absolute",
+              bottom: "100%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              marginBottom: "8px",
+              width: "180px",
+              background: "white",
+              borderRadius: "8px",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+              border: "1px solid #e5e7eb",
+              zIndex: 1e3,
+              padding: "4px"
+            }, children: [
+              h("div", { style: { padding: "6px 10px", fontSize: "10px", color: "#9ca3af", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }, children: "Filter by message tag" }),
+              MSG_TAG_OPTIONS.map((t) => {
+                const isSelected = selectedMsgTags.includes(t.id);
+                return h(
+                  "div",
+                  {
+                    onClick: () => toggleMsgTagFilter(t.id),
+                    style: {
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      borderRadius: "4px",
+                      fontSize: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      background: isSelected ? `${t.color}15` : "transparent"
+                    },
+                    onMouseEnter: (e) => {
+                      if (!isSelected) e.currentTarget.style.background = "#f3f4f6";
+                    },
+                    onMouseLeave: (e) => {
+                      if (!isSelected) e.currentTarget.style.background = "transparent";
+                    },
+                    children: [
+                      h("span", { style: { width: "8px", height: "8px", borderRadius: "50%", background: t.color } }),
+                      h("span", { style: { flex: 1, color: isSelected ? t.color : "#374151", fontWeight: isSelected ? 500 : 400 }, children: t.label }),
+                      isSelected && h("span", { style: { color: t.color, fontSize: "14px" }, children: "[ok]" })
+                    ]
+                  },
+                  t.id
+                );
+              }),
+              selectedMsgTags.length > 0 && h(React.Fragment, { children: [
+                h("div", { style: { borderTop: "1px solid #e5e7eb", margin: "4px 0" } }),
+                h(
+                  "div",
+                  {
+                    onClick: clearMsgTagFilter,
                     style: { padding: "8px 12px", cursor: "pointer", borderRadius: "4px", fontSize: "11px", color: "#ef4444", textAlign: "center" },
                     onMouseEnter: (e) => e.currentTarget.style.background = "#fef2f2",
                     onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
@@ -13277,6 +13402,220 @@ const handleSend = async () => {
             }
         }
     });
+
+    // ============================================================
+    // MESSAGE TAGS — injected into chat iframe (same-origin)
+    // Duplicates the search-context tag UX: colored pills, hover +
+    // ============================================================
+    (function() {
+      var TAG_CSS = `
+        .msg .meta { display: flex; align-items: center; gap: 6px; }
+        .msg-tag-btn {
+          background: none; border: 1px dashed #d1d5db; color: #6b7280;
+          cursor: pointer; padding: 1px 6px; border-radius: 8px;
+          opacity: 0; transition: opacity 0.15s; font-size: 9px; line-height: 1.4;
+        }
+        .msg:hover .msg-tag-btn, .msg.has-tags .msg-tag-btn { opacity: 1 !important; }
+        .msg-tag-btn:hover { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .msg-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .msg-tag-pill {
+          display: inline-flex; align-items: center; gap: 3px;
+          padding: 1px 6px; border-radius: 8px; font-size: 9px; font-weight: 500;
+          cursor: default; line-height: 1.4;
+        }
+        .msg-tag-pill .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+        .msg-tag-pill .rm {
+          background: none; border: none; color: inherit; cursor: pointer;
+          padding: 0; margin-left: 2px; font-size: 11px; opacity: .5;
+        }
+        .msg-tag-pill .rm:hover { opacity: 1; }
+        .msg-tag-picker {
+          position: absolute; top: 100%; left: 0; margin-top: 4px;
+          background: white; border-radius: 8px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+          border: 1px solid #e5e7eb; z-index: 1000;
+          min-width: 160px; padding: 4px; max-height: 240px; overflow: auto;
+        }
+        .msg-tag-picker-item {
+          padding: 6px 10px; cursor: pointer; border-radius: 4px;
+          font-size: 10px; display: flex; align-items: center; gap: 6px;
+        }
+        .msg-tag-picker-item:hover { background: #f3f4f6; }
+        .msg-tag-picker-item.selected { font-weight: 600; }
+        .msg-tag-picker-item.selected::after { content: '\\2713'; margin-left: auto; font-size: 11px; }
+        .msg.tagged > .bubble { border-left: 3px solid #f59e0b; }
+        .msg.tag-dimmed { opacity: 0.15; transition: opacity .2s; }
+      `;
+
+      var TAG_OPTIONS = [
+        { id: "important", label: "Important", color: "#ef4444" },
+        { id: "question",  label: "Question",  color: "#3b82f6" },
+        { id: "action",    label: "Action",    color: "#f97316" },
+        { id: "reference", label: "Reference", color: "#22c55e" },
+        { id: "followup",  label: "Follow-up", color: "#8b5cf6" },
+        { id: "note",      label: "Note",      color: "#6b7280" }
+      ];
+
+      function initTagsInIframe(iframeEl) {
+        var doc;
+        try { doc = iframeEl.contentDocument || iframeEl.contentWindow.document; } catch(e) { return; }
+        if (!doc || !doc.body) return;
+        if (doc.__msgTagsInjected) return;
+        doc.__msgTagsInjected = true;
+
+        // Inject CSS
+        var style = doc.createElement("style");
+        style.textContent = TAG_CSS;
+        doc.head.appendChild(style);
+
+        // Tag data (session storage in iframe context)
+        var win = iframeEl.contentWindow;
+        var messageTags = {};
+        try {
+          var saved = win.sessionStorage.getItem("themis-msg-tags");
+          if (saved) messageTags = JSON.parse(saved);
+        } catch(e) {}
+
+        function saveTags() {
+          try { win.sessionStorage.setItem("themis-msg-tags", JSON.stringify(messageTags)); } catch(e) {}
+        }
+
+        function esc(s) { return String(s).replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+        function toggleTag(idx, tagId) {
+          if (!messageTags[idx]) messageTags[idx] = [];
+          var i = messageTags[idx].indexOf(tagId);
+          if (i >= 0) { messageTags[idx].splice(i, 1); if (!messageTags[idx].length) delete messageTags[idx]; }
+          else { messageTags[idx].push(tagId); }
+          saveTags();
+          renderTags(idx);
+          // close picker
+          doc.querySelectorAll(".msg-tag-picker").forEach(function(p) { p.remove(); });
+        }
+
+        function renderTags(idx) {
+          var msgs = doc.querySelectorAll("#msgs .msg");
+          var el = msgs[idx]; if (!el) return;
+          var bubble = el.querySelector(".bubble"); if (!bubble) return;
+          var tags = messageTags[idx] || [];
+          el.classList.toggle("tagged", tags.length > 0);
+          el.classList.toggle("has-tags", tags.length > 0);
+          var container = bubble.querySelector(".msg-tags");
+          if (container) container.remove();
+          if (!tags.length) return;
+          container = doc.createElement("div");
+          container.className = "msg-tags";
+          tags.forEach(function(tagId) {
+            var opt = TAG_OPTIONS.find(function(t) { return t.id === tagId; });
+            if (!opt) return;
+            var pill = doc.createElement("span");
+            pill.className = "msg-tag-pill";
+            pill.style.background = opt.color + "18";
+            pill.style.border = "1px solid " + opt.color + "44";
+            pill.style.color = opt.color;
+            pill.innerHTML = '<span class="dot" style="background:' + opt.color + '"></span>' + esc(opt.label) + '<button class="rm" title="Remove">&times;</button>';
+            pill.querySelector(".rm").onclick = function(e) { e.stopPropagation(); toggleTag(idx, tagId); };
+            container.appendChild(pill);
+          });
+          var meta = bubble.querySelector(".meta");
+          if (meta) bubble.insertBefore(container, meta);
+          else bubble.appendChild(container);
+        }
+
+        function showPicker(idx, btnEl) {
+          doc.querySelectorAll(".msg-tag-picker").forEach(function(p) { p.remove(); });
+          var picker = doc.createElement("div");
+          picker.className = "msg-tag-picker";
+          var current = messageTags[idx] || [];
+          TAG_OPTIONS.forEach(function(opt) {
+            var item = doc.createElement("div");
+            item.className = "msg-tag-picker-item" + (current.includes(opt.id) ? " selected" : "");
+            item.innerHTML = '<span class="dot" style="width:6px;height:6px;border-radius:50%;background:' + opt.color + '"></span>' + esc(opt.label);
+            item.onclick = function(e) {
+              e.stopPropagation();
+              toggleTag(idx, opt.id);
+            };
+            picker.appendChild(item);
+          });
+          // Position: relative wrapper
+          var wrapper = btnEl.parentNode;
+          wrapper.style.position = "relative";
+          wrapper.appendChild(picker);
+          // Close on outside click
+          setTimeout(function() {
+            doc.addEventListener("mousedown", function handler(e) {
+              if (!picker.contains(e.target) && e.target !== btnEl) {
+                picker.remove();
+                doc.removeEventListener("mousedown", handler);
+              }
+            });
+          }, 0);
+        }
+
+        function wireMsg(el, idx) {
+          var meta = el.querySelector(".meta");
+          if (!meta || meta.querySelector(".msg-tag-btn")) return;
+          var btn = doc.createElement("button");
+          btn.className = "msg-tag-btn";
+          btn.title = "Add tag";
+          btn.textContent = "+";
+          btn.onclick = function(e) { e.stopPropagation(); showPicker(idx, btn); };
+          meta.appendChild(btn);
+          renderTags(idx);
+        }
+
+        // Wire existing messages
+        doc.querySelectorAll("#msgs .msg").forEach(function(el, i) { wireMsg(el, i); });
+
+        // Observe new messages
+        var msgsEl = doc.getElementById("msgs");
+        if (msgsEl) {
+          var observer = new MutationObserver(function() {
+            doc.querySelectorAll("#msgs .msg").forEach(function(el, i) { wireMsg(el, i); });
+          });
+          observer.observe(msgsEl, { childList: true });
+        }
+
+        // Listen for filter commands from parent
+        win.addEventListener("message", function(e) {
+          if (e.data && e.data.type === "filter-message-tags") {
+            var filterTags = e.data.tags || [];
+            doc.querySelectorAll("#msgs .msg").forEach(function(msg, i) {
+              if (!filterTags.length) { msg.classList.remove("tag-dimmed"); return; }
+              var tags = messageTags[i] || [];
+              var match = filterTags.some(function(t) { return tags.includes(t); });
+              msg.classList.toggle("tag-dimmed", !match);
+            });
+          }
+        });
+      }
+
+      // Attach to iframe on load (and re-attach on navigation)
+      function attach() {
+        var iframe = document.getElementById("localagent-chat");
+        if (!iframe) return;
+        iframe.addEventListener("load", function() { initTagsInIframe(iframe); });
+        // Also try now in case already loaded
+        try { if (iframe.contentDocument && iframe.contentDocument.body) initTagsInIframe(iframe); } catch(e) {}
+      }
+
+      // Run on DOM ready and also observe for iframe appearing later
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", attach);
+      } else {
+        attach();
+      }
+      // Re-check periodically for iframe (React renders it dynamically)
+      var attachInterval = setInterval(function() {
+        var iframe = document.getElementById("localagent-chat");
+        if (iframe) {
+          try {
+            var d = iframe.contentDocument || iframe.contentWindow.document;
+            if (d && d.body && !d.__msgTagsInjected) initTagsInIframe(iframe);
+          } catch(e) {}
+        }
+      }, 1000);
+    })();
     </script>
 </body>
 </html>

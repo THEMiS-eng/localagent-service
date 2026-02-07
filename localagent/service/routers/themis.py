@@ -100,8 +100,10 @@ async def serve_themis_ui():
     """Serve Themis UI from external module (not bundled)."""
     import urllib.request
     
-    # 1. Check local installed module
+    # 1. Check local installed module (project modules first, then user modules)
+    project_modules = Path(__file__).parent.parent.parent.parent / "modules" / "themis-ui" / "index.html"
     local_paths = [
+        project_modules,  # Project's modules folder (priority)
         Path.home() / ".localagent" / "modules" / "themis-ui" / "index.html",
         Path.home() / "localagent-modular" / "themis-ui" / "index.html",
     ]
@@ -397,6 +399,19 @@ async def chat(request: Request):
     case_id = data.get("case_id")
     context_data = data.get("context", {})
     skill_context = context_data.get("skill_context", {})
+
+    # Extract attachments for multimodal support
+    attachments = data.get("attachments", [])
+    images = []
+    for att in attachments:
+        if att.get("data") and att.get("type", "").startswith("image/"):
+            images.append({
+                "data": att["data"],
+                "type": att["type"],
+                "name": att.get("name", "image")
+            })
+
+    print(f"[THEMIS] Chat request - {len(images)} image(s) attached")
     
     # Extract skill information
     selected_skill = skill_context.get("selected_skill")
@@ -431,7 +446,7 @@ async def chat(request: Request):
     
     protocol_steps.append({
         "step": "context",
-        "label": f"🎯 {skill_used or 'No skill'}" + (f" | Case: {case_id}" if case_id else ""),
+        "label": f"🎯 {skill_used or 'No skill'}" + (f" | Case: {case_id}" if case_id else "") + (f" | 📎 {len(images)} image(s)" if images else ""),
         "status": "complete"
     })
     
@@ -486,8 +501,8 @@ Jurisdiction: {ctx.jurisdiction}
                 "status": "running"
             })
         
-        # Call LLM
-        result = chat_completion(current_prompt, context=context_str, system=system)
+        # Call LLM (pass images for multimodal)
+        result = chat_completion(current_prompt, context=context_str, system=system, images=images if attempt == 1 else None)
         response_text = result.get("response", "")
         ai_source = result.get("source", "unknown")
         
@@ -556,10 +571,11 @@ Jurisdiction: {ctx.jurisdiction}
     if case_id not in _chat_history:
         _chat_history[case_id] = []
     _chat_history[case_id].append({
-        "role": "user", 
-        "content": message, 
+        "role": "user",
+        "content": message,
         "timestamp": datetime.now().isoformat(),
-        "skill": selected_skill
+        "skill": selected_skill,
+        "images_count": len(images)
     })
     _chat_history[case_id].append({
         "role": "assistant", 
@@ -577,7 +593,8 @@ Jurisdiction: {ctx.jurisdiction}
         "skill_used": skill_used,
         "protocol": protocol_steps,
         "negotiation_attempts": attempt,
-        "negotiation_success": negotiation_success
+        "negotiation_success": negotiation_success,
+        "images_received": len(images)
     }
 
 
@@ -1146,13 +1163,36 @@ async def run_smart_folder(folder_id: str, case_id: str = None):
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket for real-time updates."""
+    """WebSocket for real-time updates with heartbeat."""
+    import asyncio
     await websocket.accept()
     _ws_connections.append(websocket)
+
+    async def heartbeat():
+        """Send ping every 30s to keep connection alive."""
+        while True:
+            try:
+                await asyncio.sleep(30)
+                await websocket.send_json({"jsonrpc": "2.0", "method": "ping"})
+            except:
+                break
+
+    heartbeat_task = asyncio.create_task(heartbeat())
     try:
         while True:
             data = await websocket.receive_text()
-            # Echo for now
-            await websocket.send_json({"type": "ack", "data": data})
+            try:
+                msg = json.loads(data)
+                # Handle JSON-RPC style messages
+                if msg.get("method") == "ping":
+                    await websocket.send_json({"jsonrpc": "2.0", "result": "pong", "id": msg.get("id")})
+                else:
+                    await websocket.send_json({"jsonrpc": "2.0", "result": "ack", "id": msg.get("id")})
+            except:
+                await websocket.send_json({"type": "ack", "data": data})
     except WebSocketDisconnect:
-        _ws_connections.remove(websocket)
+        pass
+    finally:
+        heartbeat_task.cancel()
+        if websocket in _ws_connections:
+            _ws_connections.remove(websocket)

@@ -309,13 +309,13 @@ Please provide a revised response that addresses the validation issues."""
 NEGOTIATION_STRATEGIES = {
     "truncation": {
         "action": "reduce_complexity",
-        "feedback": "Response truncated. Use fewer, simpler tasks. Max 2 tasks, max 20 lines each.",
-        "max_retries": 3
+        "feedback": "Response truncated. Use fewer, simpler tasks. Max 1 task, max 15 lines content. No HTML.",
+        "max_retries": 1
     },
     "parse_error": {
         "action": "simplify_json",
         "feedback": "JSON parse error. Return ONLY valid JSON. Start with { end with }. No markdown.",
-        "max_retries": 3
+        "max_retries": 1
     },
     "empty_response": {
         "action": "retry_simple",
@@ -461,8 +461,8 @@ def analyze_instruction_complexity(instruction: str) -> Dict:
         score += 2
         indicators.append("very_long_instruction")
     
-    # Needs split if score >= 4
-    needs_split = score >= 4
+    # Needs split if score >= 8 (raised from 4 — chat messages naturally contain connectors like "and", "then")
+    needs_split = score >= 8
     
     parts = []
     if needs_split:
@@ -704,18 +704,9 @@ def negotiate_request(
     """
     print(f"🔄 NEGOTIATOR: Starting for project {project}")
     
-    # Check instruction complexity
+    # Log instruction complexity (informational only — never block chat messages)
     complexity = analyze_instruction_complexity(instruction)
     print(f"   Complexity score: {complexity['complexity_score']}")
-    
-    if complexity["needs_split"]:
-        print(f"   ⚠️ Too complex - needs split into {len(complexity['parts'])} parts")
-        return False, {
-            "error": "too_complex",
-            "split_required": True,
-            "parts": complexity["parts"],
-            "suggestion": f"Split into {len(complexity['parts'])} parts"
-        }
     
     # Get active skills context
     skill_context = ""
@@ -806,6 +797,7 @@ def negotiate_request(
             print(f"      Error: {validation.get('detail', '')[:100]}")
             attempt["error_type"] = error_type
             attempt["error"] = validation.get("detail", "")
+            attempt["raw_response"] = response
             attempts.append(attempt)
             
             learn_from_error(project, error_type, validation.get("detail", ""), 
@@ -848,10 +840,18 @@ def negotiate_request(
             "usage": result.get("usage", {})
         }
     
-    # All retries failed
+    # All retries failed — include last raw response for fallback
+    last_raw = ""
+    if attempts:
+        # Find the last attempt that had a response
+        for a in reversed(attempts):
+            if a.get("raw_response"):
+                last_raw = a["raw_response"]
+                break
     return False, {
         "error": attempts[-1].get("error_type", "unknown") if attempts else "no_attempts",
         "detail": attempts[-1].get("error", "") if attempts else "",
+        "raw_response": last_raw,
         "attempts": attempts
     }
 

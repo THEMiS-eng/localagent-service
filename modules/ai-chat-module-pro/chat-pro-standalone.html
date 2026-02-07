@@ -157,7 +157,24 @@ code{background:var(--chat-code-bg);padding:2px 5px;border-radius:4px;font-size:
 .step-error-title{font-weight:600;color:var(--chat-error);margin-bottom:6px;font-size:12px}
 .step-error pre{font-family:'SF Mono',monospace;font-size:11px;color:var(--chat-error);white-space:pre-wrap;margin:0}
 
-.meta{font-size:11px;color:var(--chat-muted);margin-top:8px}
+.meta{font-size:11px;color:var(--chat-muted);margin-top:8px;display:flex;align-items:center;gap:6px}
+.msg-tag-btn{background:#f3f4f6;border:1px dashed #d1d5db;color:#6b7280;cursor:pointer;padding:1px 6px;border-radius:8px;font-size:9px;display:inline-flex;align-items:center;margin-left:4px;opacity:0;transition:opacity .15s}
+.msg:hover .msg-tag-btn{opacity:1 !important}
+.msg.has-tags .msg-tag-btn{opacity:1 !important}
+.msg-tag-btn:hover{background:#3b82f6;color:white;border-color:#3b82f6}
+.msg-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.msg-tag-pill{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:500;cursor:default;line-height:1.4}
+.msg-tag-pill .tag-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.msg-tag-pill .tag-remove{background:none;border:none;color:inherit;cursor:pointer;padding:0;margin-left:2px;font-size:11px;opacity:.5}
+.msg-tag-pill .tag-remove:hover{opacity:1}
+.msg-tag-picker{position:absolute;top:100%;left:0;margin-top:4px;width:160px;background:white;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.15);border:1px solid #e5e7eb;z-index:1000;padding:4px;max-height:240px;overflow:auto}
+.msg-tag-picker-item{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:10px;color:#374151}
+.msg-tag-picker-item:hover{background:#f3f4f6}
+.msg-tag-picker-item .tag-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.msg-tag-picker-item.selected{font-weight:600}
+.msg-tag-picker-item.selected::after{content:'✓';margin-left:auto;font-size:11px;color:#22c55e}
+.msg.tagged>.bubble{border-left:3px solid #f59e0b}
+.msg.tag-dimmed{opacity:0.15;transition:opacity .2s}
 .files{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .file{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--chat-surface);border:1px solid var(--chat-border);border-radius:6px;font-size:12px}
 .file-icon{color:var(--chat-accent)}
@@ -447,6 +464,11 @@ textarea::placeholder{color:var(--chat-muted)}
 
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{animation:spin .8s linear infinite}
+
+/* Claude-style spinner */
+.chat-spinner{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px}
+.chat-spinner svg{width:24px;height:24px;animation:spin 1s linear infinite}
+.chat-spinner .ray{fill:var(--chat-accent);transform-origin:center}
 </style>
 </head>
 <body>
@@ -812,6 +834,121 @@ let recordedSamples = [];
 let lastInputSource = 'text'; // 'text' or 'voice'
 let audioContext = null;
 let conversationHistory = []; // Store message history for context
+
+// ===== MESSAGE TAGS =====
+const MSG_TAG_OPTIONS = [
+  { id: 'important', label: 'Important', color: '#ef4444' },
+  { id: 'question',  label: 'Question',  color: '#3b82f6' },
+  { id: 'action',    label: 'Action',    color: '#f97316' },
+  { id: 'reference', label: 'Reference', color: '#22c55e' },
+  { id: 'followup',  label: 'Follow-up', color: '#8b5cf6' },
+  { id: 'note',      label: 'Note',      color: '#6b7280' }
+];
+
+let messageTags = {};
+try {
+  const saved = sessionStorage.getItem('themis-msg-tags');
+  if (saved) messageTags = JSON.parse(saved);
+} catch(e) {}
+
+function saveMessageTags() {
+  try { sessionStorage.setItem('themis-msg-tags', JSON.stringify(messageTags)); } catch(e) {}
+}
+
+function toggleMessageTag(msgIndex, tagId) {
+  if (!messageTags[msgIndex]) messageTags[msgIndex] = [];
+  const idx = messageTags[msgIndex].indexOf(tagId);
+  if (idx >= 0) {
+    messageTags[msgIndex].splice(idx, 1);
+    if (messageTags[msgIndex].length === 0) delete messageTags[msgIndex];
+  } else {
+    messageTags[msgIndex].push(tagId);
+  }
+  saveMessageTags();
+  renderMessageTags(msgIndex);
+  // Notify parent
+  window.parent.postMessage({ type: 'message-tags-updated', msgIndex, tags: messageTags[msgIndex] || [] }, '*');
+}
+
+function renderMessageTags(msgIndex) {
+  const msgs = document.querySelectorAll('#msgs .msg');
+  const el = msgs[msgIndex];
+  if (!el) return;
+  const bubble = el.querySelector('.bubble');
+  if (!bubble) return;
+  const tags = messageTags[msgIndex] || [];
+
+  // Update .tagged / .has-tags classes
+  el.classList.toggle('tagged', tags.length > 0);
+  el.classList.toggle('has-tags', tags.length > 0);
+
+  // Remove existing tag pills container
+  let container = bubble.querySelector('.msg-tags');
+  if (container) container.remove();
+
+  if (tags.length === 0) return;
+
+  container = document.createElement('div');
+  container.className = 'msg-tags';
+  tags.forEach(tagId => {
+    const opt = MSG_TAG_OPTIONS.find(t => t.id === tagId);
+    if (!opt) return;
+    const pill = document.createElement('span');
+    pill.className = 'msg-tag-pill';
+    pill.style.background = opt.color + '18';
+    pill.style.color = opt.color;
+    pill.innerHTML = `<span class="tag-dot" style="background:${opt.color}"></span>${esc(opt.label)}<button class="tag-remove" title="Remove tag">&times;</button>`;
+    pill.querySelector('.tag-remove').onclick = (e) => {
+      e.stopPropagation();
+      toggleMessageTag(msgIndex, tagId);
+    };
+    container.appendChild(pill);
+  });
+  // Insert after .content but before .meta
+  const meta = bubble.querySelector('.meta');
+  if (meta) {
+    bubble.insertBefore(container, meta);
+  } else {
+    bubble.appendChild(container);
+  }
+}
+
+function showTagPicker(msgIndex, anchorEl) {
+  // Close any existing picker
+  document.querySelectorAll('.msg-tag-picker').forEach(p => p.remove());
+
+  const picker = document.createElement('div');
+  picker.className = 'msg-tag-picker';
+  const currentTags = messageTags[msgIndex] || [];
+
+  MSG_TAG_OPTIONS.forEach(opt => {
+    const item = document.createElement('div');
+    item.className = 'msg-tag-picker-item' + (currentTags.includes(opt.id) ? ' selected' : '');
+    item.innerHTML = `<span class="tag-dot" style="background:${opt.color}"></span><span>${esc(opt.label)}</span>`;
+    item.onclick = (e) => {
+      e.stopPropagation();
+      toggleMessageTag(msgIndex, opt.id);
+      item.classList.toggle('selected', (messageTags[msgIndex] || []).includes(opt.id));
+    };
+    picker.appendChild(item);
+  });
+
+  // Anchor to .meta where the + button lives
+  const meta = anchorEl.closest('.meta');
+  if (meta) {
+    meta.style.position = 'relative';
+    meta.appendChild(picker);
+  }
+
+  // Close on outside click
+  const closeHandler = (e) => {
+    if (!picker.contains(e.target) && e.target !== anchorEl) {
+      picker.remove();
+      document.removeEventListener('mousedown', closeHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener('mousedown', closeHandler), 0);
+}
 
 // ===== LINTER UI (uses external PromptLinter.bundle.js) =====
 let lintTimer = null;
@@ -1667,7 +1804,16 @@ async function send() {
   stepsHeader.classList.add('open');
   stepsBody.classList.add('open');
   
-  content.innerHTML = '<span class="cursor"></span>';
+  content.innerHTML = `<span class="chat-spinner"><svg viewBox="0 0 24 24">
+    <g class="ray"><rect x="11" y="1" width="2" height="6" rx="1" opacity="0.3"/></g>
+    <g class="ray" style="transform:rotate(45deg)"><rect x="11" y="1" width="2" height="6" rx="1" opacity="0.4"/></g>
+    <g class="ray" style="transform:rotate(90deg)"><rect x="11" y="1" width="2" height="6" rx="1" opacity="0.5"/></g>
+    <g class="ray" style="transform:rotate(135deg)"><rect x="11" y="1" width="2" height="6" rx="1" opacity="0.6"/></g>
+    <g class="ray" style="transform:rotate(180deg)"><rect x="11" y="1" width="2" height="6" rx="1" opacity="0.7"/></g>
+    <g class="ray" style="transform:rotate(225deg)"><rect x="11" y="1" width="2" height="6" rx="1" opacity="0.8"/></g>
+    <g class="ray" style="transform:rotate(270deg)"><rect x="11" y="1" width="2" height="6" rx="1" opacity="0.9"/></g>
+    <g class="ray" style="transform:rotate(315deg)"><rect x="11" y="1" width="2" height="6" rx="1" opacity="1"/></g>
+  </svg></span>`;
   
   try {
     // Call LocalAgent backend API - use same origin as current page
@@ -2003,16 +2149,22 @@ function addUserMsg(text, userFiles, inputSource = 'text') {
   el.className = 'msg user';
   const filesHtml = userFiles.length ? '<div class="files">' + userFiles.map(f => `<div class="file"><span class="file-icon">${icons.file}</span><span class="file-name">${f.name}</span></div>`).join('') + '</div>' : '';
   const sourceIcon = inputSource === 'voice' ? ' 🎤' : '';
-  el.innerHTML = `<div class="bubble"><div class="content">${esc(text)}</div>${filesHtml}<div class="meta">${time()}${sourceIcon}</div></div>`;
+  el.innerHTML = `<div class="bubble"><div class="content">${esc(text)}</div>${filesHtml}<div class="meta">${time()}${sourceIcon}<button class="msg-tag-btn" title="Add tag">+</button></div></div>`;
   $('#msgs').appendChild(el);
+  const msgIndex = document.querySelectorAll('#msgs .msg').length - 1;
+  el.querySelector('.msg-tag-btn').onclick = function(e) { e.stopPropagation(); showTagPicker(msgIndex, el.querySelector('.msg-tag-btn')); };
+  renderMessageTags(msgIndex);
   $('#msgs').scrollTop = $('#msgs').scrollHeight;
 }
 
 function addAssistantMsg() {
   const el = document.createElement('div');
   el.className = 'msg assistant';
-  el.innerHTML = `<div class="bubble"><div class="content"><span class="cursor"></span></div><div class="meta">${time()}</div></div>`;
+  el.innerHTML = `<div class="bubble"><div class="content"><span class="cursor"></span></div><div class="meta">${time()}<button class="msg-tag-btn" title="Add tag">+</button></div></div>`;
   $('#msgs').appendChild(el);
+  const msgIndex = document.querySelectorAll('#msgs .msg').length - 1;
+  el.querySelector('.msg-tag-btn').onclick = function(e) { e.stopPropagation(); showTagPicker(msgIndex, el.querySelector('.msg-tag-btn')); };
+  renderMessageTags(msgIndex);
   return el;
 }
 
@@ -2033,6 +2185,34 @@ function parseContent(s) {
     }
   }
 })();
+
+// ===== POSTMESSAGE HANDLERS (from parent) =====
+window.addEventListener('message', function(event) {
+  if (!event.data || !event.data.type) return;
+
+  // Tag a specific message from parent
+  if (event.data.type === 'tag-message') {
+    const { msgIndex, tagId } = event.data;
+    if (typeof msgIndex === 'number' && tagId) {
+      toggleMessageTag(msgIndex, tagId);
+    }
+  }
+
+  // Filter messages by tags — dim non-matching
+  if (event.data.type === 'filter-message-tags') {
+    const filterTags = event.data.tags || [];
+    const msgs = document.querySelectorAll('#msgs .msg');
+    msgs.forEach(function(msg, i) {
+      if (filterTags.length === 0) {
+        msg.classList.remove('tag-dimmed');
+        return;
+      }
+      const tags = messageTags[i] || [];
+      const hasMatch = filterTags.some(t => tags.includes(t));
+      msg.classList.toggle('tag-dimmed', !hasMatch);
+    });
+  }
+});
 </script>
 </body>
 </html>

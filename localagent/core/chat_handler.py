@@ -95,21 +95,17 @@ def build_conversation_context(history: List[Dict]) -> str:
 def handle_conversation(message: str, context: str, project: str) -> str:
     """Handle simple conversation (no task execution)."""
     from ..connectors.llm import call_claude
-    from ..engine.tracking import add_message
-    
-    add_message(project, "user", message)
-    
+
     try:
         full_prompt = context + message if context else message
         result = call_claude(
-            full_prompt, 
-            f"Casual conversation. Respond naturally in user's language. No JSON. Project: {project}"
+            full_prompt,
+            system="You are a helpful assistant specializing in construction claims and legal analysis. Respond concisely in the user's language."
         )
         response = result.get("response", "I'm here to help!") if result.get("success") else "Hello! How can I help?"
     except:
         response = "Hello! How can I help you today?"
-    
-    add_message(project, "assistant", response)
+
     return response
 
 

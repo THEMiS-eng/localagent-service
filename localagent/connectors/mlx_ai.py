@@ -167,29 +167,43 @@ def chat_completion_mlx(message: str, context: str = "") -> Optional[str]:
     return None
 
 
-def chat_completion_claude(message: str, context: str = "", system: str = "") -> str:
-    """Chat completion using Claude API (fallback)."""
+def chat_completion_claude(message: str, context: str = "", system: str = "", images: list = None) -> str:
+    """Chat completion using Claude API (fallback) with optional multimodal support."""
     try:
         from .llm import call_claude
-        
+
         full_message = f"{context}\n\n{message}" if context else message
-        response = call_claude(full_message, system=system or "You are a helpful legal/construction claims assistant.")
+        response = call_claude(
+            full_message,
+            system=system or "You are a helpful legal/construction claims assistant.",
+            images=images
+        )
+        # call_claude returns a dict, extract the response text
+        if isinstance(response, dict):
+            return response.get("response", response.get("error", "Error calling Claude"))
         return response
     except Exception as e:
         logger.error(f"[CLAUDE] Chat error: {e}")
         return f"I understand your question. Let me help you with that. (Error: {e})"
 
 
-def chat_completion(message: str, context: str = "", system: str = "") -> Dict[str, Any]:
-    """Chat completion - MLX first, then Claude fallback."""
-    # Try MLX first
-    if _mlx_available:
+def chat_completion(message: str, context: str = "", system: str = "", images: list = None) -> Dict[str, Any]:
+    """Chat completion - MLX first (text only), then Claude fallback (multimodal).
+
+    Args:
+        message: User message
+        context: Conversation context
+        system: System prompt
+        images: List of image dicts with {data: base64, type: mime_type, name: filename}
+    """
+    # Try MLX first (only for text-only messages)
+    if _mlx_available and not images:
         result = chat_completion_mlx(message, context)
         if result:
             return {"response": result, "source": "mlx"}
-    
-    # Fallback to Claude
-    response = chat_completion_claude(message, context, system)
+
+    # Fallback to Claude (supports multimodal)
+    response = chat_completion_claude(message, context, system, images)
     return {"response": response, "source": "claude"}
 
 
