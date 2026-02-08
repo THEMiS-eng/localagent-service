@@ -2643,18 +2643,21 @@ function addUserMsg(text, userFiles, inputSource = 'text') {
     filesHtml = '<div class="files" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
       userFiles.map((f, idx) => {
         const ext = (f.name || '').split('.').pop().toLowerCase();
-        const isImage = ['png','jpg','jpeg','gif','bmp','webp','svg'].includes(ext) || (f.type && f.type.startsWith('image/'));
+        // Only treat as image if ext is in browser-renderable list (no MIME fallback — avoids HEIC/TIFF broken img)
+        const isImage = ['png','jpg','jpeg','gif','bmp','webp','svg'].includes(ext);
         const dataUrl = f.preview || f.data || (f instanceof File ? URL.createObjectURL(f) : '');
         fileDataUrls.push({ name: f.name, ext, isImage, dataUrl, size: f.size || 0 });
+        // Clickable if we have data
+        const cursor = dataUrl ? 'cursor:pointer' : '';
+        const hint = dataUrl ? ' title="Click to preview"' : '';
         if (isImage && dataUrl) {
-          return `<div class="file file-preview" data-file-idx="${idx}" style="display:flex;flex-direction:column;gap:4px;padding:4px;background:var(--chat-surface);border-radius:8px;border:1px solid var(--chat-border);cursor:pointer" title="Click to preview">
-            <img src="${dataUrl}" alt="${esc(f.name)}" style="width:80px;height:80px;object-fit:cover;border-radius:4px"/>
-            <span class="file-name" style="font-size:10px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
+          return `<div class="file file-preview" data-file-idx="${idx}" style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--chat-surface);border-radius:8px;border:1px solid var(--chat-border);${cursor}"${hint}>
+            <img src="${dataUrl}" alt="${esc(f.name)}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;flex-shrink:0" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'"/>
+            <span class="file-icon" style="display:none">${icons.file}</span>
+            <span class="file-name">${esc(f.name)}</span>
+            <span style="color:var(--chat-muted);font-size:10px">${f.size ? (f.size/1024).toFixed(0)+'KB' : ''}</span>
           </div>`;
         } else {
-          // Non-image file card — show icon + name, clickable if we have data
-          const cursor = dataUrl ? 'cursor:pointer' : '';
-          const hint = dataUrl ? ' title="Click to preview"' : '';
           return `<div class="file file-preview" data-file-idx="${idx}" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--chat-surface);border-radius:8px;border:1px solid var(--chat-border);${cursor}"${hint}><span class="file-icon">${icons.file}</span><span class="file-name">${esc(f.name)}</span><span style="color:var(--chat-muted);font-size:10px">${f.size ? (f.size/1024).toFixed(0)+'KB' : ''}</span></div>`;
         }
       }).join('') + '</div>';
