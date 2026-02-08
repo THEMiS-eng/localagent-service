@@ -407,6 +407,110 @@ async def get_evidence_content(evidence_id: str):
             return JSONResponse({"error": "File not found"}, status_code=404)
     return JSONResponse({"error": "Evidence not found"}, status_code=404)
 
+def _parse_xer_to_html(file_path: str) -> str:
+    """Parse Primavera P6 XER file (pipe/tab-delimited) into a styled HTML page."""
+    raw = Path(file_path).read_text(encoding="utf-8", errors="ignore")
+    lines = raw.split("\n")
+
+    tables = []  # list of (table_name, fields, rows)
+    current_table = None
+    current_fields = []
+    current_rows = []
+
+    for line in lines:
+        line = line.rstrip("\r")
+        if line.startswith("%T\t"):
+            if current_table:
+                tables.append((current_table, current_fields, current_rows))
+            current_table = line.split("\t", 1)[1] if "\t" in line else line[3:]
+            current_fields = []
+            current_rows = []
+        elif line.startswith("%F\t"):
+            current_fields = line.split("\t")[1:]
+        elif line.startswith("%R\t"):
+            current_rows.append(line.split("\t")[1:])
+
+    if current_table:
+        tables.append((current_table, current_fields, current_rows))
+
+    # Key tables to show first
+    priority = ["PROJECT", "PROJWBS", "CALENDAR", "TASK", "TASKPRED", "RSRC", "TASKRSRC"]
+    tables.sort(key=lambda t: (priority.index(t[0]) if t[0] in priority else 99, t[0]))
+
+    html_parts = ["""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+body{margin:0;padding:16px;font-family:-apple-system,system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;font-size:12px}
+h2{color:#f97316;margin:24px 0 8px;font-size:14px;display:flex;align-items:center;gap:8px}
+h2 span{background:#f9731620;color:#f97316;padding:2px 8px;border-radius:4px;font-size:11px}
+table{border-collapse:collapse;width:100%;margin-bottom:16px}
+th{background:#2d2d44;color:#f97316;padding:6px 10px;text-align:left;font-size:11px;position:sticky;top:0;border-bottom:2px solid #f97316}
+td{padding:5px 10px;border-bottom:1px solid #2d2d44;font-family:'SF Mono',Menlo,monospace;font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:nth-child(even){background:#1e1e36}
+tr:hover{background:#2a2a48}
+.summary{color:#94a3b8;margin:12px 0;font-size:13px}
+</style></head><body>"""]
+
+    total_rows = sum(len(t[2]) for t in tables)
+    html_parts.append(f'<div class="summary">P6 XER Schedule — {len(tables)} tables, {total_rows} records</div>')
+
+    for table_name, fields, rows in tables:
+        html_parts.append(f'<h2>{table_name} <span>{len(rows)} rows</span></h2>')
+        if not fields and not rows:
+            continue
+        html_parts.append('<div style="overflow-x:auto"><table><thead><tr>')
+        for f in fields:
+            html_parts.append(f'<th>{f}</th>')
+        html_parts.append('</tr></thead><tbody>')
+        for row in rows[:200]:  # cap at 200 rows per table for preview
+            html_parts.append('<tr>')
+            for i, f in enumerate(fields):
+                val = row[i] if i < len(row) else ''
+                html_parts.append(f'<td title="{val}">{val}</td>')
+            html_parts.append('</tr>')
+        if len(rows) > 200:
+            html_parts.append(f'<tr><td colspan="{len(fields)}" style="color:#f97316;text-align:center">… {len(rows) - 200} more rows</td></tr>')
+        html_parts.append('</tbody></table></div>')
+
+    html_parts.append('</body></html>')
+    return ''.join(html_parts)
+
+
+def _parse_dwg_to_html(file_path: str) -> str:
+    """Extract DWG binary header metadata and render an informative HTML preview."""
+    p = Path(file_path)
+    size = p.stat().st_size
+    # DWG version mapping: first 6 bytes = version string
+    DWG_VERSIONS = {
+        "AC1014": "AutoCAD R14 (1997)", "AC1015": "AutoCAD 2000",
+        "AC1018": "AutoCAD 2004", "AC1021": "AutoCAD 2007",
+        "AC1024": "AutoCAD 2010", "AC1027": "AutoCAD 2013",
+        "AC1032": "AutoCAD 2018+",
+    }
+    with open(file_path, "rb") as f:
+        header = f.read(64)
+    version_tag = header[:6].decode("ascii", errors="ignore")
+    version_name = DWG_VERSIONS.get(version_tag, f"Unknown ({version_tag})")
+
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+body{{margin:0;padding:40px;font-family:-apple-system,system-ui,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 80px)}}
+.card{{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:40px;max-width:400px;text-align:center}}
+.icon{{width:80px;height:80px;background:#0891b220;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;font-weight:800;color:#0891b2}}
+h2{{color:#0891b2;margin:0 0 16px;font-size:18px}}
+.meta{{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;text-align:left;margin:16px 0}}
+.label{{color:#64748b;font-size:12px}}.value{{color:#e2e8f0;font-size:13px;font-weight:500}}
+.hint{{margin-top:20px;padding:12px;background:#1a1a2e;border-radius:8px;font-size:11px;color:#94a3b8;line-height:1.5}}
+</style></head><body><div class="card">
+<div class="icon">DWG</div>
+<h2>{p.name}</h2>
+<div class="meta">
+<span class="label">Format</span><span class="value">{version_name}</span>
+<span class="label">Version tag</span><span class="value">{version_tag}</span>
+<span class="label">File size</span><span class="value">{size/1024:.0f} KB ({size/1024/1024:.1f} MB)</span>
+</div>
+<div class="hint">DWG is a proprietary AutoCAD binary format. Visual preview requires a QuickLook DWG plugin.<br><br>
+To enable visual previews, install a DWG QuickLook generator.</div>
+</div></body></html>"""
+
+
 def _qlmanage_preview(file_path: str) -> "Optional[bytes]":
     """Use macOS qlmanage to generate a PNG preview thumbnail for any file."""
     tmp_dir = None
@@ -461,7 +565,25 @@ async def quicklook_evidence(evidence_id: str):
             if ext in _TEXT_EXTS:
                 return FileResponse(file_path, media_type="text/plain; charset=utf-8")
 
-            # 4. Everything else — macOS QuickLook generates a PNG thumbnail
+            # 4. XER (Primavera P6) — parse into styled HTML table
+            if ext == "xer":
+                try:
+                    html = _parse_xer_to_html(str(file_path))
+                    return HTMLResponse(content=html)
+                except Exception as e:
+                    logger.error(f"XER parse failed: {e}")
+                    return JSONResponse({"error": f"Failed to parse XER: {e}"}, status_code=500)
+
+            # 5. DWG (AutoCAD) — metadata page (qlmanage hangs without a DWG plugin)
+            if ext == "dwg":
+                try:
+                    html = _parse_dwg_to_html(str(file_path))
+                    return HTMLResponse(content=html)
+                except Exception as e:
+                    logger.error(f"DWG parse failed: {e}")
+                    return JSONResponse({"error": f"Failed to read DWG: {e}"}, status_code=500)
+
+            # 6. Everything else — macOS QuickLook generates a PNG thumbnail
             png_data = _qlmanage_preview(str(file_path))
             if png_data:
                 return Response(content=png_data, media_type="image/png")

@@ -9961,7 +9961,7 @@ initializeApp();
           !preview.minimized && h("div", { style: { flex: 1, overflow: "hidden", position: "relative" }, children: (() => {
             const qlUrl = `${API_BASE}/api/evidence/${preview.evidenceId}/quicklook`;
             const ext = (preview.name || "").split(".").pop().toLowerCase();
-            const iframeExts = ["pdf", "txt", "md", "csv", "json", "eml", "log", "xml", "yml", "yaml", "ini", "cfg", "conf", "sh", "py", "js", "ts", "html", "htm", "css"];
+            const iframeExts = ["pdf", "xer", "dwg", "txt", "md", "csv", "json", "eml", "log", "xml", "yml", "yaml", "ini", "cfg", "conf", "sh", "py", "js", "ts", "html", "htm", "css"];
 
             const fallbackDiv = h("div", { style: {
               display: "none", alignItems: "center", justifyContent: "center",
