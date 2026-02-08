@@ -26,8 +26,24 @@ The center pane contains an iframe (`#localagent-chat`). Iframes are separate br
 - Images use base64 data URLs (`f.preview`), NOT server URLs — everything works offline
 
 ### Evidence QuickLook Preview (PreviewModal)
-- **Backend (themis.py ~line 441)**: `GET /api/evidence/{id}/quicklook` serves images/PDF/text natively, uses macOS `qlmanage` for everything else
-- **Frontend (index.html ~line 9961)**: `<iframe>` for PDF/text, `<img>` for images/qlmanage thumbnails, fallback div on error
+- **Backend (themis.py ~line 545)**: `GET /api/evidence/{id}/quicklook` — Images/PDF/text served natively, XER parsed to HTML, DWG rendered to SVG, fallback to macOS qlmanage
+- **Frontend (index.html ~line 9961)**: `<iframe>` for PDF/XER/text, `<img>` for images/DWG(SVG)/qlmanage, fallback div on error
+
+### DWG Drawing Preview (Critical for Construction Claims)
+- **Binary**: `/usr/local/bin/dwg2SVG` (built from LibreDWG source) — converts DWG to SVG
+- **Backend**: `_render_dwg_to_svg()` in themis.py runs dwg2SVG, then `_fix_dwg_svg()` post-processes:
+  1. Computes viewBox from actual coordinates (dwg2SVG outputs `0 0 0 0` for most files)
+  2. Extracts drawing primitives from `<defs>` to visible `<g>` body (dwg2SVG traps geometry in defs)
+  3. Inverts `stroke:black` → `stroke:#e0e0e0` for dark background visibility
+  4. Preserves original AutoCAD colors (cyan, #aaffff, etc.)
+- **Chat preview**: `POST /api/dwg/preview` accepts multipart DWG upload, returns SVG
+- **DO NOT** build a metadata card — user needs actual drawing images for reports
+- **DO NOT** rely on qlmanage for DWG — no QuickLook plugin installed, times out
+
+### XER Schedule Preview
+- **Backend**: `_parse_xer_to_html()` parses P6 pipe-delimited format (%T/%F/%R) into styled HTML tables
+- **Client-side**: standalone.html has XER parser for chat attachment click-to-preview
+- **DO NOT** use `decodeURIComponent(escape(atob()))` — throws URIError. Use `TextDecoder` instead
 
 ## Architecture Reminders
 - **LOCAL APP** — NO cloud APIs, NO external services
