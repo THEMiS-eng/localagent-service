@@ -477,6 +477,70 @@ tr:hover{background:#2a2a48}
     return ''.join(html_parts)
 
 
+def _fix_dwg_svg(svg_data: str) -> str:
+    """Fix dwg2SVG output: compute viewBox from coordinates, move defs content to body."""
+    import re as _re
+    # 1. Extract all coordinates from paths, circles, polygons, transforms
+    coords = []
+    for m in _re.finditer(r'(?:M|L|A)\s*([-\d.]+)\s*,\s*([-\d.]+)', svg_data):
+        try: coords.append((float(m.group(1)), float(m.group(2))))
+        except ValueError: pass
+    for m in _re.finditer(r'cx="([-\d.]+)"\s+cy="([-\d.]+)"', svg_data):
+        try: coords.append((float(m.group(1)), float(m.group(2))))
+        except ValueError: pass
+    for m in _re.finditer(r'translate\(([-\d.]+)\s+([-\d.]+)\)', svg_data):
+        try: coords.append((float(m.group(1)), float(m.group(2))))
+        except ValueError: pass
+    for m in _re.finditer(r'points="([^"]+)"', svg_data):
+        for pair in m.group(1).split():
+            parts = pair.split(",")
+            if len(parts) == 2:
+                try: coords.append((float(parts[0]), float(parts[1])))
+                except ValueError: pass
+
+    # 2. If all content is in <defs> with no <use> refs, move it to body
+    has_use = '<use ' in svg_data
+    if not has_use and '<defs>' in svg_data:
+        # Extract paths/circles/polygons/lines from inside <defs> groups
+        # and add them directly after </defs>
+        defs_match = _re.search(r'<defs>(.*?)</defs>', svg_data, _re.DOTALL)
+        if defs_match:
+            defs_content = defs_match.group(1)
+            # Extract all drawing primitives from the defs
+            primitives = _re.findall(
+                r'(<(?:path|circle|polygon|polyline|line|arc|ellipse)\b[^>]*/>)',
+                defs_content
+            )
+            if primitives:
+                insert_point = svg_data.find('</defs>')
+                if insert_point > 0:
+                    insert_point += len('</defs>')
+                    body = '\n<g id="dwg-body">\n' + '\n'.join(primitives) + '\n</g>\n'
+                    svg_data = svg_data[:insert_point] + body + svg_data[insert_point:]
+
+    # 3. Compute and fix viewBox
+    if coords:
+        xs = [c[0] for c in coords if abs(c[0]) < 1e8]  # filter NaN/huge
+        ys = [c[1] for c in coords if abs(c[1]) < 1e8]
+        if xs and ys:
+            min_x, max_x = min(xs), max(xs)
+            min_y, max_y = min(ys), max(ys)
+            w = max_x - min_x
+            h = max_y - min_y
+            if w > 0 and h > 0:
+                pad = max(w, h) * 0.05
+                vb = f"{min_x - pad:.4f} {min_y - pad:.4f} {w + 2*pad:.4f} {h + 2*pad:.4f}"
+                svg_data = _re.sub(r'viewBox="[^"]*"', f'viewBox="{vb}"', svg_data)
+
+    # 4. Invert black strokes to light gray for dark background visibility
+    svg_data = svg_data.replace('stroke:black', 'stroke:#e0e0e0')
+    svg_data = svg_data.replace('fill:black', 'fill:#e0e0e0')
+
+    # 5. Add dark background for AutoCAD colors
+    svg_data = svg_data.replace('viewBox="', 'style="background:#1a1a2e" viewBox="', 1)
+    return svg_data
+
+
 def _render_dwg_to_svg(file_path: str) -> "Optional[str]":
     """Convert DWG to SVG using libredwg's dwg2SVG. Returns SVG string or None."""
     dwg2svg_bin = shutil.which("dwg2SVG")
@@ -493,13 +557,7 @@ def _render_dwg_to_svg(file_path: str) -> "Optional[str]":
         svg_data = result.stdout.decode("utf-8", errors="ignore")
         if not svg_data.strip().startswith("<?xml") and "<svg" not in svg_data[:500]:
             return None
-        # Add dark background — AutoCAD colors are designed for dark backgrounds
-        svg_data = svg_data.replace(
-            'viewBox="',
-            'style="background:#1a1a2e" viewBox="',
-            1
-        )
-        return svg_data
+        return _fix_dwg_svg(svg_data)
     except subprocess.TimeoutExpired:
         logger.warning("dwg2SVG timed out")
         return None
