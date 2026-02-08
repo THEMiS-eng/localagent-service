@@ -2704,7 +2704,10 @@ function addUserMsg(text, userFiles, inputSource = 'text') {
         // Parse P6 XER client-side from base64 data URL
         try {
           var b64 = info.dataUrl.split(',')[1] || '';
-          var raw = decodeURIComponent(escape(atob(b64)));
+          var binStr = atob(b64);
+          var bytes = new Uint8Array(binStr.length);
+          for (var bi = 0; bi < binStr.length; bi++) bytes[bi] = binStr.charCodeAt(bi);
+          var raw = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
           var xerLines = raw.split('\n');
           var tables = [], curTable = null, curFields = [], curRows = [];
           for (var li = 0; li < xerLines.length; li++) {
@@ -2749,6 +2752,34 @@ function addUserMsg(text, userFiles, inputSource = 'text') {
           content.innerHTML = xerHtml;
         } catch(xerErr) {
           content.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">Failed to parse XER file: ' + esc(xerErr.message) + '</div>';
+        }
+      } else if (info.ext === 'dwg') {
+        // DWG: read binary header for version metadata
+        try {
+          var dwgB64 = info.dataUrl.split(',')[1] || '';
+          var dwgBin = atob(dwgB64.substring(0, 100));
+          var verTag = dwgBin.substring(0, 6);
+          var dwgVersions = {
+            'AC1014': 'AutoCAD R14 (1997)', 'AC1015': 'AutoCAD 2000',
+            'AC1018': 'AutoCAD 2004', 'AC1021': 'AutoCAD 2007',
+            'AC1024': 'AutoCAD 2010', 'AC1027': 'AutoCAD 2013',
+            'AC1032': 'AutoCAD 2018+'
+          };
+          var verName = dwgVersions[verTag] || ('Unknown (' + verTag + ')');
+          var dwgSize = info.size ? (info.size > 1048576 ? (info.size / 1048576).toFixed(1) + ' MB' : Math.round(info.size / 1024) + ' KB') : 'Unknown';
+          content.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#0f172a;color:#e2e8f0;font-family:-apple-system,system-ui,sans-serif">'
+            + '<div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:40px;max-width:400px;text-align:center">'
+            + '<div style="width:80px;height:80px;background:#0891b220;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;font-weight:800;color:#0891b2">DWG</div>'
+            + '<h2 style="color:#0891b2;margin:0 0 16px;font-size:18px">' + esc(info.name) + '</h2>'
+            + '<div style="display:grid;grid-template-columns:auto 1fr;gap:8px 16px;text-align:left;margin:16px 0">'
+            + '<span style="color:#64748b;font-size:12px">Format</span><span style="color:#e2e8f0;font-size:13px;font-weight:500">' + esc(verName) + '</span>'
+            + '<span style="color:#64748b;font-size:12px">Version tag</span><span style="color:#e2e8f0;font-size:13px;font-weight:500">' + esc(verTag) + '</span>'
+            + '<span style="color:#64748b;font-size:12px">File size</span><span style="color:#e2e8f0;font-size:13px;font-weight:500">' + dwgSize + '</span>'
+            + '</div>'
+            + '<div style="margin-top:20px;padding:12px;background:#1a1a2e;border-radius:8px;font-size:11px;color:#94a3b8;line-height:1.5">AutoCAD DWG binary format. Upload as evidence for full preview.</div>'
+            + '</div></div>';
+        } catch(dwgErr) {
+          content.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">DWG file — preview not available</div>';
         }
       } else {
         var ifr = document.createElement('iframe');
