@@ -9958,56 +9958,54 @@ initializeApp();
               ]
             }
           ),
-          !preview.minimized && h("div", { style: { flex: 1, overflow: "auto", position: "relative" }, children: [
-            preview.loading ? h("div", { style: {
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
-              color: "#94a3b8"
-            }, children: "Loading preview..." }) : h(
-              "img",
-              {
-                src: `${API_BASE}/api/evidence/${preview.evidenceId}/quicklook`,
-                alt: preview.name,
-                style: {
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
-                  background: "#f8fafc"
-                },
-                onError: (e) => {
-                  e.target.style.display = "none";
-                  e.target.nextSibling.style.display = "flex";
-                }
-              }
-            ),
-            h("div", { style: {
-              display: "none",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
-              flexDirection: "column",
-              gap: "12px",
-              color: "#64748b",
-              background: "#f8fafc"
+          !preview.minimized && h("div", { style: { flex: 1, overflow: "hidden", position: "relative" }, children: (() => {
+            const qlUrl = `${API_BASE}/api/evidence/${preview.evidenceId}/quicklook`;
+            const ext = (preview.name || "").split(".").pop().toLowerCase();
+            const iframeExts = ["pdf", "txt", "md", "csv", "json", "eml", "log", "xml", "yml", "yaml", "ini", "cfg", "conf", "sh", "py", "js", "ts", "html", "htm", "css"];
+
+            const fallbackDiv = h("div", { style: {
+              display: "none", alignItems: "center", justifyContent: "center",
+              height: "100%", flexDirection: "column", gap: "12px",
+              color: "#64748b", background: "#f8fafc"
             }, children: [
               h("div", { style: {
-                width: "80px",
-                height: "80px",
-                background: `${typeColor}20`,
-                borderRadius: "16px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "24px",
-                fontWeight: 700,
-                color: typeColor
+                width: "80px", height: "80px", background: `${typeColor}20`,
+                borderRadius: "16px", display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: "24px", fontWeight: 700, color: typeColor
               }, children: (preview.type || "DOC").substring(0, 3) }),
               h("div", { style: { fontSize: "14px", fontWeight: 500 }, children: preview.name }),
               h("div", { style: { fontSize: "12px" }, children: "Preview not available" })
-            ] })
-          ] }),
+            ] });
+
+            if (preview.loading) {
+              return h("div", { style: {
+                display: "flex", alignItems: "center", justifyContent: "center",
+                height: "100%", color: "#94a3b8"
+              }, children: "Loading preview..." });
+            }
+
+            // PDF and text files — iframe (browser renders natively)
+            if (iframeExts.includes(ext)) {
+              return [
+                h("iframe", {
+                  src: qlUrl,
+                  style: { width: "100%", height: "100%", border: "none", background: ext === "pdf" ? "#fff" : "#1e1e1e" },
+                  onError: (e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }
+                }),
+                fallbackDiv
+              ];
+            }
+
+            // Everything else — img tag (native images served directly, others get qlmanage PNG)
+            return [
+              h("img", {
+                src: qlUrl, alt: preview.name,
+                style: { width: "100%", height: "100%", objectFit: "contain", background: "#f8fafc" },
+                onError: (e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }
+              }),
+              fallbackDiv
+            ];
+          })() }),
           !preview.minimized && h(
             "div",
             {
@@ -12878,28 +12876,57 @@ Examples:
       }
     }, [handleFileAttach]);
 
-    // Global drag detection to disable iframe pointer-events
+    // Drag-drop: on ANY dragenter with files, IMMEDIATELY disable iframe pointer-events
+    // via raw DOM so the section's React onDrop handler receives the drop event.
+    // No overlay needed to catch events — just make the iframe transparent.
+    const dropLayerRef = React.useRef(null);
     React.useEffect(() => {
-      let dragCounter = 0;
-      const onDragEnter = (e) => {
-        dragCounter++;
-        if (e.dataTransfer?.types?.includes('Files')) setIsDragging(true);
+      let hideTimer = null;
+      const enable = (e) => {
+        if (!e.dataTransfer?.types?.includes('Files')) return;
+        clearTimeout(hideTimer);
+        // Synchronously kill pointer-events on iframe AND its container
+        const iframe = document.getElementById('localagent-chat');
+        const container = document.querySelector('.chat-iframe-container');
+        if (iframe) iframe.style.pointerEvents = 'none';
+        if (container) container.style.pointerEvents = 'none';
+        // Visual feedback
+        const layer = dropLayerRef.current;
+        if (layer) {
+          layer.style.background = 'rgba(59,130,246,0.06)';
+          layer.querySelector('.drop-label').style.opacity = '1';
+        }
       };
-      const onDragLeave = () => {
-        dragCounter--;
-        if (dragCounter <= 0) { dragCounter = 0; setIsDragging(false); }
+      const disable = () => {
+        const iframe = document.getElementById('localagent-chat');
+        const container = document.querySelector('.chat-iframe-container');
+        if (iframe) iframe.style.pointerEvents = '';
+        if (container) container.style.pointerEvents = '';
+        const layer = dropLayerRef.current;
+        if (layer) {
+          layer.style.background = 'transparent';
+          layer.querySelector('.drop-label').style.opacity = '0';
+        }
       };
-      const onDrop = () => { dragCounter = 0; setIsDragging(false); };
-      const onDragOver = (e) => e.preventDefault();
-      window.addEventListener('dragenter', onDragEnter);
-      window.addEventListener('dragleave', onDragLeave);
-      window.addEventListener('drop', onDrop);
+      const onDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; };
+      const onDrop = (e) => { e.preventDefault(); clearTimeout(hideTimer); disable(); };
+      const onDragLeave = (e) => {
+        // Only hide when leaving the browser window entirely
+        if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+          hideTimer = setTimeout(disable, 50);
+        }
+      };
+      window.addEventListener('dragenter', enable, true);
       window.addEventListener('dragover', onDragOver);
+      window.addEventListener('drop', onDrop);
+      window.addEventListener('dragleave', onDragLeave);
       return () => {
-        window.removeEventListener('dragenter', onDragEnter);
-        window.removeEventListener('dragleave', onDragLeave);
-        window.removeEventListener('drop', onDrop);
+        clearTimeout(hideTimer);
+        window.removeEventListener('dragenter', enable, true);
         window.removeEventListener('dragover', onDragOver);
+        window.removeEventListener('drop', onDrop);
+        window.removeEventListener('dragleave', onDragLeave);
+        disable();
       };
     }, []);
 
@@ -12932,6 +12959,14 @@ Examples:
         if (event.data?.type === 'chat-ready') {
           console.log('[THEMIS] Chat iframe ready, sending initial context');
           sendChatContext();
+        }
+        // Receive file drops forwarded from iframe
+        if (event.data?.type === 'iframe-file-drop') {
+          const files = event.data.files || [];
+          console.log('%c[THEMIS] FILE DROP from iframe: ' + files.length + ' files', 'color: green; font-size: 14px; font-weight: bold');
+          if (files.length > 0) {
+            setAttachedFiles(prev => [...prev, ...files]);
+          }
         }
       };
       window.addEventListener('message', handleChatMessage);
@@ -13419,6 +13454,27 @@ const handleSend = async () => {
         }
       },
       children: [
+      // Drop layer — covers entire center pane, pointer-events toggled by raw DOM
+      h("div", {
+        ref: dropLayerRef,
+        style: {
+          position: "absolute", inset: 0, zIndex: 91,
+          pointerEvents: "none", background: "transparent",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background 0.1s"
+        },
+        children: h("div", {
+          className: "drop-label",
+          style: {
+            opacity: 0, transition: "opacity 0.15s",
+            padding: "20px 32px", borderRadius: "12px",
+            background: "rgba(59,130,246,0.1)", border: "2px dashed #3b82f6",
+            color: "#3b82f6", fontSize: "15px", fontWeight: 500,
+            pointerEvents: "none"
+          },
+          children: "Drop files here to attach"
+        })
+      }),
       h("div", { className: "pane-header", children: [
         h("div", { className: "cpane-header-content", children: [
           h("span", { className: `framework-badge ${currentCase.framework.toLowerCase()}`, children: currentCase.framework }),
@@ -14174,21 +14230,60 @@ const handleSend = async () => {
           attachedFiles.length > 0 && h("div", {
             className: "attached-files",
             style: { display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px" },
-            children: attachedFiles.map((attachment, i) => h("div", {
+            children: attachedFiles.map((attachment, i) => {
+              const ext = (attachment.name || "").split(".").pop().toLowerCase();
+              const isImage = ["png","jpg","jpeg","gif","bmp","webp","svg"].includes(ext);
+              const hasPreviewableData = !!attachment.preview;
+              return h("div", {
               key: i,
+              onClick: () => {
+                if (!hasPreviewableData) return;
+                const overlay = document.createElement("div");
+                overlay.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;cursor:zoom-out";
+                overlay.onclick = () => overlay.remove();
+                const container = document.createElement("div");
+                container.style.cssText = "width:90vw;height:90vh;position:relative";
+                const closeBtn = document.createElement("button");
+                closeBtn.textContent = "\u00d7";
+                closeBtn.style.cssText = "position:absolute;top:-32px;right:0;background:none;border:none;color:white;font-size:28px;cursor:pointer;z-index:1";
+                closeBtn.onclick = (e) => { e.stopPropagation(); overlay.remove(); };
+                container.appendChild(closeBtn);
+                const label = document.createElement("div");
+                label.textContent = attachment.name + " (" + (attachment.size / 1024).toFixed(0) + " KB)";
+                label.style.cssText = "position:absolute;top:-32px;left:0;color:#94a3b8;font-size:13px;font-family:-apple-system,sans-serif";
+                container.appendChild(label);
+                if (isImage) {
+                  const img = document.createElement("img");
+                  img.src = attachment.preview;
+                  img.style.cssText = "width:100%;height:100%;object-fit:contain";
+                  img.onclick = (e) => e.stopPropagation();
+                  container.appendChild(img);
+                } else {
+                  // PDF, text, etc. — use object tag for PDF, iframe for text
+                  const viewer = document.createElement(ext === "pdf" ? "object" : "iframe");
+                  viewer.setAttribute("data", attachment.preview);
+                  viewer.src = attachment.preview;
+                  if (ext === "pdf") viewer.type = "application/pdf";
+                  viewer.style.cssText = "width:100%;height:100%;border:none;border-radius:8px;background:white";
+                  container.appendChild(viewer);
+                }
+                overlay.appendChild(container);
+                document.body.appendChild(overlay);
+              },
               style: {
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                padding: attachment.preview ? "4px" : "6px 10px",
+                padding: isImage && attachment.preview ? "4px" : "6px 10px",
                 background: "#f3f4f6",
                 borderRadius: "8px",
                 fontSize: "12px",
-                border: "1px solid #e5e7eb"
+                border: "1px solid #e5e7eb",
+                cursor: hasPreviewableData ? "pointer" : "default"
               },
               children: [
-                // Image preview, text preview, or file icon
-                attachment.preview ? h("img", {
+                // Image thumbnail, text icon, or file icon
+                isImage && attachment.preview ? h("img", {
                   src: attachment.preview,
                   alt: attachment.name,
                   style: { width: "40px", height: "40px", objectFit: "cover", borderRadius: "4px" }
@@ -14219,7 +14314,7 @@ const handleSend = async () => {
                 ] }),
                 // Remove button
                 h("button", {
-                  onClick: () => removeAttachedFile(i),
+                  onClick: (e) => { e.stopPropagation(); removeAttachedFile(i); },
                   style: { background: "none", border: "none", color: "#9ca3af", cursor: "pointer", padding: "4px", display: "flex", borderRadius: "4px" },
                   onMouseOver: (e) => e.currentTarget.style.background = "#fee2e2",
                   onMouseOut: (e) => e.currentTarget.style.background = "none",
@@ -14229,7 +14324,7 @@ const handleSend = async () => {
                   ] })
                 })
               ]
-            }))
+            });})
           }),
           // Action buttons row - always visible
           h("div", {

@@ -1059,6 +1059,38 @@ const delay = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const time = () => new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 
+// ===== THEMIS EMBED: FILE DROP FORWARDING (must be early, before anything can crash) =====
+if (window.location.search.includes('mode=themis')) {
+  (function() {
+    function _toDataURL(file) {
+      return new Promise(function(resolve) {
+        var reader = new FileReader();
+        reader.onloadend = function() { resolve(reader.result); };
+        reader.onerror = function() { resolve(null); };
+        reader.readAsDataURL(file);
+      });
+    }
+    document.addEventListener('dragenter', function(e) { e.preventDefault(); });
+    document.addEventListener('dragover', function(e) { e.preventDefault(); });
+    document.addEventListener('drop', function(e) {
+      e.preventDefault();
+      console.log('[Chat] DROP in iframe:', e.dataTransfer.files.length, 'files');
+      if (e.dataTransfer.files.length > 0) {
+        var fileArr = Array.from(e.dataTransfer.files);
+        Promise.all(fileArr.map(function(f) {
+          return _toDataURL(f).then(function(url) {
+            return { name: f.name, size: f.size, type: f.type, preview: url };
+          });
+        })).then(function(result) {
+          console.log('[Chat] Forwarding', result.length, 'files to parent');
+          window.parent.postMessage({ type: 'iframe-file-drop', files: result }, '*');
+        });
+      }
+    });
+    console.log('[Chat] THEMIS file-drop handler registered');
+  })();
+}
+
 // ===== DOM CACHE (avoid repeated queries in hot paths) =====
 const DC = {};
 function initDomCache() {
@@ -2132,7 +2164,7 @@ function autoResize() {
   t.style.height = Math.min(t.scrollHeight, 200) + 'px';
 }
 
-// Disable drag/drop in THEMIS mode (THEMIS handles it)
+// Drag/drop: standalone mode uses local dropZone (THEMIS mode handled early in script)
 if (!window.location.search.includes('mode=themis')) {
   document.ondragenter = e => { e.preventDefault(); $('#dropZone').classList.add('active'); };
   $('#dropZone').ondragleave = e => { e.preventDefault(); $('#dropZone').classList.remove('active'); };
@@ -2606,19 +2638,24 @@ function addUserMsg(text, userFiles, inputSource = 'text') {
 
   // Build files HTML with image previews (Vercel pattern)
   let filesHtml = '';
+  const fileDataUrls = []; // store data URLs for click-to-preview
   if (userFiles.length) {
     filesHtml = '<div class="files" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
-      userFiles.map(f => {
-        if (f.preview || (f.type && f.type.startsWith('image/'))) {
-          // Image with preview
-          const src = f.preview || (f instanceof File ? URL.createObjectURL(f) : '');
-          return `<div class="file" style="display:flex;flex-direction:column;gap:4px;padding:4px;background:var(--chat-surface);border-radius:8px;border:1px solid var(--chat-border)">
-            <img src="${src}" alt="${esc(f.name)}" style="width:80px;height:80px;object-fit:cover;border-radius:4px"/>
+      userFiles.map((f, idx) => {
+        const ext = (f.name || '').split('.').pop().toLowerCase();
+        const isImage = ['png','jpg','jpeg','gif','bmp','webp','svg'].includes(ext) || (f.type && f.type.startsWith('image/'));
+        const dataUrl = f.preview || f.data || (f instanceof File ? URL.createObjectURL(f) : '');
+        fileDataUrls.push({ name: f.name, ext, isImage, dataUrl, size: f.size || 0 });
+        if (isImage && dataUrl) {
+          return `<div class="file file-preview" data-file-idx="${idx}" style="display:flex;flex-direction:column;gap:4px;padding:4px;background:var(--chat-surface);border-radius:8px;border:1px solid var(--chat-border);cursor:pointer" title="Click to preview">
+            <img src="${dataUrl}" alt="${esc(f.name)}" style="width:80px;height:80px;object-fit:cover;border-radius:4px"/>
             <span class="file-name" style="font-size:10px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
           </div>`;
         } else {
-          // Regular file
-          return `<div class="file"><span class="file-icon">${icons.file}</span><span class="file-name">${esc(f.name)}</span></div>`;
+          // Non-image file card — show icon + name, clickable if we have data
+          const cursor = dataUrl ? 'cursor:pointer' : '';
+          const hint = dataUrl ? ' title="Click to preview"' : '';
+          return `<div class="file file-preview" data-file-idx="${idx}" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--chat-surface);border-radius:8px;border:1px solid var(--chat-border);${cursor}"${hint}><span class="file-icon">${icons.file}</span><span class="file-name">${esc(f.name)}</span><span style="color:var(--chat-muted);font-size:10px">${f.size ? (f.size/1024).toFixed(0)+'KB' : ''}</span></div>`;
         }
       }).join('') + '</div>';
   }
@@ -2626,6 +2663,49 @@ function addUserMsg(text, userFiles, inputSource = 'text') {
   const sourceIcon = inputSource === 'voice' ? ' 🎤' : '';
   el.innerHTML = `<div class="bubble"><div class="content">${text ? esc(text) : '<em style="color:var(--chat-muted)">(attachments only)</em>'}</div>${filesHtml}<div class="meta">${time()}${sourceIcon}<button class="msg-tag-btn" title="Add tag">+</button></div></div>`;
   $('#msgs').appendChild(el);
+
+  // Attach click-to-preview handlers on file cards
+  el.querySelectorAll('.file-preview').forEach(card => {
+    const idx = parseInt(card.getAttribute('data-file-idx'), 10);
+    const info = fileDataUrls[idx];
+    if (!info || !info.dataUrl) return;
+    card.onclick = function(e) {
+      e.stopPropagation();
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+      overlay.onclick = function() { overlay.remove(); };
+      var box = document.createElement('div');
+      box.style.cssText = 'width:90vw;height:90vh;position:relative;display:flex;flex-direction:column';
+      // Header
+      var hdr = document.createElement('div');
+      hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-shrink:0';
+      hdr.innerHTML = '<span style="color:#94a3b8;font-size:13px">' + esc(info.name) + (info.size ? ' (' + (info.size/1024).toFixed(0) + ' KB)' : '') + '</span><button style="background:none;border:none;color:white;font-size:28px;cursor:pointer" onclick="this.closest(\'div[style*=fixed]\').remove();event.stopPropagation()">\u00d7</button>';
+      box.appendChild(hdr);
+      // Content
+      var content = document.createElement('div');
+      content.style.cssText = 'flex:1;min-height:0;border-radius:8px;overflow:hidden';
+      content.onclick = function(ev) { ev.stopPropagation(); };
+      if (info.isImage) {
+        content.innerHTML = '<img src="' + info.dataUrl + '" style="width:100%;height:100%;object-fit:contain">';
+      } else if (info.ext === 'pdf') {
+        var obj = document.createElement('object');
+        obj.data = info.dataUrl;
+        obj.type = 'application/pdf';
+        obj.style.cssText = 'width:100%;height:100%';
+        obj.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:40px">PDF preview not supported in this browser</p>';
+        content.appendChild(obj);
+      } else {
+        var ifr = document.createElement('iframe');
+        ifr.src = info.dataUrl;
+        ifr.style.cssText = 'width:100%;height:100%;border:none;background:white';
+        content.appendChild(ifr);
+      }
+      box.appendChild(content);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    };
+  });
+
   const msgIndex = document.querySelectorAll('#msgs .msg').length - 1;
   el.querySelector('.msg-tag-btn').onclick = function(e) { e.stopPropagation(); showTagPicker(msgIndex, el.querySelector('.msg-tag-btn')); };
   renderMessageTags(msgIndex);

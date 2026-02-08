@@ -407,6 +407,70 @@ async def get_evidence_content(evidence_id: str):
             return JSONResponse({"error": "File not found"}, status_code=404)
     return JSONResponse({"error": "Evidence not found"}, status_code=404)
 
+def _qlmanage_preview(file_path: str) -> "Optional[bytes]":
+    """Use macOS qlmanage to generate a PNG preview thumbnail for any file."""
+    tmp_dir = None
+    try:
+        tmp_dir = tempfile.mkdtemp(prefix="ql_")
+        result = subprocess.run(
+            ["qlmanage", "-t", "-s", "1600", "-o", tmp_dir, file_path],
+            capture_output=True, timeout=15
+        )
+        if result.returncode != 0:
+            return None
+        for f in Path(tmp_dir).iterdir():
+            if f.suffix.lower() == ".png":
+                return f.read_bytes()
+        return None
+    except Exception:
+        return None
+    finally:
+        if tmp_dir:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# Extensions the browser can render natively
+_IMAGE_EXTS = {"png", "jpg", "jpeg", "bmp", "gif", "webp", "svg"}
+_IMAGE_MEDIA = {
+    "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+    "bmp": "image/bmp", "gif": "image/gif", "webp": "image/webp", "svg": "image/svg+xml",
+}
+_TEXT_EXTS = {"txt", "md", "csv", "json", "eml", "log", "xml", "yml", "yaml", "ini", "cfg", "conf", "sh", "py", "js", "ts", "html", "htm", "css"}
+
+
+@router.get("/api/evidence/{evidence_id}/quicklook")
+async def quicklook_evidence(evidence_id: str):
+    """Preview evidence file. Browser-native for images/PDF/text, macOS QuickLook thumbnail for everything else."""
+    for e in get_evidence():
+        if e["id"] == evidence_id:
+            file_path = Path(e.get("file_path", ""))
+            if not file_path.exists():
+                return JSONResponse({"error": "File not found"}, status_code=404)
+
+            ext = file_path.suffix.lower().lstrip(".")
+
+            # 1. Images — browser renders natively
+            if ext in _IMAGE_EXTS:
+                return FileResponse(file_path, media_type=_IMAGE_MEDIA.get(ext, "application/octet-stream"))
+
+            # 2. PDF — browser renders natively in iframe
+            if ext == "pdf":
+                return FileResponse(file_path, media_type="application/pdf")
+
+            # 3. Text-like — browser renders as plain text in iframe
+            if ext in _TEXT_EXTS:
+                return FileResponse(file_path, media_type="text/plain; charset=utf-8")
+
+            # 4. Everything else — macOS QuickLook generates a PNG thumbnail
+            png_data = _qlmanage_preview(str(file_path))
+            if png_data:
+                return Response(content=png_data, media_type="image/png")
+
+            return JSONResponse({"error": f"Preview not available for .{ext} files"}, status_code=404)
+
+    return JSONResponse({"error": "Evidence not found"}, status_code=404)
+
+
 @router.get("/api/evidence/{evidence_id}/provenance")
 async def get_evidence_provenance(evidence_id: str):
     """Get evidence provenance chain."""
