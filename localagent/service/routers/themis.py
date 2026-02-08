@@ -16,6 +16,9 @@ import os
 import subprocess
 import tempfile
 import shutil
+import logging
+
+logger = logging.getLogger("themis")
 
 # MLX AI and Spotlight connectors
 try:
@@ -474,41 +477,35 @@ tr:hover{background:#2a2a48}
     return ''.join(html_parts)
 
 
-def _parse_dwg_to_html(file_path: str) -> str:
-    """Extract DWG binary header metadata and render an informative HTML preview."""
-    p = Path(file_path)
-    size = p.stat().st_size
-    # DWG version mapping: first 6 bytes = version string
-    DWG_VERSIONS = {
-        "AC1014": "AutoCAD R14 (1997)", "AC1015": "AutoCAD 2000",
-        "AC1018": "AutoCAD 2004", "AC1021": "AutoCAD 2007",
-        "AC1024": "AutoCAD 2010", "AC1027": "AutoCAD 2013",
-        "AC1032": "AutoCAD 2018+",
-    }
-    with open(file_path, "rb") as f:
-        header = f.read(64)
-    version_tag = header[:6].decode("ascii", errors="ignore")
-    version_name = DWG_VERSIONS.get(version_tag, f"Unknown ({version_tag})")
-
-    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-body{{margin:0;padding:40px;font-family:-apple-system,system-ui,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 80px)}}
-.card{{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:40px;max-width:400px;text-align:center}}
-.icon{{width:80px;height:80px;background:#0891b220;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;font-weight:800;color:#0891b2}}
-h2{{color:#0891b2;margin:0 0 16px;font-size:18px}}
-.meta{{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;text-align:left;margin:16px 0}}
-.label{{color:#64748b;font-size:12px}}.value{{color:#e2e8f0;font-size:13px;font-weight:500}}
-.hint{{margin-top:20px;padding:12px;background:#1a1a2e;border-radius:8px;font-size:11px;color:#94a3b8;line-height:1.5}}
-</style></head><body><div class="card">
-<div class="icon">DWG</div>
-<h2>{p.name}</h2>
-<div class="meta">
-<span class="label">Format</span><span class="value">{version_name}</span>
-<span class="label">Version tag</span><span class="value">{version_tag}</span>
-<span class="label">File size</span><span class="value">{size/1024:.0f} KB ({size/1024/1024:.1f} MB)</span>
-</div>
-<div class="hint">DWG is a proprietary AutoCAD binary format. Visual preview requires a QuickLook DWG plugin.<br><br>
-To enable visual previews, install a DWG QuickLook generator.</div>
-</div></body></html>"""
+def _render_dwg_to_svg(file_path: str) -> "Optional[str]":
+    """Convert DWG to SVG using libredwg's dwg2SVG. Returns SVG string or None."""
+    dwg2svg_bin = shutil.which("dwg2SVG")
+    if not dwg2svg_bin:
+        return None
+    try:
+        result = subprocess.run(
+            [dwg2svg_bin, file_path],
+            capture_output=True, timeout=30
+        )
+        if result.returncode != 0:
+            logger.warning(f"dwg2SVG failed: {result.stderr[:200]}")
+            return None
+        svg_data = result.stdout.decode("utf-8", errors="ignore")
+        if not svg_data.strip().startswith("<?xml") and "<svg" not in svg_data[:500]:
+            return None
+        # Add dark background — AutoCAD colors are designed for dark backgrounds
+        svg_data = svg_data.replace(
+            'viewBox="',
+            'style="background:#1a1a2e" viewBox="',
+            1
+        )
+        return svg_data
+    except subprocess.TimeoutExpired:
+        logger.warning("dwg2SVG timed out")
+        return None
+    except Exception as e:
+        logger.warning(f"dwg2SVG error: {e}")
+        return None
 
 
 def _qlmanage_preview(file_path: str) -> "Optional[bytes]":
@@ -574,14 +571,12 @@ async def quicklook_evidence(evidence_id: str):
                     logger.error(f"XER parse failed: {e}")
                     return JSONResponse({"error": f"Failed to parse XER: {e}"}, status_code=500)
 
-            # 5. DWG (AutoCAD) — metadata page (qlmanage hangs without a DWG plugin)
+            # 5. DWG (AutoCAD) — render to SVG via libredwg's dwg2SVG
             if ext == "dwg":
-                try:
-                    html = _parse_dwg_to_html(str(file_path))
-                    return HTMLResponse(content=html)
-                except Exception as e:
-                    logger.error(f"DWG parse failed: {e}")
-                    return JSONResponse({"error": f"Failed to read DWG: {e}"}, status_code=500)
+                svg_data = _render_dwg_to_svg(str(file_path))
+                if svg_data:
+                    return Response(content=svg_data, media_type="image/svg+xml")
+                logger.warning(f"dwg2SVG not available for {file_path.name}, falling through to qlmanage")
 
             # 6. Everything else — macOS QuickLook generates a PNG thumbnail
             png_data = _qlmanage_preview(str(file_path))
@@ -591,6 +586,26 @@ async def quicklook_evidence(evidence_id: str):
             return JSONResponse({"error": f"Preview not available for .{ext} files"}, status_code=404)
 
     return JSONResponse({"error": "Evidence not found"}, status_code=404)
+
+
+@router.post("/api/dwg/preview")
+async def dwg_preview(file: UploadFile):
+    """Convert uploaded DWG file to SVG via libredwg's dwg2SVG."""
+    tmp_path = None
+    try:
+        tmp_path = Path(tempfile.mktemp(suffix=".dwg", prefix="dwg_preview_"))
+        content = await file.read()
+        tmp_path.write_bytes(content)
+        svg_data = _render_dwg_to_svg(str(tmp_path))
+        if svg_data:
+            return Response(content=svg_data, media_type="image/svg+xml")
+        return JSONResponse({"error": "dwg2SVG not available or conversion failed"}, status_code=500)
+    except Exception as e:
+        logger.error(f"DWG preview failed: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+    finally:
+        if tmp_path and tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
 
 
 @router.get("/api/evidence/{evidence_id}/provenance")
