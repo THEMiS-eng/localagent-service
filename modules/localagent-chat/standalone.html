@@ -1087,7 +1087,7 @@ if (window.location.search.includes('mode=themis')) {
         });
       }
     });
-    console.log('[Chat] THEMIS file-drop handler registered');
+    console.log('[Chat] THEMIS file-drop handler registered (v2 2026-02-08)');
   })();
 }
 
@@ -2636,29 +2636,32 @@ function addUserMsg(text, userFiles, inputSource = 'text') {
   const el = document.createElement('div');
   el.className = 'msg user';
 
-  // Build files HTML with image previews (Vercel pattern)
+  // Build files HTML — v2 (2026-02-08) — NO img for non-images
   let filesHtml = '';
   const fileDataUrls = []; // store data URLs for click-to-preview
   if (userFiles.length) {
     filesHtml = '<div class="files" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
       userFiles.map((f, idx) => {
         const ext = (f.name || '').split('.').pop().toLowerCase();
-        // Only treat as image if ext is in browser-renderable list (no MIME fallback — avoids HEIC/TIFF broken img)
         const isImage = ['png','jpg','jpeg','gif','bmp','webp','svg'].includes(ext);
         const dataUrl = f.preview || f.data || (f instanceof File ? URL.createObjectURL(f) : '');
         fileDataUrls.push({ name: f.name, ext, isImage, dataUrl, size: f.size || 0 });
-        // Clickable if we have data
         const cursor = dataUrl ? 'cursor:pointer' : '';
         const hint = dataUrl ? ' title="Click to preview"' : '';
+        // Color-coded extension badge
+        const extColors = {pdf:'#dc2626',doc:'#2563eb',docx:'#2563eb',xls:'#16a34a',xlsx:'#16a34a',csv:'#16a34a',ppt:'#ea580c',pptx:'#ea580c',xer:'#7c3aed',mpp:'#7c3aed',dwg:'#0891b2',txt:'#6b7280',md:'#6b7280',json:'#f59e0b',eml:'#6366f1',msg:'#6366f1'};
+        const extColor = extColors[ext] || '#6b7280';
+        const sizeStr = f.size ? (f.size < 1024*1024 ? (f.size/1024).toFixed(0)+'KB' : (f.size/1024/1024).toFixed(1)+'MB') : '';
         if (isImage && dataUrl) {
-          return `<div class="file file-preview" data-file-idx="${idx}" style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--chat-surface);border-radius:8px;border:1px solid var(--chat-border);${cursor}"${hint}>
-            <img src="${dataUrl}" alt="${esc(f.name)}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;flex-shrink:0" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'"/>
-            <span class="file-icon" style="display:none">${icons.file}</span>
-            <span class="file-name">${esc(f.name)}</span>
-            <span style="color:var(--chat-muted);font-size:10px">${f.size ? (f.size/1024).toFixed(0)+'KB' : ''}</span>
+          return `<div class="file file-preview" data-file-idx="${idx}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--chat-surface);border-radius:8px;border:1px solid var(--chat-border);${cursor}"${hint}>
+            <img src="${dataUrl}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.outerHTML='<div style=\\'width:40px;height:40px;border-radius:6px;background:${extColor}15;display:flex;align-items:center;justify-content:center;flex-shrink:0\\'><span style=\\'font-size:11px;font-weight:700;color:${extColor};text-transform:uppercase\\'>${ext}</span></div>'"/>
+            <div style="flex:1;min-width:0"><div style="font-weight:500;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</div><div style="font-size:10px;color:var(--chat-muted)">${sizeStr}</div></div>
           </div>`;
         } else {
-          return `<div class="file file-preview" data-file-idx="${idx}" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--chat-surface);border-radius:8px;border:1px solid var(--chat-border);${cursor}"${hint}><span class="file-icon">${icons.file}</span><span class="file-name">${esc(f.name)}</span><span style="color:var(--chat-muted);font-size:10px">${f.size ? (f.size/1024).toFixed(0)+'KB' : ''}</span></div>`;
+          return `<div class="file file-preview" data-file-idx="${idx}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--chat-surface);border-radius:8px;border:1px solid var(--chat-border);${cursor}"${hint}>
+            <div style="width:40px;height:40px;border-radius:6px;background:${extColor}15;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:11px;font-weight:700;color:${extColor};text-transform:uppercase">${ext.length <= 4 ? ext : ext.substring(0,3)}</span></div>
+            <div style="flex:1;min-width:0"><div style="font-weight:500;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</div><div style="font-size:10px;color:var(--chat-muted)">${sizeStr}</div></div>
+          </div>`;
         }
       }).join('') + '</div>';
   }
